@@ -1,0 +1,36 @@
+------------------------------------------------------------------------
+r376555 | jgallacher | 2006-02-10 00:03:23 -0500 (Fri, 10 Feb 2006) | 3 lines
+Changed paths:
+   M /httpd/mod_python/trunk/configure
+   M /httpd/mod_python/trunk/configure.in
+
+Fixed configure.in to work correctly with bash 3.1.
+Ref MODPYTHON-122
+
+------------------------------------------------------------------------
+Index: configure
+===================================================================
+--- configure	(revision 376554)
++++ configure	(revision 376555)
+@@ -3035,7 +3035,7 @@
+ # get the mod_python version
+ 
+ MP_VERSION=`awk '/MPV_STRING/ {print $3}' src/include/mpversion.h`
+-MP_VERSION=`echo $MP_VERSION | sed s/\\"//g`
++MP_VERSION=`echo $MP_VERSION | sed 's/"//g'`
+ 
+ # get --with-python-src. The python src is required to generate the documentation
+ # It is not required to compile or install mod_python itself
+Index: configure.in
+===================================================================
+--- configure.in	(revision 376554)
++++ configure.in	(revision 376555)
+@@ -287,7 +287,7 @@
+ # get the mod_python version
+ AC_SUBST(MP_VERSION)
+ MP_VERSION=`awk '/MPV_STRING/ {print $3}' src/include/mpversion.h`
+-MP_VERSION=`echo $MP_VERSION | sed s/\\"//g`                                      
++MP_VERSION=`echo $MP_VERSION | sed 's/["]//g'`
+ 
+ # get --with-python-src. The python src is required to generate the documentation
+ # It is not required to compile or install mod_python itself
