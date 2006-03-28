@@ -27,8 +27,9 @@ DEPEND="dev-libs/expat
 src_unpack() {
 	unpack ${A} || die
 	if use mysql; then
-		cd ${WORKDIR}/${P}/dbd
-		wget http://apache.webthing.com/svn/apache/apr/apr_dbd_mysql.c
+		cd ${WORKDIR}/${P}/dbd/
+		cp "${FILESDIR}"/apr_dbd_mysql.c .
+		epatch "${FILESDIR}"/apr_dbd_mysql.c.diff
 	fi
 }
 
