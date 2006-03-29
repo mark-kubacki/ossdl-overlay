@@ -5,7 +5,7 @@
 DESCRIPTION="do not merge this yourself, this will be the base of a specific system configuration"
 HOMEPAGE="http://www.ossdl.de/"
 
-LICENSE="GPL-2 Apache-2.0 BSD"
+LICENSE="GPL-2 BSD"
 SLOT="0"
 KEYWORDS="~amd64 ~sparc x86"
 IUSE_VIDEO_CARDS="
@@ -23,6 +23,7 @@ RDEPEND="
 		video_cards_fglrx? ( media-video/rovclock )
 	)
 	sys-apps/coldplug
+	sys-apps/ddcxinfo-knoppix
 	sys-apps/hotplug
 	sys-apps/pcmciautils
 	sys-fs/udev
