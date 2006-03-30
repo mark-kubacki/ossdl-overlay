@@ -1,0 +1,8 @@
+Remember to invoke setup-procedures available through:
+ http://${VHOST_HOSTNAME}/${VHOST_APPDIR}/setup.php
+
+After that you are to enter all data necessary for connection
+with your choosen database in:
+ * /etc/pam.d/imap
+ * /usr/sbin/oma_mail.daimon.php
+
