@@ -5,9 +5,9 @@
 inherit eutils webapp
 
 DESCRIPTION="Administration interface for mailservers based on Cyrus and any MTA."
-SRC_URI="http://static.openmailadmin.org/downloads/openmailadmin-20060109-0.9.1.tbz2"
+SRC_URI="http://static.openmailadmin.org/downloads/${PN}-${PV}.tbz2"
 HOMEPAGE="http://www.openmailadmin.org/"
-RESTRICT=primaryuri,mirror
+RESTRICT="nomirror"
 
 LICENSE="GPL-2"
 KEYWORDS="~alpha ~amd64 ~arm ~hppa ~ia64 ~ppc ~ppc64 ~s390 ~sh ~sparc ~x86"
@@ -38,13 +38,26 @@ RDEPEND="${DEPEND}
 	"
 
 src_install() {
-	webapp_srv_preinst
+	webapp_src_preinst
 
-	cp -R * ${D}/${MY_HTDOCSDIR}
+	cp -R [[:lower:]]* ${D}/${MY_HTDOCSDIR}
+	rm -R ${D}/${MY_HTDOCSDIR}/samples
 	dodoc INSTALL
 	dosbin samples/oma_mail.daimon.php
-	webapp_serverowned inc
+	webapp_serverowned ${MY_HTDOCSDIR}/inc
 	
 	webapp_postinst_txt en ${FILESDIR}/postinstall-en.txt
 	webapp_src_install	
+}
+
+pkg_config() {
+	einfo "Type in your MySQL root password to create an empty openmailadmin database:"
+	mysqladmin -u root -p create openmailadmin
+}
+
+pkg_postinst() {
+	einfo "To setup a MySQL database, run:"
+	einfo "\"emerge --config =${PF}\""
+	einfo "If you are using PostgreSQL, consult your documentation"
+	webapp_pkg_postinst
 }
