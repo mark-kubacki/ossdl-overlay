@@ -6,3 +6,4 @@ with your choosen database in:
  * /etc/pam.d/imap
  * /usr/sbin/oma_mail.daimon.php
 
+After that, activate SASL with PAM for Cyrus and your MTA.

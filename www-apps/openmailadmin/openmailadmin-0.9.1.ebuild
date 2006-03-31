@@ -46,6 +46,7 @@ src_install() {
 	dosbin samples/oma_mail.daimon.php
 	webapp_serverowned ${MY_HTDOCSDIR}/inc
 	
+	webapp_postinst_txt de ${FILESDIR}/postinstall-de.txt
 	webapp_postinst_txt en ${FILESDIR}/postinstall-en.txt
 	webapp_src_install	
 }
