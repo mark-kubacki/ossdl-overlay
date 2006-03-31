@@ -1,6 +1,9 @@
 MD5 c8d9f1a225868cd88f0e9a10598e6c13 files/digest-openmailadmin-0.9.1 250
 RMD160 2500cae9c79e40815e122cef17d6a9b44168408c files/digest-openmailadmin-0.9.1 250
 SHA256 0fb87331a40ed4e9cfbce6af19a6ac96f1ed3e2d61e440887edc8c3ab2892993 files/digest-openmailadmin-0.9.1 250
+MD5 78918f576c625f8f3dafdc91d17473a5 files/digest-openmailadmin-0.9.2 250
+RMD160 419b7d170d25b7284d34e3740d00c55960032cc0 files/digest-openmailadmin-0.9.2 250
+SHA256 8c6f184ac2085dc1b08cdf0a9224a13a1b8cb7bf170a736446e30444b6438c5b files/digest-openmailadmin-0.9.2 250
 MD5 c583a511c808282da6ddb84e48a1238b files/postinstall-de.txt 326
 RMD160 3ba7cac03369217bab1c1dfaa295c1969ff20011 files/postinstall-de.txt 326
 SHA256 4b94e668e863106bbc28923722eff6131e272ed7732410e62f6ab723ff5f5069 files/postinstall-de.txt 326
@@ -10,3 +13,6 @@ SHA256 f017437956541d80bd69bf47f6cd6e8e89c4c17a4dce028e5f2469298b31d285 files/po
 MD5 4877f50578c047aa74f5f91b1e814c80 openmailadmin-0.9.1.ebuild 1768
 RMD160 05406c6851f34ad690b0413a4ac254ee1b1d98b2 openmailadmin-0.9.1.ebuild 1768
 SHA256 c290ebbf2edcd4049ad6c75bd682bb562e6621fb7288eae65076aeb861a605cc openmailadmin-0.9.1.ebuild 1768
+MD5 21fcfbd839c0c02d40e09f76a7cba286 openmailadmin-0.9.2.ebuild 1760
+RMD160 d385ba65d81ce3e7f856a8bac46a09d513544f69 openmailadmin-0.9.2.ebuild 1760
+SHA256 dfd0c7c6eb4c7903c8fe8fecce51deda55372d0249f88fda07ead49890961085 openmailadmin-0.9.2.ebuild 1760
