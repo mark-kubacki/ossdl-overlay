@@ -7,7 +7,7 @@ inherit eutils
 DESCRIPTION="numfilt is a filter-program that reads ASCII-Text from stdin and writes modified ASCII-Text to stdout."
 HOMEPAGE="http://www.gwdg.de/"
 SRC_URI="ftp://ftp.gwdg.de/pub/linux/misc/text_to_speech/${P}.tar.gz"
-RESTRICT="primaryuri"
+RESTRICT="primaryuri,test"
 
 LICENSE="NUMFILT"
 SLOT="0"
@@ -17,8 +17,8 @@ IUSE=""
 DEPEND="sys-devel/gcc"
 
 src_compile() {
-	cc numfilt.c -o numfilt
-	strip numfilt
+	epatch ${FILESDIR}/0.1-main_warning.patch
+	cc -Os numfilt.c -o numfilt
 }
 
 src_install() {
