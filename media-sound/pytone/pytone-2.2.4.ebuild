@@ -15,8 +15,8 @@ SLOT="0"
 KEYWORDS="~x86"
 IUSE="xmms mad xosd"
 
-DEPEND=""
-RDEPEND=">=dev-lang/python-2.3
+DEPEND=">=dev-lang/python-2.3"
+RDEPEND="${DEPEND}
 	mad? ( 
 		dev-python/pyao
 		dev-python/pymad
