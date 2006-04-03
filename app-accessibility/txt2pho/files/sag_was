@@ -1,0 +1,223 @@
+#!/bin/sh
+# Shell script to generate sound from ASCII text
+# Modified for gentoo by Thomas Schuetz aka Murray_B
+program_name=`basename $0`
+program_version="0.2"
+
+#if [ -z "$1" ]; then
+#    echo "\
+#$program_name: too few arguments
+#Try \`$program_name --help' for more information." 1>&2
+#    exit 1
+#fi
+
+[ -t 1 ] || silent=1 # don't show anything if stdout isn't a tty
+
+version()
+{
+    echo "$program_name (sag_was) $program_version"
+    exit 0
+}     
+help()
+{
+    echo "\
+Usage: $program_name [OPTION]... FILE
+Generate voicestream from text
+
+  -i, --input=FILE             specifies the ASCII file. If none is given, input
+                               is taken from /dev/stdin.
+  -d, --device=DEVICE          use DEVICE for output, default is a audio device
+      --format=FORMAT          Audio format to produce. FORMAT is either au or wav.
+  -g, --voice=VOICE            Voice Library to use. VOICE is either de1, de2 or de3
+  -p, --pipefilt               Cut newlines, make breathing time after punctuation marks.          
+  -a, --preproc                replace abbreviations
+  -n, --numfilt                replace digits by numbers.
+  -v, --volume=VOLUME          change amplitude. Default is 1
+  -f, --frequenzratio=RATIO    FREQ ratio, float ratio applied to pitch points
+  -t, --timerratio=RATIO       TIME ratio, float ratio applied to phone durations
+  -l, --voicefrequenz=FREQUENZ VOICE freq, target freq for voice quality in Hz
+  -h, --help                   display this help and exit
+      --version                output version information and exit
+      --silent                 do not display filename of currently played file"  
+     exit 0 
+ }
+
+
+# Define some variables
+input="/dev/stdin"
+path_to_voice="/usr/lib/festival/voices/german/de3_mbrola/de3"
+path_to_preproc="/usr/lib/preproc"
+voice="de3"
+#txt2pho_voice="f"
+volume="1"
+frequenzratio="1"
+timerratio="1"
+format="au"
+device="audio"
+
+count=0 
+while [ $# -ne 0 ]; do
+    case "$1" in
+        -h)
+            help
+            ;;
+        --help)
+            help
+            ;;
+        --version)
+            version
+            ;;      
+        -d)
+            shift
+            device="$1"
+            ;;
+        --device=*)
+            device=`echo $1 | sed 's/.*=//'`
+            ;;      	    
+        -i)
+            shift
+            input="$1"
+            ;;
+        --input=*)
+            input=`echo $1 | sed 's/.*=//'`
+            ;;
+        -g)
+            shift
+            voice="$1"
+            ;;
+        --voice=*)
+            voice=`echo $1 | sed 's/.*=//'`
+            ;; 
+        --format=*)
+	    format=`echo $1 | sed 's/.*=//'`
+	    ;;
+        -a)
+            #shift
+            preproc="| preproc $path_to_preproc/Rules.lst $path_to_preproc/Hadifix.abk"
+            ;;
+        --preproc)
+            preproc="| preproc $path_to_preproc/Rules.lst $path_to_preproc/Hadifix.abk"
+            ;; 
+        -p)
+            #shift
+            pipefilt="| pipefilt"
+            ;;
+        --pipefilt)
+            pipefilt="| pipefilt"
+            ;;
+        -n)
+            #shift
+            numfilt="| numfilt"
+            ;;
+        --numfilt)
+            numfilt="| numfilt"
+            ;;
+        -v)
+            shift
+            volume="$1"
+            ;;
+        --volume=*)
+            volume=`echo $1 | sed 's/.*=//'`
+            ;;	    	    
+        -f)
+            shift
+            frequenzratio="$1"
+            ;;
+        --frequenzratio=*)
+            frequenzratio=`echo $1 | sed 's/.*=//'`
+            ;;
+        -t)
+            shift
+            timerratio="$1"
+            ;;
+        --timerratio=*)
+            timerratio=`echo $1 | sed 's/.*=//'`
+            ;;
+        -l)
+            shift
+            voicefrequenz="$1"
+            ;;
+        --voicefrequenz=*)
+            voicefrequenz=`echo $1 | sed 's/.*=//'`
+            ;;
+	*)
+	    satz="$satz $1"
+	    ;;
+    esac
+    shift
+done
+
+
+# Source the config files
+
+if [ -z "/etc/txt2pho" ] || [ -z "~/.txt2phorc" ] ; then
+  echo "neither ~/.txt2phorc nore ~/.txt2phorc ($USER) found"
+  echo "synthesis will fail. Exit now"
+  exit 1
+fi
+if [ -f /etc/txt2pho ] ; then
+ source /etc/txt2pho
+ fi
+if [ -f ~/.txt2phorc ] ; then
+ source ~/.txt2phorc
+ fi
+
+	    if [ "$voice" == "de1" ] || [ "$voice" == "de3" ] ; then
+	      txt2pho_voice="f"
+	    fi
+
+	    if [ "$voice" == "de2" ] ; then 
+	      txt2pho_voice="m"
+	    fi
+	    
+
+            if [ "$txt2pho_voice" == "" ] && [ "$INVENTORY" == "female" ] ; then
+	      txt2pho_voice="f"
+	      voice="de3"
+	    fi
+
+            if [ "$txt2pho_voice" == "" ] && [ "$INVENTORY" == "male" ] ; then
+	      txt2pho_voice="m"
+	      voice="de2"
+	    fi
+
+
+            if [ "$voicefrequenz" == "" ] && [ "$voice" == "de1" ] ; then
+	      voicefrequenz="16000"
+	    fi
+            if [ "$voicefrequenz" == "" ] && [ "$voice" == "de2" ] ; then
+	      voicefrequenz="16000"
+	    fi
+            if [ "$voicefrequenz" == "" ] && [ "$voice" == "de3" ] ; then
+	      voicefrequenz="22050"
+	    fi	    	    
+            voice="$path_to_voice/$voice"    	    
+            if [ "$device" == "audio" ] ; then
+	      out_seq="-.$format | play - -t $format"
+	     else
+	       out_seq="$device"
+	     fi
+#arch=`uname -s` 
+#  case $arch in 
+#  Linux|FreeBSD)
+#    arch_defines="-t ossdsp"
+#    if [ -z "$device" ]; then
+#        device="/dev/dsp"
+#    fi
+#    ;;
+# esac
+# preproc=""
+# $preproc want work at the moment
+
+  if [ "$input" != "" ] ; then
+     command="cat $input $pipefilt $numfilt $preproc | txt2pho -$txt2pho_voice | mbrola -v $volume -f $frequenzratio -t $timerratio  -l \
+     $voicefrequenz $voice - $out_seq" #-.$format | play - -t $format"
+    fi
+  if [ "$satz" != "" ] ; then
+     command="echo $satz $pipefilt $numfilt $preproc | txt2pho -$txt2pho_voice | mbrola -v $volume -f $frequenzratio -t $timerratio  -l \
+     $voicefrequenz $voice - $out_seq" #-.$format | play - -t $format"
+    fi
+   
+eval $command
+
+exit
