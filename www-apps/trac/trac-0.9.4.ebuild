@@ -1,6 +1,6 @@
 # Copyright 1999-2006 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/www-apps/trac/trac-0.9.4.ebuild,v 1.2 2006/03/09 22:09:41 dju Exp $
+# $Header: $
 
 inherit distutils webapp
 
@@ -10,7 +10,7 @@ SRC_URI="http://ftp.edgewall.com/pub/trac/${P}.tar.gz"
 
 LICENSE="trac"
 KEYWORDS="~amd64 ~ppc ~sparc ~x86"
-IUSE="cgi fastcgi postgres sqlite enscript silvercity"
+IUSE="cgi fastcgi postgres sqlite enscript silvercity rbac"
 
 # doing so because utils (such as trac-admin), manpages... overlap
 SLOT="0"
@@ -53,6 +53,12 @@ pkg_setup () {
 	webapp_pkg_setup
 }
 
+src_compile() {
+	if use rbac ; then
+		epatch ${FILESDIR}/trac-rbac-r2.patch
+	fi
+}
+
 src_install () {
 	# project environments might go in here
 	keepdir /var/lib/trac
@@ -80,6 +86,9 @@ src_install () {
 	for lang in en; do
 		webapp_postinst_txt ${lang} ${FILESDIR}/${PV}-postinst-${lang}.txt
 	done
+	if use rbac ; then
+		einfo "Remember to add -D SVN_AUTHZ to /etc/conf.d/apache2."
+	fi
 
 	webapp_src_install
 

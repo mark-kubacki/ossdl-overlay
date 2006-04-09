@@ -1,0 +1,25 @@
+#!/sbin/runscript
+# Copyright 1999-2006 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License, v2 or later
+# $Header: /var/cvsroot/gentoo-x86/www-apps/trac/files/tracd.initd,v 1.1 2006/02/22 22:11:43 dju Exp $
+
+depend() {
+	need net
+}
+
+start() {
+	ebegin "Starting tracd"
+	start-stop-daemon --start --quiet --pidfile /var/run/tracd.pid \
+		--chuid ${TRACD_USER:-tracd}:${TRACD_GROUP:-tracd} \
+		--exec /usr/bin/tracd -- -d -p ${TRACD_PORT:-8000} \
+		${TRACD_OPTS:---env-parent-dir /var/lib/trac/} > /var/run/tracd.pid_
+	cat /var/run/tracd.pid_ | cut -d' ' -f6 > /var/run/tracd.pid
+	rm /var/run/tracd.pid_
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping tracd"
+	start-stop-daemon --stop --pidfile /var/run/tracd.pid
+	eend $?
+}
