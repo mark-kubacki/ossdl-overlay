@@ -1,0 +1,56 @@
+Index: subversion/bindings/swig/include/proxy_apr.swg
+===================================================================
+--- subversion/bindings/swig/include/proxy_apr.swg	(revision 18283)
++++ subversion/bindings/swig/include/proxy_apr.swg	(working copy)
+@@ -60,7 +60,10 @@
+  */
+ 
+ %pythoncode %{
++import threading
++
+ application_pool = None
++application_pool_lock = threading.Lock()
+ class GenericSWIGWrapper:
+   def __init__(self, this, pool):
+     """Create new Generic SWIG wrapper object"""
+@@ -98,21 +101,26 @@
+       def set_parent_pool(self, parent_pool=None):
+         """Create a new memory pool"""
+         global application_pool
++
++        try:
++          application_pool_lock.acquire()
++
++          self._parent_pool = parent_pool or application_pool
++          self._mark_valid()
++    
++          # Protect important functions from GC
++          self._apr_pool_destroy = _core.apr_pool_destroy
++          self._svn_swig_py_clear_application_pool = \
++            _core.svn_swig_py_clear_application_pool
++    
++          # If we are an application-level pool,
++          # then set this pool to be the application-level pool
++          if not self._parent_pool:
++            svn_swig_py_set_application_pool(self, self)
++            application_pool = self
++        finally:
++          application_pool_lock.release()
+   
+-        self._parent_pool = parent_pool or application_pool
+-        self._mark_valid()
+-  
+-        # Protect important functions from GC
+-        self._apr_pool_destroy = _core.apr_pool_destroy
+-        self._svn_swig_py_clear_application_pool = \
+-          _core.svn_swig_py_clear_application_pool
+-  
+-        # If we are an application-level pool,
+-        # then set this pool to be the application-level pool
+-        if not self._parent_pool:
+-          svn_swig_py_set_application_pool(self, self)
+-          application_pool = self
+-  
+       def valid(self):
+         """Check whether this memory pool and its parents
+         are still valid"""
