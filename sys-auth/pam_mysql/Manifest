@@ -1,2 +1,4 @@
 MD5 f4477f9b03e2fe4216502e43ae443b98 files/digest-pam_mysql-0.6.0-r1 67
+MD5 20caaf34d6655e315e35722a8a770ec1 files/digest-pam_mysql-0.6.2 67
 MD5 ff66e7b621376c35a85187936817d43b pam_mysql-0.6.0-r1.ebuild 849
+MD5 ff66e7b621376c35a85187936817d43b pam_mysql-0.6.2.ebuild 849
