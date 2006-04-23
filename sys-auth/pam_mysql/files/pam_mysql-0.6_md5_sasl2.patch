@@ -1,0 +1,11 @@
+--- Makefile	2006-04-23 18:06:10.503751250 +0200
++++ Makefile	2006-04-23 18:06:46.089975250 +0200
+@@ -106,7 +106,7 @@
+ LTLIBRARIES =  $(lib_LTLIBRARIES)
+ 
+ 
+-DEFS = -DHAVE_CONFIG_H -I. -I$(srcdir) -I.
++DEFS = -DHAVE_SASL_MD5_H -DHAVE_CYRUS_SASL_V2 -DHAVE_CONFIG_H -I. -I$(srcdir) -I.
+ CPPFLAGS = 
+ LDFLAGS = 
+ LIBS =  -L/usr/lib/mysql -lmysqlclient -lz -lcrypt -lnsl -lm -lssl -lcrypto -ldl     -lcrypt

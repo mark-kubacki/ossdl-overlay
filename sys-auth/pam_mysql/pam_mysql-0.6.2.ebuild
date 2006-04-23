@@ -1,8 +1,8 @@
-# Copyright 1999-2005 Gentoo Foundation
+# Copyright 2006 Ossdl.de, Hurrikane Systems
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-inherit libtool
+inherit eutils libtool
 
 DESCRIPTION="pam_mysql is a module for pam to authenticate users with mysql"
 HOMEPAGE="http://pam-mysql.sourceforge.net/"
@@ -11,7 +11,7 @@ SRC_URI="mirror://sourceforge/pam-mysql/${P}.tar.gz"
 DEPEND=">=sys-libs/pam-0.72 
 	>=dev-db/mysql-3.23.38
 	ssl? ( dev-libs/openssl )
-	sasl? ( dev-libs/cyrus-sasl )
+	sasl? ( =dev-libs/cyrus-sasl-2* )
 	"
 LICENSE="GPL-2"
 SLOT="0"
@@ -33,8 +33,13 @@ src_compile() {
 	if use sasl; then
 		myconf="${myconf} --with-sasl2"
 	fi
-
 	econf ${myconf}
+
+	if use ssl; then
+		epatch ${FILESDIR}/pam_mysql-0.6_md5_openssl.patch
+	elif use sasl; then
+                epatch ${FILESDIR}/pam_mysql-0.6_md5_sasl2.patch
+	fi
 	emake
 }
 
