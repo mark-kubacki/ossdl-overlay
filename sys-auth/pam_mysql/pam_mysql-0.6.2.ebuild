@@ -1,6 +1,6 @@
-# Copyright 1999-2005 Gentoo Foundation
+# Copyright 2006 Ossdl.de, Hurrikane Systems
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/sys-auth/pam_mysql/pam_mysql-0.6.0.ebuild,v 1.1 2005/07/04 14:20:50 azarah Exp $
+# $Header: $
 
 inherit eutils libtool
 
