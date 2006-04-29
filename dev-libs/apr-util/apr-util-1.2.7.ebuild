@@ -51,7 +51,10 @@ src_compile() {
 	myconf="${myconf} $(use_with sqlite3)"
 
 	if use berkdb; then
-		if has_version '=sys-libs/db-4.3*'; then
+		if has_version '=sys-libs/db-4.4*'; then
+			myconf="${myconf} --with-dbm=db44
+			--with-berkeley-db=/usr/include/db4.4:/usr/$(get_libdir)"
+		elif has_version '=sys-libs/db-4.3*'; then
 			myconf="${myconf} --with-dbm=db43
 			--with-berkeley-db=/usr/include/db4.3:/usr/$(get_libdir)"
 		elif has_version '=sys-libs/db-4.2*'; then
