@@ -10,4 +10,4 @@ MD5 38d4edc86610d0e18bb0a36a05e56479 files/trac-rbac-r2.patch 10386
 MD5 95b1311ca65e1ffcd51a191542f45ba4 files/tracd.confd 359
 MD5 4dc8d28369a56b8efd84fd118c2cb28b files/tracd.initd 743
 MD5 0e9b1e9bbfcf7546cfcf3f93647a2702 trac-0.9.4.ebuild 2788
-MD5 0d8da3adcefd82249637608acc43185f trac-0.9.5.ebuild 2787
+MD5 a1a7c4e537cd9236efcb4d8a3a8de8d0 trac-0.9.5.ebuild 2787

@@ -84,7 +84,7 @@ src_install () {
 	rm -rf ${my_dir}/cgi-bin || die
 
 	for lang in en; do
-		webapp_postinst_txt ${lang} ${FILESDIR}/${PV}-postinst-${lang}.txt
+		webapp_postinst_txt ${lang} ${FILESDIR}/0.9.4-postinst-${lang}.txt
 	done
 	if use rbac ; then
 		einfo "Remember to add -D SVN_AUTHZ to /etc/conf.d/apache2."
