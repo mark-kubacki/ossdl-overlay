@@ -1,0 +1,11 @@
+[Desktop Entry]
+Encoding=UTF-8
+Version=1.0.0
+Name=Aqua Data Studio
+Type=Application
+Comment=Aqua Data Studio provides an integrated database environment with a single consistent interface to all major relational databases.
+Exec=/opt/datastudio/datastudio-bundled.sh
+Path=
+Icon=/opt/datastudio/datastudio.gif
+Terminal=false
+Categories=Application;Development;
