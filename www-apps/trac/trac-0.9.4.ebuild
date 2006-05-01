@@ -20,7 +20,7 @@ WEBAPP_MANUAL_SLOT="yes"
 # we need to depend on virtual/httpd-fcgi to bring mod_fastcgi/lighttpd/whatever in when USE fastcgi
 # we need to depend on virtual/httpd-python to bring mod_python/whatever in when USE python (python
 #     is rather confusing here, as dev-lang/python is a required dependency, but httpd-python isn't)
-DEPEND="${DEPEND}
+RDEPEND="${DEPEND}
 	>=dev-lang/python-2.3
 	app-text/pytextile
 	>=dev-python/docutils-0.3.3

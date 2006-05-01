@@ -12,7 +12,7 @@ SRC_URI="http://aquafold.fileburst.com/download/v${PV}/linux/ads-linux-x86-${PV}
 
 LICENSE="free-noncomm"
 SLOT="0"
-KEYWORDS="-* ~sparc ~mips amd64 x86"
+KEYWORDS="-* amd64 x86"
 IUSE=""
 
 DEPEND="!amd64? (
@@ -22,7 +22,7 @@ DEPEND="!amd64? (
 	)
 	amd64? ( app-emulation/emul-linux-x86-gtklibs )
 	"
-RDEPEND="${RDEPEND}
+RDEPEND="${DEPEND}
 	virtual/x11
 	"
 RESTRICT="nostrip nomirror"

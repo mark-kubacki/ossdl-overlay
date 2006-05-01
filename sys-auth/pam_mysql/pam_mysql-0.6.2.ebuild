@@ -15,7 +15,7 @@ DEPEND=">=sys-libs/pam-0.72
 	"
 LICENSE="GPL-2"
 SLOT="0"
-KEYWORDS="~alpha ~amd64 ~ppc ~sparc ~x86"
+KEYWORDS="alpha amd64 ppc sparc x86"
 IUSE="ssl sasl"
 
 src_unpack() {
