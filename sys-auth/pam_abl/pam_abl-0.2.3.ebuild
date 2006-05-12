@@ -12,7 +12,7 @@ RDEPEND=">=sys-libs/pam-0.72
 	"
 LICENSE="as-is"
 SLOT="0"
-KEYWORDS="*~ ~alpha ~amd64 ~ppc ~sparc ~x86"
+KEYWORDS="~alpha ~ppc ~sparc ~x86"
 IUSE=""
 
 src_unpack() {
