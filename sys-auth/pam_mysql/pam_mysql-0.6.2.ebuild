@@ -36,9 +36,11 @@ src_compile() {
 	econf ${myconf}
 
 	if use ssl; then
-		epatch ${FILESDIR}/pam_mysql-0.6_md5_openssl.patch
+		sed 's/DEFS = /DEFS = -DHAVE_OPENSSL /g' Makefile > Makefile.new \
+		&& mv Makefile.new Makefile
 	elif use sasl; then
-                epatch ${FILESDIR}/pam_mysql-0.6_md5_sasl2.patch
+		sed 's/DEFS = /DEFS = -DHAVE_SASL_MD5_H -DHAVE_CYRUS_SASL_V2 /g' Makefile > Makefile.new \
+		&& mv Makefile.new Makefile
 	fi
 	emake
 }

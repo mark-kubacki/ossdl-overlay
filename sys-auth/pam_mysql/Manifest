@@ -1,16 +1,8 @@
-AUX pam_mysql-0.6_md5_openssl.patch 379 RMD160 eff962f761faf796712e2dd54fa3f106e93df97f SHA1 e21ce006f7e6bb4e5d7a45c7a84fd91840a00daf SHA256 7df2526ac10f0dfa236528e053b7e8ace9b59d5a5573f8f77949141436d579f8 size 379
-MD5 10ead1afa5d61b69652c6540f3202453 files/pam_mysql-0.6_md5_openssl.patch 379
-RMD160 eff962f761faf796712e2dd54fa3f106e93df97f files/pam_mysql-0.6_md5_openssl.patch 379
-SHA256 7df2526ac10f0dfa236528e053b7e8ace9b59d5a5573f8f77949141436d579f8 files/pam_mysql-0.6_md5_openssl.patch 379
-AUX pam_mysql-0.6_md5_sasl2.patch 403 RMD160 f2590cabcb6ca7bc139753b8cea82ffd96ce6a61 SHA1 2d4288c5a6a48449ae8ad4d1b338a6a52f963910 SHA256 41b148ac0f27c03258452cae687fbc69b3d04cc51945afc1f4e7f0b17a7adf36 size 403
-MD5 1ce23fd2e63489086a5876032309c6f4 files/pam_mysql-0.6_md5_sasl2.patch 403
-RMD160 f2590cabcb6ca7bc139753b8cea82ffd96ce6a61 files/pam_mysql-0.6_md5_sasl2.patch 403
-SHA256 41b148ac0f27c03258452cae687fbc69b3d04cc51945afc1f4e7f0b17a7adf36 files/pam_mysql-0.6_md5_sasl2.patch 403
-DIST pam_mysql-0.6.2.tar.gz 325657 size 325657
-EBUILD pam_mysql-0.6.2.ebuild 1021 RMD160 63c6dfbc580c5b9323e4124aee6f0fbee402ed36 SHA1 cbd19714db2678b6e892f7bd927dcd558b893bfe SHA256 035ff612059498b8238dd884c1a5893ca0b4629b0f944d13fb78e0f1bf56ada5 size 1021
-MD5 8af0b563119d5914c8c4c0d957734c6f pam_mysql-0.6.2.ebuild 1021
-RMD160 63c6dfbc580c5b9323e4124aee6f0fbee402ed36 pam_mysql-0.6.2.ebuild 1021
-SHA256 035ff612059498b8238dd884c1a5893ca0b4629b0f944d13fb78e0f1bf56ada5 pam_mysql-0.6.2.ebuild 1021
-MD5 20caaf34d6655e315e35722a8a770ec1 files/digest-pam_mysql-0.6.2 67
-RMD160 8cb26b2c3844ea362c977dbbff5d08d70988fc82 files/digest-pam_mysql-0.6.2 67
-SHA256 2664ba5c8e61087a9c8a69d5e96fdebbb8a1a9c79807031c8b9e742ebb9c4577 files/digest-pam_mysql-0.6.2 67
+DIST pam_mysql-0.6.2.tar.gz 325657 RMD160 7c781b9648fb76f08b00bd056ed211347c40db07 SHA256 c6e5dd2b887d31bf2f4d105029ef23cdc9360119bdcf0d2b31f88e433eff69ce size 325657
+EBUILD pam_mysql-0.6.2.ebuild 1125 RMD160 3bef4231d7f90a900ffc6dda51395d3b66315815 SHA1 09aae8db7c4103102fd1ecfb44b5a54cb9250c81 SHA256 de8cbb479bf8386b9ed5870ca56c66f2e7202087beb809ec30e22e3a133c945d size 1125
+MD5 f70422b6af548e7307d8c662b3560daf pam_mysql-0.6.2.ebuild 1125
+RMD160 3bef4231d7f90a900ffc6dda51395d3b66315815 pam_mysql-0.6.2.ebuild 1125
+SHA256 de8cbb479bf8386b9ed5870ca56c66f2e7202087beb809ec30e22e3a133c945d pam_mysql-0.6.2.ebuild 1125
+MD5 bb1455b998ee30384b7a0e23f9a91a35 files/digest-pam_mysql-0.6.2 247
+RMD160 69ce5f425a59c02eddcace173498221866bf4c35 files/digest-pam_mysql-0.6.2 247
+SHA256 20570d68b2c931dcb315b96cd0bc905fcc7cd1aa44e9144596213a40f6353f7a files/digest-pam_mysql-0.6.2 247
