@@ -1,0 +1,57 @@
+Index: trac/scripts/admin.py
+===================================================================
+--- trac/scripts/admin.py	(Revision 3316)
++++ trac/scripts/admin.py	(Arbeitskopie)
+@@ -284,7 +284,7 @@
+             seconds = int(time.time())
+         else:
+             for format in [self._date_format, '%x %X', '%x, %X', '%X %x', '%X, %x', '%x', '%c',
+-                           '%b %d, %Y']:
++                           '%b %d, %Y', '%Y-%m-%d %X']:
+                 try:
+                     pt = time.strptime(t, format)
+                     seconds = int(time.mktime(pt))
+Index: trac/Timeline.py
+===================================================================
+--- trac/Timeline.py	(Revision 3316)
++++ trac/Timeline.py	(Arbeitskopie)
+@@ -96,7 +96,7 @@
+         t = time.localtime()
+         if req.args.has_key('from'):
+             try:
+-                t = time.strptime(req.args.get('from'), '%x')
++                t = time.strptime(req.args.get('from'), '%Y-%m-%d')
+             except:
+                 pass
+ 
+Index: trac/util.py
+===================================================================
+--- trac/util.py	(Revision 3316)
++++ trac/util.py	(Arbeitskopie)
+@@ -396,7 +396,7 @@
+ 
+ # Date/time utilities
+ 
+-def format_datetime(t=None, format='%x %X', gmt=False):
++def format_datetime(t=None, format='%Y-%m-%d %X', gmt=False):
+     if t is None:
+         t = time.time()
+     if not isinstance(t, (list, tuple, time.struct_time)):
+@@ -408,7 +408,7 @@
+     text = time.strftime(format, t)
+     return to_utf8(text)
+ 
+-def format_date(t=None, format='%x', gmt=False):
++def format_date(t=None, format='%Y-%m-%d', gmt=False):
+     return format_datetime(t, format, gmt)
+ 
+ def format_time(t=None, format='%X', gmt=False):
+@@ -447,7 +447,7 @@
+     seconds = None
+     text = text.strip()
+     for format in ['%x %X', '%x, %X', '%X %x', '%X, %x', '%x', '%c',
+-                   '%b %d, %Y']:
++                   '%b %d, %Y', '%Y-%m-%d %X']:
+         try:
+             date = time.strptime(text, format)
+             seconds = time.mktime(date)
