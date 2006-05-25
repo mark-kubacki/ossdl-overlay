@@ -1,0 +1,31 @@
+--- contrib/drac_auth.patch.org	2005-12-19 07:57:59.000000000 -0800
++++ contrib/drac_auth.patch	2005-12-29 22:54:33.000000000 -0800
+@@ -71,7 +71,7 @@
+ diff -u -r1.268.2.23 configure.in
+ --- configure.in	12 Apr 2005 20:05:20 -0000	1.268.2.23
+ +++ configure.in	19 Dec 2005 15:54:30 -0000
+-@@ -1003,6 +1003,19 @@
++@@ -1003,6 +1003,20 @@
+  SNMP_SUBDIRS=""
+  AC_SUBST(SNMP_SUBDIRS)
+  
+@@ -80,12 +80,13 @@
+ +dnl
+ +DRACLIBS=
+ +AC_ARG_WITH(drac, [  --with-drac=DIR         use DRAC library in <DIR> [no] ],
+-+	if test -d "$withval"; then
+-+		LDFLAGS="$LDFLAGS -L${withval}"
+-+		AC_CHECK_LIB(drac, dracauth,
+-+			AC_DEFINE(DRAC_AUTH,[],[Build DRAC support?])
+-+			DRACLIBS="-ldrac")
+-+	fi)
+++	drac="$withval",
+++	drac="no")	
+++if test "$drac" != "no"; then
+++	AC_CHECK_LIB(drac, dracauth,
+++		AC_DEFINE(DRAC_AUTH,[],[Build DRAC support?])
+++		DRACLIBS="-ldrac")
+++fi
+ +AC_SUBST(DRACLIBS)
+ +
+  CMU_LIBWRAP
