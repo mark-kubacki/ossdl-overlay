@@ -18,6 +18,10 @@ AUX cyrus-imapd-2.2.12-libwrap.patch 390 RMD160 4ed2b14f549ccfab487cff66e5f2cb8e
 MD5 88f50354abbcae1950a2d11c74db5fe5 files/cyrus-imapd-2.2.12-libwrap.patch 390
 RMD160 4ed2b14f549ccfab487cff66e5f2cb8ebdd39427 files/cyrus-imapd-2.2.12-libwrap.patch 390
 SHA256 2bddad2045130090ea23f5ad65d797cfa1f6083446bd00411cb1540cb56d4e0e files/cyrus-imapd-2.2.12-libwrap.patch 390
+AUX cyrus-imapd-2.2.13-backend.patch 833 RMD160 bce88727689f121ffb0b56af948789c67b20f1c8 SHA1 61ee51456370bf27e0a510bbed011224dcc0c2af SHA256 293f51e8d0aafb33f2b0a68efa162932acaaa20db01b2cfd8666c654e081a296 size 833
+MD5 8dab4b81332847c5bb4e548b29184769 files/cyrus-imapd-2.2.13-backend.patch 833
+RMD160 bce88727689f121ffb0b56af948789c67b20f1c8 files/cyrus-imapd-2.2.13-backend.patch 833
+SHA256 293f51e8d0aafb33f2b0a68efa162932acaaa20db01b2cfd8666c654e081a296 files/cyrus-imapd-2.2.13-backend.patch 833
 AUX cyrus-imapd-2.3.1-drac.patch 896 RMD160 8f66ae7ca569964e45f4691cee04e5a078da27e0 SHA1 dec856045905f4f852f6c9748b0a9f5aed3f19c7 SHA256 d8f086c99750e0045215bcc96bf4abbbd1ad48b89b6767de17e3145df170dec0 size 896
 MD5 0e81f80785347aff06cecae136fda4e5 files/cyrus-imapd-2.3.1-drac.patch 896
 RMD160 8f66ae7ca569964e45f4691cee04e5a078da27e0 files/cyrus-imapd-2.3.1-drac.patch 896
@@ -51,10 +55,10 @@ MD5 57680b7cb42f301a89befb11de92cc65 files/imapd.conf 1628
 RMD160 79bfb43ddf30f39ce8abf66ef6fcc40cac77a124 files/imapd.conf 1628
 SHA256 b11e14304450c9923f6a7483a09f08bb9497e21514b5a664855e2b771fcbe684 files/imapd.conf 1628
 DIST cyrus-imapd-2.2.13.tar.gz 2109770 RMD160 7e8ac84b5ddd9f1206e71d5b659d07d8400f9ac2 SHA256 109e85b901bfcdbdd6a76d7cac83af866aa9c37a40919be7f58813319082d09c size 2109770
-EBUILD cyrus-imapd-2.2.13.ebuild 9310 RMD160 de23c6cb736e456d2df0779110a0d498cf418576 SHA1 a8265e9808eb2bdd1cab911d42aac75833fcb4f7 SHA256 5f960fc40ef21cbe007d173477bb9246c8b8d3e781664ad149de896a27df2cdd size 9310
-MD5 8226aea6dc5b0e7991d284edc6e267be cyrus-imapd-2.2.13.ebuild 9310
-RMD160 de23c6cb736e456d2df0779110a0d498cf418576 cyrus-imapd-2.2.13.ebuild 9310
-SHA256 5f960fc40ef21cbe007d173477bb9246c8b8d3e781664ad149de896a27df2cdd cyrus-imapd-2.2.13.ebuild 9310
+EBUILD cyrus-imapd-2.2.13.ebuild 9385 RMD160 9980028ba5b107eab281eabb0562fdf5a392ed91 SHA1 caafa1c6cc9f60e97fe576b9cce0429484e33f7c SHA256 7c0d2c081a171ceda3becd5f493aea5cbfab869ae762731d488e68caa21985b4 size 9385
+MD5 b300eedc863f8090a05d7bed988eb74e cyrus-imapd-2.2.13.ebuild 9385
+RMD160 9980028ba5b107eab281eabb0562fdf5a392ed91 cyrus-imapd-2.2.13.ebuild 9385
+SHA256 7c0d2c081a171ceda3becd5f493aea5cbfab869ae762731d488e68caa21985b4 cyrus-imapd-2.2.13.ebuild 9385
 MISC metadata.xml 161 RMD160 273e570423fa3cd9d3f15f7967a43307c8ee9661 SHA1 a1fecd2f7b169d621b88c6ccab9d758209fc8f19 SHA256 4ebf9a8f60040bfb95f13790c1d146a49c69f791f9c421e02a5d96fd6fcb2b32 size 161
 MD5 5721b86fd871bdfab77231abc6e02f68 metadata.xml 161
 RMD160 273e570423fa3cd9d3f15f7967a43307c8ee9661 metadata.xml 161

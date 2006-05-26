@@ -143,6 +143,9 @@ src_unpack() {
 
 	ht_fix_file ${S}/imap/xversion.sh
 
+	# Fixes segfaults with deliver.
+	epatch "${FILESDIR}/${P}-backend.patch"
+
 	# Add unsupported patch wrt #18706 and #80630
 	use unsupported_8bit && epatch "${FILESDIR}/${PN}-unsupported-8bit.patch"
 
