@@ -1,0 +1,18 @@
+--- mod_auth_pam.c	2002-08-08 15:47:33.000000000 +0200
++++ mod_auth_pam.c-patched	2005-02-17 08:31:13.812819720 +0100
+@@ -231,13 +231,11 @@
+ 
+ static command_rec auth_pam_cmds[] = {
+   { "AuthFailDelay", (const char*(*)())auth_fail_delay, 0, OR_AUTHCFG, TAKE1,
+-    "number of micro seconds to wait after failed authentication attempt. defau
+-lt is 0" },
++    "number of micro seconds to wait after failed authentication attempt. default is 0" },
+   { "AuthPAM_Authorative", (const char*(*)())auth_fall_through, NULL, OR_AUTHCFG, FLAG,
+     "no longer in use -- see AuthPAM_FallThrough instead" },
+   { "AuthPAM_FallThrough", (const char*(*)())auth_fall_through, NULL, OR_AUTHCFG, FLAG,
+-    "on|off - determines if other authentication methods are attempted if this
+-one fails; default is off" },
++    "on|off - determines if other authentication methods are attempted if thisone fails; default is off" },
+   { "AuthPAM_Enabled", (const char*(*)())auth_enable, NULL, OR_AUTHCFG, FLAG,
+     "on|off - determines if PAM authentication is enabled; default is on" },
+   { 0 }
