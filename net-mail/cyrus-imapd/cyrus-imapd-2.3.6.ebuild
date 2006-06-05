@@ -13,7 +13,7 @@ DRAC_PATCH_VER="2.3.1"
 LICENSE="as-is"
 SLOT="0"
 KEYWORDS="~x86 ~sparc ~amd64 ~ppc ~hppa ~ppc64"
-IUSE="afs drac idled kerberos pam snmp ssl tcpd unsupported_8bit"
+IUSE="afs drac idled kerberos pam nntp snmp ssl tcpd unsupported_8bit"
 
 PROVIDE="virtual/imapd"
 RDEPEND=">=sys-libs/db-3.2
@@ -111,7 +111,7 @@ src_unpack() {
 	ht_fix_file ${S}/imap/xversion.sh
 
 	# Add unsupported patch wrt #18706 and #80630
-	use unsupported_8bit && epatch "${FILESDIR}/${PN}-unsupported-8bit.patch"
+	use unsupported_8bit && epatch "${FILESDIR}/${PN}-2.3.6-unsupported-8bit.patch"
 
 	# Add drac database support.
 	if use drac ; then
@@ -163,12 +163,13 @@ src_compile() {
 	myconf="${myconf} $(use_with tcpd libwrap)"
 	myconf="${myconf} $(use_enable kerberos gssapi)"
 	myconf="${myconf} $(use_enable idled)"
+	myconf="${myconf} $(use_enable nntp)"
 
 	econf \
 		--enable-murder \
 		--enable-listext \
 		--enable-netscapehack \
-		--with-extraident=Gentoo \
+		--with-extraident=Hurrikane \
 		--with-service-path=/usr/lib/cyrus \
 		--with-cyrus-user=cyrus \
 		--with-cyrus-group=mail \
