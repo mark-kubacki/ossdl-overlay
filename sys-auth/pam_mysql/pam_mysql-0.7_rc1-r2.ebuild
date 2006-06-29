@@ -16,7 +16,7 @@ DEPEND=">=sys-libs/pam-0.72
 LICENSE="GPL-2"
 SLOT="0"
 KEYWORDS="alpha ~amd64 ppc ~sparc x86"
-IUSE="openssl sasl"
+IUSE="openssl"
 S="${WORKDIR}/${P/_rc/RC}"
 
 src_unpack() {
@@ -29,16 +29,10 @@ src_unpack() {
 src_compile() {
 	local myconf="--with-mysql=/usr"
 	myconf="${myconf} $(use_with openssl)"
-	if use sasl; then
-		myconf="${myconf} --with-sasl2"
-	fi
 	econf ${myconf}
 
 	if use openssl; then
 		sed 's/DEFS = /DEFS = -DHAVE_OPENSSL /g' Makefile > Makefile.new \
-		&& mv Makefile.new Makefile
-	elif use sasl; then
-		sed 's/DEFS = /DEFS = -DHAVE_SASL_MD5_H -DHAVE_CYRUS_SASL_V2 /g' Makefile > Makefile.new \
 		&& mv Makefile.new Makefile
 	fi
 	emake
