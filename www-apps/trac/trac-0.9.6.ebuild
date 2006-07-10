@@ -87,6 +87,10 @@ src_install () {
 	for lang in en; do
 		webapp_postinst_txt ${lang} ${FILESDIR}/0.9.4-postinst-${lang}.txt
 	done
+
+	# copy graphics, css & js
+	cp -r htdocs/* ${D}/${MY_HTDOCSDIR}
+
 	if use rbac ; then
 		einfo "Remember to add -D SVN_AUTHZ to /etc/conf.d/apache2."
 	fi
