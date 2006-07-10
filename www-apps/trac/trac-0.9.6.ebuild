@@ -23,7 +23,7 @@ WEBAPP_MANUAL_SLOT="yes"
 RDEPEND="${DEPEND}
 	>=dev-lang/python-2.3
 	app-text/pytextile
-	>=dev-python/docutils-0.3.3
+	>=dev-python/docutils-0.3.9
 	dev-libs/clearsilver
 	>=dev-util/subversion-1.1
 	sqlite? ( >=dev-python/pysqlite-2 )
