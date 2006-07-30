@@ -1,0 +1,67 @@
+Index: trac/perm.py
+===================================================================
+--- trac/perm.py	(Revision 3579)
++++ trac/perm.py	(Arbeitskopie)
+@@ -18,7 +18,9 @@
+ 
+ """Management of permissions."""
+ 
++import os
+ from trac.core import *
++from trac import rbl
+ 
+ 
+ __all__ = ['IPermissionRequestor', 'IPermissionStore',
+@@ -225,6 +227,9 @@
+                         subjects.append(action)
+             if num_users == len(subjects) and num_actions == len(actions):
+                 break
++	if username == "anonymous" and rbl.is_blacklisted(os.environ['REMOTE_IP'], self.env.config.get):
++            for suffix in ['CREATE', 'DELETE', 'MODIFY', 'CHGPROP', 'ADMIN']:
++	        actions = filter((lambda x: not x.endswith(suffix)), actions)
+         return [action for action in actions if not action.islower()]
+ 
+     def get_all_permissions(self):
+Index: trac/rbl.py
+===================================================================
+--- trac/rbl.py	(Revision 0)
++++ trac/rbl.py	(Revision 0)
+@@ -0,0 +1,26 @@
++import socket
++
++def check_rbl(reverted_ip, rbl):
++    check_name = "%s.%s" % (reverted_ip, rbl.strip())
++    try:
++        check_addr = socket.gethostbyname(check_name)
++    except socket.error:
++        check_addr = None
++    if check_addr == "127.0.0.4":
++        return True
++    else:
++        return False
++
++def is_blacklisted(remote_ip, config_get):
++    """
++    @param	config_get	Is typically env.config.get
++    """
++    rbls = [rbl.strip() for rbl in config_get("trac", "rbl").split(",") if not rbl.strip() == ""]
++    if len(rbls) > 0:
++	addr_parts = remote_ip.split(".")
++	addr_parts.reverse()
++	reverted_ip = ".".join(addr_parts)
++	for rbl in rbls:
++    	    if check_rbl(reverted_ip, rbl):
++        	return True
++    return False
+Index: trac/web/modpython_frontend.py
+===================================================================
+--- trac/web/modpython_frontend.py	(Revision 3579)
++++ trac/web/modpython_frontend.py	(Arbeitskopie)
+@@ -189,6 +189,7 @@
+     # Allow specifying the python eggs cache directory using SetEnv
+     if req.subprocess_env.has_key('PYTHON_EGG_CACHE'):
+         os.environ['PYTHON_EGG_CACHE'] = req.subprocess_env['PYTHON_EGG_CACHE']
++    os.environ['REMOTE_IP'] = req.connection.remote_ip
+ 
+     mpr = ModPythonRequest(req, options)
+     project_opts = dict_translate(options,
