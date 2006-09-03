@@ -1,9 +1,12 @@
+Before running setup you will have to create the corresponding
+confifguration file for IMAP:
+ * /etc/pam.d/imap
+
 Remember to invoke setup-procedures available through:
  http://${VHOST_HOSTNAME}/${VHOST_APPDIR}/setup.php
 
 After that you are to enter all data necessary for connection
 with your choosen database in:
- * /etc/pam.d/imap
  * /usr/sbin/oma_mail.daimon.php
 
-After that, activate SASL with PAM for Cyrus and your MTA.
+Don't forget activating SASL with PAM for Cyrus and your MTA.

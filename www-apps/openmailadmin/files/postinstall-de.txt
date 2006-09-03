@@ -1,8 +1,10 @@
+Bitte vor dem nachfolgenden Schritt erst Kennworte fuer PAM setzen in:
+ * /etc/pam.d/imap
+
 Zur abschließenden Einrichtung muss noch folgende Seite aufgerufen werden:
  http://${VHOST_HOSTNAME}/${VHOST_APPDIR}/setup.php
 
-Ist dies vollbracht, muss das dort gewählte Kennwort für die Datenbank
+Ist dies vollbracht, muss das dort gewaehlte Kennwort fueür die Datenbank
 hier eingetragen und SASL mit PAM für Cyrus und den MTA aktiviert werden:
- * /etc/pam.d/imap
  * /usr/sbin/oma_mail.daimon.php
 
