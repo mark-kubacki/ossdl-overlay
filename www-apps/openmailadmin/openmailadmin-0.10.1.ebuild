@@ -38,7 +38,7 @@ src_unpack() {
 	unpack ${A} && cd ${S}
 	epatch ${FILESDIR}/oma-0.10.0-exception_handler.patch
 	epatch ${FILESDIR}/oma-0-variable_mailbox_length.patch
-	if use mysql || usr mysqli ; then
+	if use mysql || use mysqli ; then
 		epatch ${FILESDIR}/oma-0-mysql-5.0-LIMIT-bug.patch
 	fi
 }
