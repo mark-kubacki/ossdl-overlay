@@ -1,0 +1,17 @@
+Index: inc/exception_handler.php
+===================================================================
+--- inc/exception_handler.php (revision 420)
++++ inc/exception_handler.php (revision 543)
+@@ -7,5 +7,6 @@
+ 
+ function PrettyBlueScreen($e) {
+-	ob_clean();
++	ob_end_clean();
++	@ob_start('ob_gzhandler');
+ 	$o = create_function('$in', 'echo htmlspecialchars($in);');
+ 	$sub = create_function('$f', '$loc="";if(isset($f["class"])){
+@@ -25,3 +26,4 @@
+ 	$desc = get_class($e)." making ".$_SERVER['REQUEST_METHOD']." request to ".$_SERVER['REQUEST_URI'];
+ 	include('./templates/ExceptionHandler.tpl');
++	ob_end_flush();
+ }

@@ -1,0 +1,13 @@
+Index: templates/shadow/mailboxes/admin.tpl
+===================================================================
+--- templates/shadow/mailboxes/admin.tpl	(Revision 535)
++++ templates/shadow/mailboxes/admin.tpl	(Arbeitskopie)
+@@ -25,7 +25,7 @@
+ 			<?php } ?>
+ 			<b><?= txt('83') ?></b>
+ 		</td>
+-		<td class="ed"><?= $input->text('mbox', 16) ?></td>
++		<td class="ed"><?= $input->text('mbox', $cfg['mbox']['max_length']) ?></td>
+ 	</tr>
+ 	<?php if(count($selectable_paten['ID']) > 1) { ?>
+ 	<tr>

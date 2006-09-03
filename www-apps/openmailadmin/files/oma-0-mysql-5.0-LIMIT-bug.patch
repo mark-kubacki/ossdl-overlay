@@ -1,0 +1,13 @@
+Index: inc/lib/openmailadmin.php
+===================================================================
+--- inc/lib/openmailadmin.php	(revision 542)
++++ inc/lib/openmailadmin.php	(working copy)
+@@ -744,7 +744,7 @@
+ 			$where_clause = ' WHERE pate='.$this->db->qstr($this->current_user->mbox);
+ 		}
+ 
+-		$result = $this->db->SelectLimit('SELECT mbox, person, canonical, pate, max_alias, max_regexp, usr.active, last_login AS lastlogin, a_super, a_admin_domains, a_admin_user, '
++		$result = $this->db->SelectLimit('SELECT SQL_CALC_FOUND_ROWS mbox, person, canonical, pate, max_alias, max_regexp, usr.active, last_login AS lastlogin, a_super, a_admin_domains, a_admin_user, '
+ 						.'COUNT(DISTINCT virt.address) AS num_alias, '
+ 						.'COUNT(DISTINCT rexp.ID) AS num_regexp '
+ 					.'FROM '.$this->tablenames['user'].' usr '
