@@ -1,0 +1,11 @@
+--- cdrtools-2.01/cdrecord/cdrecord.c.writemode	2004-03-12 13:37:54.164860489 +0100
++++ cdrtools-2.01/cdrecord/cdrecord.c	2004-03-12 13:38:02.747937392 +0100
+@@ -3597,8 +3597,6 @@
+ 			errmsgno(EX_BAD, "No write mode specified.\n");
+ 			errmsgno(EX_BAD, "Asuming -tao mode.\n");
+ 			errmsgno(EX_BAD, "Future versions of cdrecord may have different drive dependent defaults.\n");
+-			errmsgno(EX_BAD, "Continuing in 5 seconds...\n");
+-			sleep(5);
+ 			tao = 1;
+ 		}
+ 		tracks++;
