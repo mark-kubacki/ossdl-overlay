@@ -20,6 +20,6 @@ RDEPEND="
 	>=dev-perl/Mail-SPF-Query-1.998
 	dev-perl/Geo-IP
 	dev-perl/Net-SSLeay
-	dev-perl/Mail-DomainKeys
+	mail-filter/dk-milter
 	virtual/perl-MIME-Base64
 	"
