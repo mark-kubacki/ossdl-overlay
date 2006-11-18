@@ -25,6 +25,7 @@ RDEPEND="
 	app-text/tree
 	net-analyzer/netcat
 	net-ftp/ncftp
+	sys-apps/acl
         sys-boot/grub
         sys-fs/xfsprogs
 	sys-fs/jfsutils
