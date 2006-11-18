@@ -24,7 +24,7 @@ DEPEND="${DEPEND}
 	>=dev-lang/python-2.3
 	app-text/pytextile
 	>=dev-python/docutils-0.3.9
-	dev-libs/clearsilver
+	>=dev-libs/clearsilver-0.9.3
 	>=dev-util/subversion-1.3.2
 	mysql? (
 		>=dev-db/mysql-4.1
@@ -89,6 +89,10 @@ pkg_setup () {
 	eend ${?}
 
 	webapp_pkg_setup
+}
+
+src_compile() {
+	epatch ${FILESDIR}/trac-0.10.0-ISO8601.patch
 }
 
 src_install () {
