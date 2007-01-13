@@ -27,6 +27,10 @@ EBUILD openmailadmin-0.10.0.ebuild 1598 RMD160 df48b11195c7b51758f924ae5c7330796
 MD5 a9db07d9b38e027b22a327aac5256be9 openmailadmin-0.10.0.ebuild 1598
 RMD160 df48b11195c7b51758f924ae5c7330796f34260c openmailadmin-0.10.0.ebuild 1598
 SHA256 6f4bd8f0fe658aa5c736b48e7a8364329b5a8a46c8e237a7620b28bf86dce10f openmailadmin-0.10.0.ebuild 1598
+EBUILD openmailadmin-0.10.1-r1.ebuild 1845 RMD160 eeda9d9cfc5b05b036835a0b0e783932f793402d SHA1 5f33f6d4098f148c3481b43d925ec37ff0452333 SHA256 d562805e180978d27f6b2d2a2a4a51661da544c19a1475d013cf42318d8c92b3
+MD5 1112373987740364981cef0a4b6ceab5 openmailadmin-0.10.1-r1.ebuild 1845
+RMD160 eeda9d9cfc5b05b036835a0b0e783932f793402d openmailadmin-0.10.1-r1.ebuild 1845
+SHA256 d562805e180978d27f6b2d2a2a4a51661da544c19a1475d013cf42318d8c92b3 openmailadmin-0.10.1-r1.ebuild 1845
 EBUILD openmailadmin-0.10.1.ebuild 1843 RMD160 3dee2dea9bf8a990260bd8673889231a78ce516d SHA1 d0d8b37e4ad976cb9775f57b36d6d29d68d4f375 SHA256 7e2cc02ec39fcfdad45117a77330cebe4b7ceb0e6a1bef3ed737640afa42c005
 MD5 8d24a82bc2c73ab45cc6adfc1cd56af9 openmailadmin-0.10.1.ebuild 1843
 RMD160 3dee2dea9bf8a990260bd8673889231a78ce516d openmailadmin-0.10.1.ebuild 1843
@@ -49,6 +53,9 @@ SHA256 5fc64ffac8cdc2d3370cc4ee6cfc3b09eeec017a1aeb97d5c50ee93fe2c4bfa9 files/di
 MD5 43036ea8f832e22765fe44308ea72a8a files/digest-openmailadmin-0.10.1 253
 RMD160 462947d07d1ca2a8f1b8f664c0173bca6d058cf6 files/digest-openmailadmin-0.10.1 253
 SHA256 2ec6b80e7e73c13a575b009bbf847fcc914a47352cc2b996eb045ceef329a651 files/digest-openmailadmin-0.10.1 253
+MD5 43036ea8f832e22765fe44308ea72a8a files/digest-openmailadmin-0.10.1-r1 253
+RMD160 462947d07d1ca2a8f1b8f664c0173bca6d058cf6 files/digest-openmailadmin-0.10.1-r1 253
+SHA256 2ec6b80e7e73c13a575b009bbf847fcc914a47352cc2b996eb045ceef329a651 files/digest-openmailadmin-0.10.1-r1 253
 MD5 c8d9f1a225868cd88f0e9a10598e6c13 files/digest-openmailadmin-0.9.1 250
 RMD160 2500cae9c79e40815e122cef17d6a9b44168408c files/digest-openmailadmin-0.9.1 250
 SHA256 0fb87331a40ed4e9cfbce6af19a6ac96f1ed3e2d61e440887edc8c3ab2892993 files/digest-openmailadmin-0.9.1 250

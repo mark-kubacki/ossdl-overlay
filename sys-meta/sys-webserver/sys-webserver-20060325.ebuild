@@ -15,7 +15,7 @@ IUSE=""
 
 RDEPEND="
 	>=sys-meta/sys-base-${PV}
-	>=dev-db/mysql-5.0.18
+	>=virtual/mysql-5.0.18
 	net-www/mod_auth_mysql
 	=net-www/apache-2.0*
 	>=dev-python/mod_python-3.1.4
