@@ -1,0 +1,508 @@
+Index: wiki-default/WikiStart
+===================================================================
+--- wiki-default/WikiStart	(.../tags/trac-0.10.3)	(revision 4562)
++++ wiki-default/WikiStart	(.../branches/0.10-stable)	(revision 4562)
+@@ -1,4 +1,4 @@
+-= Welcome to Trac 0.10.3 =
++= Welcome to Trac 0.10.3dev =
+ 
+ Trac is a '''minimalistic''' approach to '''web-based''' management of
+ '''software projects'''. Its goal is to simplify effective tracking and handling of software issues, enhancements and overall progress.
+Index: trac/env.py
+===================================================================
+--- trac/env.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/env.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -101,6 +101,27 @@
+         
+         Should be one of (`CRITICAL`, `ERROR`, `WARN`, `INFO`, `DEBUG`).""")
+ 
++    log_format = Option('logging', 'log_format', None,
++        """Custom logging format.
++
++        If nothing is set, the following will be used:
++        
++        Trac[$(module)s] $(levelname)s: $(message)s
++
++        In addition to regular key names supported by the Python logger library
++        library (see http://docs.python.org/lib/node422.html), one could use:
++         - $(path)s     the path for the current environment
++         - $(basename)s the last path component of the current environment
++         - $(project)s  the project name
++
++         Note the usage of `$(...)s` instead of `%(...)s` as the latter form
++         would be interpreted by the ConfigParser itself.
++
++         Example:
++         ($(thread)d) Trac[$(basename)s:$(module)s] $(levelname)s: $(message)s
++
++         (since 0.11)""")
++
+     def __init__(self, path, create=False, options=[]):
+         """Initialize the Trac environment.
+         
+@@ -266,7 +287,14 @@
+         logfile = self.log_file
+         if logtype == 'file' and not os.path.isabs(logfile):
+             logfile = os.path.join(self.get_log_dir(), logfile)
+-        self.log = logger_factory(logtype, logfile, self.log_level, self.path)
++        format = self.log_format
++        if format:
++            format = format.replace('$(', '%(') \
++                     .replace('%(path)s', self.path) \
++                     .replace('%(basename)s', os.path.basename(self.path)) \
++                     .replace('%(project)s', self.project_name)
++        self.log = logger_factory(logtype, logfile, self.log_level, self.path,
++                                  format=format)
+ 
+     def get_known_users(self, cnx=None):
+         """Generator that yields information about all known users, i.e. users
+Index: trac/attachment.py
+===================================================================
+--- trac/attachment.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/attachment.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -298,7 +298,7 @@
+         which allows a malicious user to attach a file containing cross-site
+         scripting attacks.
+ 
+-        For public sites where anonymous users can create attachments, it is
++        For public sites where anonymous users can create attachments it is
+         recommended to leave this option disabled (which is the default).""")
+ 
+     # IEnvironmentSetupParticipant methods
+@@ -447,7 +447,9 @@
+         if hasattr(upload.file, 'fileno'):
+             size = os.fstat(upload.file.fileno())[6]
+         else:
+-            size = upload.file.len
++            upload.file.seek(0, 2) # seek to end of file
++            size = upload.file.tell()
++            upload.file.seek(0)
+         if size == 0:
+             raise TracError("Can't upload empty file")
+ 
+Index: trac/db_default.py
+===================================================================
+--- trac/db_default.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/db_default.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -273,7 +273,7 @@
+    (CASE status 
+       WHEN 'closed' THEN 'color: #777; background: #ddd; border-color: #ccc;'
+       ELSE 
+-        (CASE owner WHEN '$USER' THEN 'font-weight: bold' END)
++        (CASE owner WHEN $USER THEN 'font-weight: bold' END)
+     END) AS __style__,
+    id AS ticket, summary, component, status, 
+    resolution,version, t.type AS type, priority, owner,
+@@ -300,7 +300,7 @@
+    reporter AS _reporter
+   FROM ticket t
+   LEFT JOIN enum p ON p.name = t.priority AND p.type = 'priority'
+-  WHERE t.status IN ('new', 'assigned', 'reopened') AND owner = '$USER'
++  WHERE t.status IN ('new', 'assigned', 'reopened') AND owner = $USER
+   ORDER BY (status = 'assigned') DESC, p.value, milestone, t.type, time
+ """),
+ #----------------------------------------------------------------------------
+@@ -312,7 +312,7 @@
+ """
+ SELECT p.value AS __color__,
+    (CASE owner 
+-     WHEN '$USER' THEN 'My Tickets' 
++     WHEN $USER THEN 'My Tickets' 
+      ELSE 'Active Tickets' 
+     END) AS __group__,
+    id AS ticket, summary, component, version, milestone, t.type AS type, 
+@@ -323,7 +323,7 @@
+   FROM ticket t
+   LEFT JOIN enum p ON p.name = t.priority AND p.type = 'priority'
+   WHERE status IN ('new', 'assigned', 'reopened') 
+-  ORDER BY (owner = '$USER') DESC, p.value, milestone, t.type, time
++  ORDER BY (owner = $USER) DESC, p.value, milestone, t.type, time
+ """ % owner))
+ 
+ 
+Index: trac/ticket/report.py
+===================================================================
+--- trac/ticket/report.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/ticket/report.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -359,10 +359,15 @@
+         if format == 'rss':
+             return 'report_rss.cs', 'application/rss+xml'
+         elif format == 'csv':
+-            self._render_csv(req, cols, rows)
++            filename = id and 'report_%s.csv' % id or 'report.csv'
++            self._render_csv(req, cols, rows, mimetype='text/csv',
++                             filename=filename)
+             return None
+         elif format == 'tab':
+-            self._render_csv(req, cols, rows, '\t')
++            filename = id and 'report_%s.tsv' % id or 'report.tsv'
++            self._render_csv(req, cols, rows, '\t',
++                             mimetype='text/tab-separated-values',
++                             filename=filename)
+             return None
+ 
+         return 'report.cs', None
+@@ -453,31 +458,42 @@
+             req.hdf['report.var.' + aname] = arg
+             values.append(arg)
+ 
++        var_re = re.compile("[$]([A-Z]+)")
++
+         # simple parameter substitution outside literal
+         def repl(match):
+             add_value(match.group(1))
+             return '%s'
+ 
+         # inside a literal break it and concatenate with the parameter
+-        def repl_literal(match):
+-            add_value(match.group(1))
+-            return db.concat("'", "%s", "'")
++        def repl_literal(expr):
++            parts = var_re.split(expr[1:-1])
++            if len(parts) == 1:
++                return expr
++            params = parts[1::2]
++            parts = ["'%s'" % p for p in parts]
++            parts[1::2] = ['%s'] * len(params)
++            for param in params:
++                add_value(param)
++            return db.concat(*parts)
+ 
+-        var_re = re.compile("[$]([A-Z]+)")
+         sql_io = StringIO()
+ 
+         # break SQL into literals and non-literals to handle replacing
+         # variables within them with query parameters
+         for expr in re.split("('(?:[^']|(?:''))*')", sql):
+             if expr.startswith("'"):
+-                sql_io.write(var_re.sub(repl_literal, expr))
++                sql_io.write(repl_literal(expr))
+             else:
+                 sql_io.write(var_re.sub(repl, expr))
+         return sql_io.getvalue(), values
+ 
+-    def _render_csv(self, req, cols, rows, sep=','):
++    def _render_csv(self, req, cols, rows, sep=',', mimetype='text/plain',
++                    filename=None):
+         req.send_response(200)
+-        req.send_header('Content-Type', 'text/plain;charset=utf-8')
++        req.send_header('Content-Type', mimetype + ';charset=utf-8')
++        if filename:
++            req.send_header('Content-Disposition', 'filename=' + filename)
+         req.end_headers()
+ 
+         req.write(sep.join(cols) + '\r\n')
+@@ -490,6 +506,9 @@
+         req.perm.assert_permission('REPORT_SQL_VIEW')
+         req.send_response(200)
+         req.send_header('Content-Type', 'text/plain;charset=utf-8')
++        if id:
++            req.send_header('Content-Disposition',
++                            'filename=report_%s.sql' % id)
+         req.end_headers()
+ 
+         req.write('-- ## %s: %s ## --\n\n' % (id, title))
+Index: trac/ticket/tests/report.py
+===================================================================
+--- trac/ticket/tests/report.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/ticket/tests/report.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -1,3 +1,4 @@
++from trac.db.mysql_backend import MySQLConnection
+ from trac.ticket.report import ReportModule
+ from trac.test import EnvironmentStub, Mock
+ from trac.web.api import Request, RequestDone
+@@ -4,6 +5,11 @@
+ 
+ import unittest
+ 
++class MockMySQLConnection(MySQLConnection):
++    def __init__(self):
++        pass
++
++
+ class ReportTestCase(unittest.TestCase):
+ 
+     def setUp(self):
+@@ -24,6 +30,16 @@
+         self.assertEqual("''||%s||''", sql)
+         self.assertEqual(['value'], args)
+ 
++    def test_sub_var_mysql(self):
++        req = Mock(hdf=dict())
++        env = EnvironmentStub()
++        env.db = MockMySQLConnection()
++        sql, args = ReportModule(env).sql_sub_vars(req, "'$VAR'",
++                                                   {'VAR': 'value'})
++        self.assertEqual("concat('', %s, '')", sql)
++        self.assertEqual(['value'], args)
++
++
+ def suite():
+     return unittest.makeSuite(ReportTestCase, 'test')
+ 
+Index: trac/ticket/query.py
+===================================================================
+--- trac/ticket/query.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/ticket/query.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -596,7 +596,8 @@
+                     ticket['changed'] = True
+             for field, value in ticket.items():
+                 if field == query.group:
+-                    num_matches_group[value] = num_matches_group.get(value, 0)+1
++                    hdf_key = '_' + value + '_'
++                    num_matches_group[hdf_key] = num_matches_group.get(hdf_key, 0)+1
+                 if field == 'time':
+                     ticket[field] = format_datetime(value)
+                 elif field == 'description':
+Index: trac/db/sqlite_backend.py
+===================================================================
+--- trac/db/sqlite_backend.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/db/sqlite_backend.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -134,7 +134,7 @@
+     """Connection wrapper for SQLite."""
+ 
+     __slots__ = ['_active_cursors']
+-    poolable = have_pysqlite and sqlite_version >= 30301
++    poolable = have_pysqlite and os.name == 'nt' and sqlite_version >= 30301
+ 
+     def __init__(self, path, params={}):
+         assert have_pysqlite > 0
+Index: trac/__init__.py
+===================================================================
+--- trac/__init__.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/__init__.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -11,7 +11,7 @@
+ """
+ __docformat__ = 'epytext en'
+ 
+-__version__ = '0.10.3'
++__version__ = '0.10.3dev'
+ __url__ = 'http://trac.edgewall.org/'
+ __copyright__ = '(C) 2003-2006 Edgewall Software'
+ __license__ = 'BSD'
+Index: trac/versioncontrol/svn_fs.py
+===================================================================
+--- trac/versioncontrol/svn_fs.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/versioncontrol/svn_fs.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -293,7 +293,7 @@
+         self.fs_ptr = repos.svn_repos_fs(self.repos)
+         
+         uuid = fs.get_uuid(self.fs_ptr, self.pool())
+-        name = 'svn:%s:%s' % (uuid, path)
++        name = 'svn:%s:%s' % (uuid, _from_svn(path))
+ 
+         Repository.__init__(self, name, authz, log)
+ 
+@@ -635,6 +635,9 @@
+         self.pool = Pool(pool)
+         message = self._get_prop(core.SVN_PROP_REVISION_LOG)
+         author = self._get_prop(core.SVN_PROP_REVISION_AUTHOR)
++        # we _hope_ it's UTF-8, but can't be 100% sure (#4321)
++        message = message and to_unicode(message, 'utf-8')
++        author = author and to_unicode(author, 'utf-8')
+         date = self._get_prop(core.SVN_PROP_REVISION_DATE)
+         if date:
+             date = core.svn_time_from_cstring(date, self.pool()) / 1000000
+Index: trac/versioncontrol/cache.py
+===================================================================
+--- trac/versioncontrol/cache.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/versioncontrol/cache.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -56,6 +56,8 @@
+         cursor.execute("SELECT value FROM system WHERE name='repository_dir'")
+         for previous_repository_dir, in cursor:
+             if previous_repository_dir != self.name:
++                self.log.info("'repository_dir' has changed from %r to %r"
++                              % (previous_repository_dir, self.name))
+                 raise TracError("The 'repository_dir' has changed, "
+                                 "a 'trac-admin resync' operation is needed.")
+             break
+Index: trac/scripts/tests/admin-tests.txt
+===================================================================
+--- trac/scripts/tests/admin-tests.txt	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/scripts/tests/admin-tests.txt	(.../branches/0.10-stable)	(revision 4562)
+@@ -1,5 +1,5 @@
+ ===== test_help_ok =====
+-trac-admin - The Trac Administration Console 0.10.3
++trac-admin - The Trac Administration Console 0.10.3dev
+ 
+ Usage: trac-admin </path/to/projenv> [command [subcommand] [option ...]]
+ 
+Index: trac/wiki/api.py
+===================================================================
+--- trac/wiki/api.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/wiki/api.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -121,6 +121,14 @@
+         """Enable/disable splitting the WikiPageNames with space characters
+         (''since 0.10'').""")
+ 
++    render_unsafe_content = BoolOption('wiki', 'render_unsafe_content', 'false',
++        """Enable/disable the use of unsafe HTML tags such as `<script>` or
++        `<embed>` with the HTML [wiki:WikiProcessors WikiProcessor]
++        (''since 0.10.4'').
++
++        For public sites where anonymous users can edit the wiki it is
++        recommended to leave this option disabled (which is the default).""")
++
+     def __init__(self):
+         self._index = None
+         self._last_index_update = 0
+Index: trac/wiki/formatter.py
+===================================================================
+--- trac/wiki/formatter.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/wiki/formatter.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -83,6 +83,8 @@
+         return html.PRE(text, class_="wiki")
+ 
+     def _html_processor(self, req, text):
++        if WikiSystem(self.env).render_unsafe_content:
++            return Markup(text)
+         from HTMLParser import HTMLParseError
+         try:
+             return Markup(text).sanitize()
+Index: trac/log.py
+===================================================================
+--- trac/log.py	(.../tags/trac-0.10.3)	(revision 4562)
++++ trac/log.py	(.../branches/0.10-stable)	(revision 4562)
+@@ -20,32 +20,33 @@
+ import sys
+ 
+ def logger_factory(logtype='syslog', logfile=None, level='WARNING',
+-                   logid='Trac'):
++                   logid='Trac', format=None):
+     logger = logging.getLogger(logid)
+     logtype = logtype.lower()
+     if logtype == 'file':
+         hdlr = logging.FileHandler(logfile)
+-    elif logtype in ['winlog', 'eventlog', 'nteventlog']:
++    elif logtype in ('winlog', 'eventlog', 'nteventlog'):
+         # Requires win32 extensions
+         hdlr = logging.handlers.NTEventLogHandler(logid,
+                                                   logtype='Application')
+-    elif logtype in ['syslog', 'unix']:
++    elif logtype in ('syslog', 'unix'):
+         hdlr = logging.handlers.SysLogHandler('/dev/log')
+-    elif logtype in ['stderr']:
++    elif logtype in ('stderr'):
+         hdlr = logging.StreamHandler(sys.stderr)
+     else:
+         hdlr = logging.handlers.BufferingHandler(0)
+         # Note: this _really_ throws away log events, as a `MemoryHandler`
+         # would keep _all_ records in case there's no target handler (a bug?)
+ 
+-    format = 'Trac[%(module)s] %(levelname)s: %(message)s'
+-    if logtype in ['file', 'stderr']:
+-        format = '%(asctime)s ' + format 
++    if not format:
++        format = 'Trac[%(module)s] %(levelname)s: %(message)s'
++        if logtype in ('file', 'stderr'):
++            format = '%(asctime)s ' + format
+     datefmt = ''
+     if logtype == 'stderr':
+         datefmt = '%X'        
+     level = level.upper()
+-    if level in ['DEBUG', 'ALL']:
++    if level in ('DEBUG', 'ALL'):
+         logger.setLevel(logging.DEBUG)
+     elif level == 'INFO':
+         logger.setLevel(logging.INFO)
+@@ -55,7 +56,7 @@
+         logger.setLevel(logging.CRITICAL)
+     else:
+         logger.setLevel(logging.WARNING)
+-    formatter = logging.Formatter(format,datefmt)
++    formatter = logging.Formatter(format, datefmt)
+     hdlr.setFormatter(formatter)
+     logger.addHandler(hdlr) 
+ 
+Index: templates/query.cs
+===================================================================
+--- templates/query.cs	(.../tags/trac-0.10.3)	(revision 4562)
++++ templates/query.cs	(.../branches/0.10-stable)	(revision 4562)
+@@ -202,7 +202,7 @@
+      if:name(field) == query.group ?><?cs
+       var:field.label ?><?cs
+      /if ?><?cs
+-    /each ?>: <?cs var:result[query.group] ?> <?cs call:num_matches(query.num_matches_group[result[query.group]]) ?></h2>
++    /each ?>: <?cs var:result[query.group] ?> <?cs call:num_matches(query.num_matches_group["_"+result[query.group]+"_"]) ?></h2>
+    <table class="listing tickets">
+    <?cs call:thead() ?><tbody><?cs
+   /if ?>
+Index: contrib/trac-post-commit-hook
+===================================================================
+--- contrib/trac-post-commit-hook	(.../tags/trac-0.10.3)	(revision 4562)
++++ contrib/trac-post-commit-hook	(.../branches/0.10-stable)	(revision 4562)
+@@ -90,20 +90,22 @@
+         raise ImportError, 'Requires Python 2.3 or the Optik option parsing library.'
+ 
+ parser = OptionParser()
++depr = '(not used anymore)'
+ parser.add_option('-e', '--require-envelope', dest='env', default='',
+-                  help='Require commands to be enclosed in an envelope. If -e[], '
+-                       'then commands must be in the form of [closes #4]. Must '
+-                       'be two characters.')
++                  help="""
++Require commands to be enclosed in an envelope.
++If -e[], then commands must be in the form of [closes #4].
++Must be two characters.""")
+ parser.add_option('-p', '--project', dest='project',
+                   help='Path to the Trac project.')
+ parser.add_option('-r', '--revision', dest='rev',
+                   help='Repository revision number.')
+ parser.add_option('-u', '--user', dest='user',
+-                  help='The user who is responsible for this action')
++                  help='The user who is responsible for this action '+depr)
+ parser.add_option('-m', '--msg', dest='msg',
+-                  help='The log message to search.')
++                  help='The log message to search '+depr)
+ parser.add_option('-c', '--encoding', dest='encoding',
+-                  help='The encoding used by the log message.')
++                  help='The encoding used by the log message '+depr)
+ parser.add_option('-s', '--siteurl', dest='url',
+                   help='The base URL to the project\'s trac website (to which '
+                        '/ticket/## is appended).  If this is not specified, '
+@@ -135,20 +137,23 @@
+                        'see':        '_cmdRefs'}
+ 
+     def __init__(self, project=options.project, author=options.user,
+-                 rev=options.rev, msg=options.msg, url=options.url,
+-                 encoding=options.encoding):
+-        msg = to_unicode(msg, encoding)
+-        self.author = author
++                 rev=options.rev, url=options.url):
++        self.env = open_environment(project)
++        repos = self.env.get_repository() # will do a `sync` if needed
++        
++        # Instead of bothering with the encoding, we'll use unicode data
++        # as provided by the Trac versioncontrol API (#1310).
++        chgset = repos.get_changeset(rev)
++        self.author = chgset.author
+         self.rev = rev
+-        self.msg = "(In [%s]) %s" % (rev, msg)
++        self.msg = "(In [%s]) %s" % (rev, chgset.message)
+         self.now = int(time.time()) 
+-        self.env = open_environment(project)
+         if url is None:
+             url = self.env.config.get('project', 'url')
+         self.env.href = Href(url)
+         self.env.abs_href = Href(url)
+ 
+-        cmdGroups = commandPattern.findall(msg)
++        cmdGroups = commandPattern.findall(self.msg)
+ 
+         tickets = {}
+         for cmd, tkts in cmdGroups:
+@@ -196,5 +201,7 @@
+ if __name__ == "__main__":
+     if len(sys.argv) < 5:
+         print "For usage: %s --help" % (sys.argv[0])
++        print
++        print "Note that the deprecated options will be removed in Trac 0.12."
+     else:
+         CommitHook()
+
+Property changes on: .
+___________________________________________________________________
+Name: svnmerge-integrated
+   - /trunk:1-3801,3805-3810,3814-3823,3830-3831,3833,3837-3839,3841-3846,3850-3851,3854-3856,3858-3863,3869-3880,3886,3888-3891,3893-3896,3901,3914,3919-3922,3924,3926-3934,3944,3949,3971,3973,3980-3981,3984-3985,3994-3995,3998,4013,4019,4028,4030,4033,4035-4036,4040,4042-4044,4046-4049,4051-4062,4064-4065,4068-4073,4079-4081,4084,4088-4093,4099-4100,4102-4103,4105-4108,4110-4112,4117-4129,4131-4132,4134,4144-4149,4151-4158,4160-4164,4166-4168,4171,4174-4181,4183-4188,4190,4192-4198,4200-4201,4205-4207,4209-4210,4216-4217,4233-4235,4240-4241,4243-4244,4247-4249,4252,4254-4257,4265-4274,4276-4277,4279-4280,4283-4284,4298-4301,4303,4306-4315,4317-4321,4323-4327,4329-4330,4332,4337,4341,4349,4362,4379,4384,4433
+   + /trunk:1-3801,3805-3810,3814-3823,3830-3831,3833,3837-3839,3841-3846,3850-3851,3854-3856,3858-3863,3869-3880,3886,3888-3891,3893-3896,3901,3914,3919-3922,3924,3926-3934,3944,3949,3971,3973,3980-3981,3984-3985,3994-3995,3998,4013,4019,4028,4030,4033,4035-4036,4040,4042-4044,4046-4049,4051-4062,4064-4065,4068-4073,4079-4081,4084,4088-4093,4099-4100,4102-4103,4105-4108,4110-4112,4117-4129,4131-4132,4134,4144-4149,4151-4158,4160-4164,4166-4168,4171,4174-4181,4183-4188,4190,4192-4198,4200-4201,4205-4207,4209-4210,4216-4217,4233-4235,4240-4241,4243-4244,4247-4249,4252,4254-4257,4265-4274,4276-4277,4279-4280,4283-4284,4298-4301,4303,4306-4315,4317-4321,4323-4327,4329-4330,4332,4337,4341,4349,4362,4379,4384,4433,4453,4459,4472,4478,4491,4493,4510,4532-4533,4546
+
