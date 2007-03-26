@@ -5,8 +5,8 @@
 inherit eutils webapp
 
 DESCRIPTION="Administration interface for mailservers based on Cyrus and any MTA."
-SRC_URI="http://static.openmailadmin.org/downloads/${PN}-${PV}.tbz2"
-HOMEPAGE="http://www.openmailadmin.org/"
+SRC_URI="http://static.ossdl.de/openmailadmin/downloads/${PN}-${PV}.tbz2"
+HOMEPAGE="http://openmailadmin.ossdl.de/"
 RESTRICT="nomirror"
 
 LICENSE="GPL-2"
