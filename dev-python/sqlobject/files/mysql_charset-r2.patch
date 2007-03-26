@@ -1,0 +1,88 @@
+diff -uNr /tmp/SQLObject-0.8.1.old/sqlobject/converters.py /tmp/SQLObject-0.8.1/sqlobject/converters.py
+--- sqlobject/converters.py	2007-02-06 16:24:04.000000000 +0100
++++ sqlobject/converters.py	2007-03-26 19:30:48.405403831 +0200
+@@ -118,8 +118,11 @@
+         assert 0, "Database %s unknown" % db
+     return "'%s'" % value
+ 
++def UnicodeStringLikeConverter(value, db):
++    return StringLikeConverter(value.encode('utf8'), db)
++
+ registerConverter(type(""), StringLikeConverter)
+-registerConverter(type(u""), StringLikeConverter)
++registerConverter(type(u""), UnicodeStringLikeConverter)
+ registerConverter(array_type, StringLikeConverter)
+ registerConverter(buffer_type, StringLikeConverter)
+ 
+diff -uNr /tmp/SQLObject-0.8.1.old/sqlobject/mysql/mysqlconnection.py /tmp/SQLObject-0.8.1/sqlobject/mysql/mysqlconnection.py
+--- sqlobject/mysql/mysqlconnection.py	2007-03-06 16:28:49.000000000 +0100
++++ sqlobject/mysql/mysqlconnection.py	2007-03-26 19:30:48.409404060 +0200
+@@ -40,14 +40,14 @@
+                 "client_flag", "local_infile"):
+             if key in kw:
+                 self.kw[key] = int(col.popKey(kw, key))
+-        if "charset" in kw:
+-            self.dbEncoding = self.kw["charset"] = col.popKey(kw, "charset")
+-        else:
+-            self.dbEncoding = None
+-        if "sqlobject_encoding" in kw:
+-            self.encoding = col.popKey(kw, "sqlobject_encoding")
+-        else:
+-            self.encoding = 'ascii'
++        # "charset" and "sqlobject_encoding" means the same
++        # so make sure they match each other if specified.
++        if "charset" in kw and "sqlobject_encoding" in kw:
++            if kw['charset'] != kw['sqlobject_encoding']:
++                raise ValueError("charset must match sqlobject_encoding")
++        encoding = kw.pop('charset', None) or \
++                   kw.pop('sqlobject_encoding', None) or 'ascii'
++        self.dbEncoding = self.kw["charset"] = encoding
+         DBAPI.__init__(self, **kw)
+ 
+     def connectionFromURI(cls, uri):
+@@ -57,6 +57,13 @@
+     connectionFromURI = classmethod(connectionFromURI)
+ 
+     def makeConnection(self):
++        from MySQLdb.connections import Connection
++        if not hasattr(Connection, 'set_character_set'):
++            # monkeypatch pre MySQLdb 1.2.1
++            encoding = self.dbEncoding
++            def character_set_name(self):
++                return encoding + '_' + encoding
++            Connection.character_set_name = character_set_name
+         try:
+             conn = self.module.connect(host=self.host, port=self.port,
+                 db=self.db, user=self.user, passwd=self.password, **self.kw)
+@@ -71,6 +78,12 @@
+         if hasattr(conn, 'autocommit'):
+             conn.autocommit(bool(self.autoCommit))
+ 
++        if hasattr(conn, 'set_character_set'): # MySQLdb 1.2.1 and later
++            conn.set_character_set(self.dbEncoding)
++        else: # pre MySQLdb 1.2.1
++            # works along with monkeypatching code above
++            conn.query("SET NAMES %s" % self.dbEncoding)
++
+         return conn
+ 
+     def _setAutoCommit(self, conn, auto):
+@@ -92,13 +105,11 @@
+         # done by calling ping(True) on the connection.
+         for count in range(3):
+             try:
+-                if self.need_unicode:
+-                    # For MysqlDB 1.2.1 and later, we go
+-                    # encoding->unicode->charset (in the mysql db)
+-                    myquery = unicode(query, self.encoding)
+-                    return cursor.execute(myquery)
+-                else:
+-                    return cursor.execute(query)
++                # For MySQLdb 1.2.1 and later, we go
++                # encoding->unicode->charset (in the mysql db)
++                if self.need_unicode and not isinstance(query, unicode):
++                    query = unicode(query, self.dbEncoding)
++                return cursor.execute(query)
+             except MySQLdb.OperationalError, e:
+                 if e.args[0] in (MySQLdb.constants.CR.SERVER_GONE_ERROR, MySQLdb.constants.CR.SERVER_LOST):
+                     if count == 2:
