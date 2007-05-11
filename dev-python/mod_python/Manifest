@@ -1,7 +1,0 @@
-MD5 fc933df167083c6c8abc4d2e28c6274d files/3.2.8/16_mod_python.conf 1101
-MD5 d0957a6236719085c57fafb0a1a5096f files/3.2.8/apache-2.2-testing.upstream.patch 6438
-MD5 d5d64f0f92f8e40881d85b435af365a0 files/3.2.8/apr-1.0-support.upstream.patch 2942
-MD5 6a654127bf1466f5d40858135c38ba85 files/3.2.8/configure-bash-3.1.upstream.patch 1479
-MD5 611fe717e1153d230140f96eb1b65616 files/3.2.8/gentoo-testing.patch 9431
-MD5 e92087fdc1d207e839678912ab5bddc9 files/digest-mod_python-3.2.8 65
-MD5 fa03b7f9e8f7f2b84a59710adbc1c5a2 mod_python-3.2.8.ebuild 2717
