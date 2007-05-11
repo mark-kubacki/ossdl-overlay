@@ -1,0 +1,13 @@
+Index: sqlobject/mysql/mysqlconnection.py
+===================================================================
+--- sqlobject/mysql/mysqlconnection.py	(revision 2682)
++++ sqlobject/mysql/mysqlconnection.py	(working copy)
+@@ -19,7 +19,7 @@
+         self.user = user
+         self.password = passwd
+         self.kw = {}
+-        if MySQLdb.version_info[:3] >= (1, 2, 1):
++        if MySQLdb.version_info[:3] < (1, 2, 1):
+             self.need_unicode = True
+         else:
+             self.need_unicode = False
