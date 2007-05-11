@@ -4,21 +4,22 @@
 
 NEED_PYTHON=2.2
 
-inherit distutils
+inherit distutils subversion
 
 MY_PN=SQLObject
 MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="Object-relational mapper for Python"
 HOMEPAGE="http://sqlobject.org/"
-SRC_URI="http://cheeseshop.python.org/packages/source/${MY_PN:0:1}/${MY_PN}/${MY_P}.tar.gz"
+ESVN_REPO_URI="http://svn.colorstudy.com/SQLObject/branches/0.8#egg=SQLObject-bugfix"
+
 LICENSE="LGPL-2.1"
 SLOT="0"
 KEYWORDS="~amd64 ~ia64 ~ppc ~sparc x86"
 IUSE="postgres mysql sqlite firebird doc"
 
 RDEPEND="postgres? ( dev-python/psycopg )
-		mysql? ( >=dev-python/mysql-python-0.9.2-r1 )
+		mysql? ( >=dev-python/mysql-python-1.2.2 )
 		sqlite? ( <dev-python/pysqlite-2.0 )
 		firebird? ( >=dev-python/kinterbasdb-3.0.2 )
 		>=dev-python/formencode-0.2.2"
@@ -28,10 +29,10 @@ DEPEND="${RDEPEND}
 S=${WORKDIR}/${MY_P}
 
 src_unpack() {
-	unpack ${A}
+	subversion_src_unpack
 	cd "${S}"
 
-	epatch "${FILESDIR}/mysql_charset-r2.patch"
+	epatch "${FILESDIR}/mysql_charset_hack.patch"
 	epatch "${FILESDIR}/rev-command.patch"
 
 	sed -i \
