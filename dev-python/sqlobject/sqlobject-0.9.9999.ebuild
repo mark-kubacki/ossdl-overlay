@@ -11,7 +11,7 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="Object-relational mapper for Python"
 HOMEPAGE="http://sqlobject.org/"
-ESVN_REPO_URI="http://svn.colorstudy.com/SQLObject/branches/0.9#egg=SQLObject-bugfix"
+ESVN_REPO_URI="http://svn.colorstudy.com/SQLObject/branches/0.9"
 
 LICENSE="LGPL-2.1"
 SLOT="0"
