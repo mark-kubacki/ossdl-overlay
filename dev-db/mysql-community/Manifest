@@ -1,5 +1,6 @@
 DIST mysql-5.1.16-beta.tar.gz 22468089 RMD160 b2609c5a31fe65ea4b5801bbab2ec8370cf27b0e SHA1 b503e147b11dd729ad551b82551f7069fa8e5efa SHA256 1d86deaf644c237eef40ce95d6bbd00f5c5645b5bbb750c96894e2fe1600b356
 DIST mysql-5.1.17-beta.tar.gz 22646581 RMD160 56bbc2464e00e450b932ac20d0f2ff0aa4ecc66c SHA1 a9a480ee27d4ec5c3fbb88733a4a3648b5917014 SHA256 a3c49507f92a191ec0dfd5a2c85ddb819b24de1d5c08046e2fe527a2a394a8ba
+DIST mysql-5.1.18-beta.tar.gz 25037302 RMD160 71d33a6b59e37603d9a72f97313e9573fef6a50b SHA1 952440720f7d56507445ad656781b6df0a23a4f5 SHA256 da5d8869211fbd0349c287615ec1371a1c38522e0ce3f8d67b61a08b1bdd3e4d
 DIST mysql-extras-20070217.tar.bz2 50155 RMD160 fd8cb330772fcc77bc3ac501a899f8c704d0d798 SHA1 2ce58115db0f703d98c4f7b0c0b1835123c07386 SHA256 401a8fed36f87d81d53c5c392a017d85a3a27c1694e38350ba30d68732197ea0
 DIST pbxt-0.9.8-beta.tar.gz 2828272 RMD160 c0d5f0a67cc7cddecce9e198afe0ef3521a52cb4 SHA1 ada001c5e71dd1c6c201ebe5fafb67b359f10495 SHA256 976cf0539f2756e6a3b81014161f5ae8b77261aee6455c46a7e5de1054708b37
 DIST pbxt-0.9.86-beta.tar.gz 2782607 RMD160 0ec969bf8d6024834a428a8a049086d4e550ea56 SHA1 41ae18ff62c23be64acb3ff666f9bc54f20f3aef SHA256 788b6357b4523d571fd779b358bdba10de264f1845ab5b63f9d2fe89dfb23dc6
@@ -11,9 +12,16 @@ EBUILD mysql-community-5.1.17_beta.ebuild 22819 RMD160 1bf4aa3fe55bf4ab47b61bad8
 MD5 f6a33ca18c49ffd9fdaf59d0859ed3c4 mysql-community-5.1.17_beta.ebuild 22819
 RMD160 1bf4aa3fe55bf4ab47b61bad87f127ebf652c4eb mysql-community-5.1.17_beta.ebuild 22819
 SHA256 b301d2a5cc3c9ad6b4e1ef7c88284cf3cf116860c6bef84449c51919244ea269 mysql-community-5.1.17_beta.ebuild 22819
+EBUILD mysql-community-5.1.18_beta.ebuild 22878 RMD160 b0c8d0c7d2fe711dbb57e7d3b7f4e78175f20945 SHA1 0b25cd03b0d301670869de4fd2bcd6eccf256fe8 SHA256 ebee8525b9ac9bc7906a6915bcb4d9e1aaa7f9a03ed97bdf4e22a1d0d6fb2c37
+MD5 c1f9f3f0efd6f646476778f1ba998468 mysql-community-5.1.18_beta.ebuild 22878
+RMD160 b0c8d0c7d2fe711dbb57e7d3b7f4e78175f20945 mysql-community-5.1.18_beta.ebuild 22878
+SHA256 ebee8525b9ac9bc7906a6915bcb4d9e1aaa7f9a03ed97bdf4e22a1d0d6fb2c37 mysql-community-5.1.18_beta.ebuild 22878
 MD5 60bf763028bc5b287ee3ab11a85313fe files/digest-mysql-community-5.1.16_beta 774
 RMD160 26d3179e5c3508f66b74d34b80a531c6fb4f0cd6 files/digest-mysql-community-5.1.16_beta 774
 SHA256 5a270192ee17bb8933d39442ff384743d8aba34f1321dda0edcbb51d629f46d4 files/digest-mysql-community-5.1.16_beta 774
 MD5 525477ed4b0b2859fb31b04f5c5bf87b files/digest-mysql-community-5.1.17_beta 777
 RMD160 39b74967bb1a6c02ac07b2560f5f3aa1e119777f files/digest-mysql-community-5.1.17_beta 777
 SHA256 f1bc7dc23832b38ac9176c59049a103042b965400688cf2b89cef36a854b39ba files/digest-mysql-community-5.1.17_beta 777
+MD5 1d84677f19ad9e561e48680c4328900d files/digest-mysql-community-5.1.18_beta 777
+RMD160 059ed252e742781546c0b94de9bc938e8ec36427 files/digest-mysql-community-5.1.18_beta 777
+SHA256 50239d0ad51e8330e174c5870f7d2de79fec53566b370baa5c0f452854ba73e4 files/digest-mysql-community-5.1.18_beta 777
