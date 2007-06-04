@@ -1,0 +1,34 @@
+#!/sbin/runscript
+# Copyright 2007 Ossdl.de, Hurrikane Systems
+# Distributed under the terms of the GNU General Public License
+# $Header: $
+
+conf="/etc/conf.d/milter-greylist"
+
+depend() {
+	need net
+	before postfix
+	provide postfix_greylist
+}
+
+conf_error() {
+	eerror "You need to setup ${conf} first"
+	return 1
+}
+
+start() {
+	ebegin "Starting milter-greylist"
+	
+	start-stop-daemon --start --quiet --background \
+		--exec /usr/sbin/milter-greylist -- \
+		-u ${MGREY_USER} \
+		-p ${MGREY_SOCKET} \
+		${MGREY_OPTS} > ${MGREY_PID}
+	eend ${?}
+}
+
+stop() {
+	ebegin "Stopping milter-greylist"
+	start-stop-daemon --stop --quiet --pidfile ${MGREY_PID}
+	eend ${?}
+}

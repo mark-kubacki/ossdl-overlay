@@ -1,0 +1,31 @@
+# Config file for /etc/init.d/milter-greylist
+
+# DELAY
+#  How long to delay mail that is greylisted in seconds.
+MGREY_DELAY=300
+
+# SOCKET
+MGREY_SOCKET="/var/run/milter/milter-greylist.sock"
+
+# PID
+#  Do not change, if you don't know what this is!
+MGREY_PID="/var/run/milter/milter-greylist.pid"
+
+# USER
+#  User the milter runs as. Gentoo: milter
+MGREY_USER="milter"
+
+# Additional milter-greylist options
+#
+# -v, --verbose, -D		increase verbosity level
+# -L[no of bits, e.g. 24]	CIDR mask for comparing IPs.
+# -w[seconds]			is used to choose how long we will 
+#				refuse a given message.
+# -a[days]			controls auto-whitelisting.
+#				Use 0 to disable at all.
+#
+# You should configure the latter three settings in
+# /etc/mail/greylist.conf rather that passing that values by
+# parameters.
+#
+MGREY_OPTS=""
