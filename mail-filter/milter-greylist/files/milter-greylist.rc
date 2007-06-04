@@ -18,7 +18,8 @@ start() {
 	# HACK -- start a subshell and corrects perms on the socket...
 	( if [ -e "${MGREY_SOCKET}" ]; then rm -f ${MGREY_SOCKET}; fi
 	while ! test -S "${MGREY_SOCKET}"; do sleep 1; done;
-	chmod u+rw,g+rw "${MGREY_SOCKET}" ) &
+	chmod u+rw,g+rw "${MGREY_SOCKET}" 
+	setfacl -m u:postfix:rwx "${MGREY_SOCKET}" ) &
 
 	start-stop-daemon --start --quiet --background \
 		--exec /usr/sbin/milter-greylist -- \

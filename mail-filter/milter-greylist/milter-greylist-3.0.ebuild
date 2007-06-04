@@ -13,7 +13,7 @@ RESTRICT="primaryuri"
 
 LICENSE="BSD"
 SLOT="0"
-KEYWORDS="~alpha ~amd64 ~ppc ~ppc64 ~sparc sparc_fbsd x86 x86_fbsd"
+KEYWORDS="~alpha ~amd64 ~ppc ~ppc64 ~sparc ~sparc_fbsd x86 x86_fbsd"
 
 DEPEND=">=sys-devel/autoconf-2.57
 	>=sys-devel/automake-1.7.2"
@@ -41,7 +41,7 @@ src_compile() {
 
 src_install() {
 	insinto /etc/mail
-	doins "${FILESDIR}/greylist.conf"
+	doins greylist.conf
 	newinitd "${FILESDIR}/milter-greylist.rc" milter-greylist
 	newconfd "${FILESDIR}/milter-greylist.confd" milter-greylist
 
@@ -53,5 +53,6 @@ src_install() {
 	fowners milter:milter /var/milter
 
 	dosbin milter-greylist
+	doman *.5 *.8
 	dodoc README ChangeLog
 }
