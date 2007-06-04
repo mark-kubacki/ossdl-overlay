@@ -7,23 +7,25 @@ conf="/etc/conf.d/milter-greylist"
 
 depend() {
 	need net
+	use logger
 	before postfix
 	provide postfix_greylist
 }
 
-conf_error() {
-	eerror "You need to setup ${conf} first"
-	return 1
-}
-
 start() {
 	ebegin "Starting milter-greylist"
-	
+
+	# HACK -- start a subshell and corrects perms on the socket...
+	( if [ -e "${MGREY_SOCKET}" ]; then rm -f ${MGREY_SOCKET}; fi
+	while ! test -S "${MGREY_SOCKET}"; do sleep 1; done;
+	chmod u+rw,g+rw "${MGREY_SOCKET}" ) &
+
 	start-stop-daemon --start --quiet --background \
 		--exec /usr/sbin/milter-greylist -- \
 		-u ${MGREY_USER} \
 		-p ${MGREY_SOCKET} \
-		${MGREY_OPTS} > ${MGREY_PID}
+		-P ${MGREY_PID} \
+		${MGREY_OPTS}
 	eend ${?}
 }
 

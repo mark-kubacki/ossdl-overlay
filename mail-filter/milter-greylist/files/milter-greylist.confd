@@ -1,9 +1,5 @@
 # Config file for /etc/init.d/milter-greylist
 
-# DELAY
-#  How long to delay mail that is greylisted in seconds.
-MGREY_DELAY=300
-
 # SOCKET
 MGREY_SOCKET="/var/run/milter/milter-greylist.sock"
 

@@ -30,6 +30,7 @@ pkg_setup() {
 src_compile() {
 	local myconf
 	myconf="--with-user=milter"
+	myconf="${myconf} --with-dumpfile=/var/milter/greylist_dump.db"
 	myconf="${myconf} $(use_with spf libspf2)"
 	if use rbl; then
 		myconf="${myconf} --with-libbind --enable-dnsrbl"
