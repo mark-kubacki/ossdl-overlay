@@ -17,7 +17,7 @@ KEYWORDS="~alpha ~amd64 ~ppc ~ppc64 ~sparc ~sparc_fbsd x86 x86_fbsd"
 
 DEPEND=">=sys-devel/autoconf-2.57
 	>=sys-devel/automake-1.7.2"
-RDEPEND="mail-filter/libmilter
+RDEPEND=" || ( mail-filter/libmilter >=mail-mta/sendmail-8.12 )
 	spf? ( >=mail-filter/libspf2-1.2.5 )
 	rbl? ( >=net-dns/bind-9.0.0 )
 	"
