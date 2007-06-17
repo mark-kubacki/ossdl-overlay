@@ -1,6 +1,6 @@
 # Copyright 1999-2006 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/mail-filter/dk-milter/dk-milter-0.4.1.ebuild,v 1.6 2006/07/18 00:55:38 langthang Exp $
+# $Header: $
 
 inherit eutils
 
@@ -14,20 +14,20 @@ KEYWORDS="~x86"
 IUSE=""
 DEPEND="dev-libs/openssl
 	>=sys-libs/db-3.2
-	mail-filter/libmilter"
+	|| ( mail-filter/libmilter >=mail-mta/sendmail-8.12 )"
 
 S=${WORKDIR}/${P}
 
 pkg_setup() {
 	enewgroup milter
-	enewuser milter -1 -1 -1 milter
+	enewuser milter -1 -1 /var/milter milter
 }
 
 src_unpack() {
 	unpack "${A}" && cd "${S}"
 
 	# Postfix queue ID patch. See MILTER_README.html#workarounds
-	epatch "${FILESDIR}"/${P}-queueID.patch
+	epatch "${FILESDIR}"/${PN}-0.4.1-queueID.patch
 
 	confCCOPTS="${CFLAGS}"
 	conf_libmilter_INCDIRS="-I/usr/include/libmilter"
@@ -59,9 +59,4 @@ src_install() {
 		|| die "newinitd failed"
 	newconfd "${FILESDIR}/dk-filter.conf" dk-filter \
 		|| die "newconfd failed"
-}
-
-pkg_postinst() {
-	enewgroup milter
-	enewuser milter -1 -1 -1 milter
 }

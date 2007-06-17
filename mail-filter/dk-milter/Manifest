@@ -19,10 +19,10 @@ MD5 daafe563fbfe874bb0d92c1ac2698735 files/site.config.m4 94
 RMD160 d9de9bfcaaf69bb39f0597e3b59e0195e513559e files/site.config.m4 94
 SHA256 4e177b598ebc524febfcabf0a1da37df8d3d7e4d0d51051476cdde4bee3b5b93 files/site.config.m4 94
 DIST dk-milter-0.6.0.tar.gz 350417 RMD160 aabc4fa34c4f6b3e03b39260471da5e91736b930 SHA1 4ee16bdf8f11c040e0a4db62ca84c1e3dae53492 SHA256 1114e9e548a341eda66da92fcca903d665e77763ee63d67e690606af4acce683
-EBUILD dk-milter-0.6.0.ebuild 1766 RMD160 3fc81ee8673681c4eed0e5ca6713dbe2ac5b30d4 SHA1 1585dde66ba551436e154710ebd460611ce8d601 SHA256 b7bd82dabf12faf85a227d4b8a1384269fcb8da2dfe1994cd64eedf369abbae2
-MD5 ea1b7d9a03340788fe80a833ccfc452a dk-milter-0.6.0.ebuild 1766
-RMD160 3fc81ee8673681c4eed0e5ca6713dbe2ac5b30d4 dk-milter-0.6.0.ebuild 1766
-SHA256 b7bd82dabf12faf85a227d4b8a1384269fcb8da2dfe1994cd64eedf369abbae2 dk-milter-0.6.0.ebuild 1766
+EBUILD dk-milter-0.6.0.ebuild 1634 RMD160 cb20bbb2d39edd1b3a339b2bbbf3e169422fd921 SHA1 070f49b14b92522cabb5d3ad74543f129803feea SHA256 1f988367684c6458c39f80d4ac9109b939dd0c5770256d677240fded9632ce6c
+MD5 c0756cb8671bee4230b1a1a270df1403 dk-milter-0.6.0.ebuild 1634
+RMD160 cb20bbb2d39edd1b3a339b2bbbf3e169422fd921 dk-milter-0.6.0.ebuild 1634
+SHA256 1f988367684c6458c39f80d4ac9109b939dd0c5770256d677240fded9632ce6c dk-milter-0.6.0.ebuild 1634
 MD5 40df416886a77e85b35de0e916f51a18 files/digest-dk-milter-0.6.0 247
 RMD160 ab9fa351a7fafae6361c9344e1dbe6af4a74ad40 files/digest-dk-milter-0.6.0 247
 SHA256 18ebc0e0a5b0a4cf21d621854d7f30a8afa00622003babe73aaebf46fa6e0352 files/digest-dk-milter-0.6.0 247
