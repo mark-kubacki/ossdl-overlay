@@ -1,0 +1,99 @@
+#!/sbin/runscript
+# Copyright 1999-2006 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+# $Header: /var/cvsroot/gentoo-x86/mail-filter/dk-milter/files/dk-filter.init,v 1.3 2006/07/20 01:27:05 langthang Exp $
+
+depend() {
+	# need net
+	use dns logger net
+}
+warn_msg() {
+	echo
+	ewarn "$1 parameter is not set!"
+	ewarn "dk-filter starts with"
+	ewarn "$1=${!1}"
+	ewarn "please set it in /etc/conf.d/dk-filter"
+	echo
+}
+
+die_msg() {
+	echo
+	eerror "please set paramter $1 in"
+	eerror "/etc/conf.d/dk-filter then start again"
+	echo
+}
+
+check_cfg() {
+
+	if [[ ! -f /etc/conf.d/dk-filter ]] ; then
+		eerror "/etc/conf.d/dk-filter is missing"
+		return 1
+	fi
+
+	source /etc/conf.d/dk-filter || {
+		eerror "Prolem sourcing /etc/conf.d/dk-filter"
+		eerror "Please correct them then start dk-filter again"
+		return 1
+	}
+
+	if [[ -z "${DK_FILTER_OPTS}" ]] ; then
+		die_msg DK_FILTER_OPTS
+		return 1
+	fi
+
+	if [[ -z "${SELECTOR}" ]] ; then
+		die_msg SELECTOR
+		return 1
+	fi
+
+	if [[ -z "${KEYPATH}" ]] ; then
+		die_msg KEYPATH
+		return 1
+	fi
+
+	if [[ ! -f "${KEYPATH}" ]] ; then
+		echo
+		eerror "run gentxt.sh to generate a private key first"
+		eerror "then set KEYPATH in /etc/conf.d/dk-filter to"
+		eerror "the location of your private key"
+		echo
+		return 1
+	fi
+
+	if [[ -z "${SOCKETSPEC}" ]] ; then
+		SOCKETSPEC="inet:8025@localhost"
+		warn_msg SOCKETSPEC
+	fi
+
+	if [[ -z "${DOMAIN}" ]] ; then
+		DOMAIN=$(domainname)
+		warn_msg DOMAIN
+	fi
+
+	if [[ -z "${CANON}" ]] ; then
+		CANON="simple"
+		warn_msg CANON
+	fi
+
+	if [[ -z "${CANON}" ]] ; then
+		USER="milter"
+		warn_msg USER
+	fi
+
+	source /etc/conf.d/dk-filter
+}
+
+start() {
+	check_cfg || return 1
+	einfo "DK_FILTER_OPTS: $DK_FILTER_OPTS"
+	ebegin "Starting DomainKeys Filter"
+	start-stop-daemon --start --quiet --background \
+		--exec /usr/bin/dk-filter -- ${DK_FILTER_OPTS}
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping DomainKeys Filter"
+	start-stop-daemon --stop --quiet --name dk-filter
+	eend $?
+}
