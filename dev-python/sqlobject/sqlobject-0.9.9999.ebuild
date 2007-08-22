@@ -34,6 +34,7 @@ src_unpack() {
 	cd "${S}"
 
 	epatch "${FILESDIR}/mysql_charset_hack.patch"
+	epatch "${FILESDIR}/UnicodeStringValidator.patch"
 
 	sed -i \
 		-e '/use_setuptools/d' \

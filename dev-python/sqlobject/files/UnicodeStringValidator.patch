@@ -1,0 +1,11 @@
+--- sqlobject/col.py.orig	2007-08-22 13:44:16.000000000 +0200
++++ sqlobject/col.py	2007-08-22 13:45:07.000000000 +0200
+@@ -555,6 +555,8 @@
+     def from_python(self, value, state):
+         if value is None:
+             return None
++        if isinstance(value, unicode):
++            return value
+         if isinstance(value, str):
+             return value
+         return value.encode(self.db_encoding)
