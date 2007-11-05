@@ -15,13 +15,14 @@ IUSE=""
 RDEPEND="
 	sys-meta/sys-base
 	>=virtual/mysql-5.0
-	www-apache/mod_auth_mysql
+	>=www-apache/mod_auth_mysql-3.0.0
 	=www-servers/apache-2.0*
 	>=www-apache/mod_python-3.2.8
-	=dev-lang/php-5.1*
+	>=dev-lang/php-5.2.4_p20070914-r2
+	dev-php/PEAR-PEAR
 	dev-php5/eaccelerator
 	dev-php5/pecl-fileinfo
 	dev-php5/pecl-idn
 	net-ftp/pure-ftpd
-	>=dev-util/subversion-1.4.0
+	>=dev-util/subversion-1.4.4
 	"
