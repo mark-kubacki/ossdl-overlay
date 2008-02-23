@@ -19,7 +19,7 @@ SLOT="0"
 IUSE="test"
 
 RDEPEND=">=dev-python/turbojson-1.0
-	>=dev-python/turbocheetah-0.9.5
+	>=dev-python/turbocheetah-1.0
 	>=dev-python/turbokid-1.0.2
 	=dev-python/cherrypy-2.3*
 	>=dev-python/simplejson-1.3
