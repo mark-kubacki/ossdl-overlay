@@ -24,7 +24,7 @@ RDEPEND=">=dev-python/turbojson-1.0
 	=dev-python/cherrypy-2.3*
 	>=dev-python/simplejson-1.3
 	>=dev-python/elementtree-1.2.6-r2
-	>=dev-python/pastescript-0.9.7
+	>=dev-python/pastescript-1.6.2
 	>=dev-python/formencode-0.7.1
 	>=dev-python/ruledispatch-0.5_pre2306
 	>=dev-python/decoratortools-1.4
