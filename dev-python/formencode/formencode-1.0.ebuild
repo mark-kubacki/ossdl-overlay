@@ -11,7 +11,7 @@ MY_P="${MY_PN}-${PV}"
 
 DESCRIPTION="HTML form validation, generation, and conversion package"
 HOMEPAGE="http://formencode.org/"
-ESVN_REPO_URI="http://svn.colorstudy.com/FormEncode/tags/1.0"
+ESVN_REPO_URI="http://svn.colorstudy.com/FormEncode/tags/${PV}"
 
 LICENSE="PSF-2.4"
 SLOT="0"
