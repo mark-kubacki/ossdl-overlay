@@ -1,0 +1,79 @@
+Add mboxlist_findall_txn function
+
+*CANDIDATE FOR UPSTREAM if folder-limit is, and handy
+ for anyone else who wants to play with findall inside
+ a transaction*
+
+mboxlist_findall is used frequently throughout the code
+in places where there isn't a transaction in play.
+
+Unfortunately for the "folder_limit" patch, this wasn't
+the case when using mboxlist_count_inferiors inside a
+transaction, and skiplist corruption ensued under load.
+
+The skiplist code has already been patched to make this
+a bit more of a non-issue, but I'd still like to make
+things correct, so here goes!
+
+This patch changes mboxlist_findall into a function
+mboxlist_findall_txn which takes an additional paramater
+(struct txn **tid) and passes that transaction down to
+all database actions.
+
+It then creates a wrapper mboxlist_findall which just
+passes the original parameters and the extra NULL.
+Index: cyrus-imapd-2.3.12rc2/imap/mboxlist.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/mboxlist.c	2008-04-19 21:35:55.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/mboxlist.c	2008-04-19 21:36:02.000000000 +1000
+@@ -2128,6 +2128,14 @@
+ 		     const char *pattern, int isadmin, char *userid, 
+ 		     struct auth_state *auth_state, int (*proc)(), void *rock)
+ {
++    return mboxlist_findallall_txn(namespace, pattern, isadmin, userid,
++                                   auth_sate, proc, rock, NULL);
++}
++
++int mboxlist_findall_txn(struct namespace *namespace __attribute__((unused)),
++		     const char *pattern, int isadmin, char *userid, 
++		     struct auth_state *auth_state, int (*proc)(), void *rock, struct txn **tid)
++{
+     struct find_rock cbrock;
+     char usermboxname[MAX_MAILBOX_NAME+1];
+     int usermboxnamelen = 0;
+@@ -2208,7 +2216,7 @@
+     if (userid) {
+ 	if (GLOB_TEST(cbrock.g, "INBOX") != -1) {
+ 	    r = DB->fetch(mbdb, usermboxname, usermboxnamelen,
+-			  &data, &datalen, NULL);
++			  &data, &datalen, tid);
+ 	    if (!r && data) {
+ 		r = (*proc)(cbrock.inboxcase, 5, 1, rock);
+ 	    }
+@@ -2218,7 +2226,7 @@
+ 			  usermboxname+domainlen, usermboxnamelen-domainlen) &&
+ 		 GLOB_TEST(cbrock.g, usermboxname+domainlen) != -1) {
+ 	    r = DB->fetch(mbdb, usermboxname, usermboxnamelen,
+-			  &data, &datalen, NULL);
++			  &data, &datalen, tid);
+ 	    if (!r && data) {
+ 		r = (*proc)(usermboxname, usermboxnamelen, 1, rock);
+ 	    }
+@@ -2269,7 +2277,7 @@
+ 	r = DB->foreach(mbdb,
+ 			usermboxname, usermboxnamelen,
+ 			&find_p, &find_cb, &cbrock,
+-			NULL);
++			tid);
+     }
+ 
+     if(!r) {
+@@ -2289,7 +2297,7 @@
+ 	r = DB->foreach(mbdb,
+ 			domainpat, domainlen + prefixlen,
+ 			&find_p, &find_cb, &cbrock,
+-			NULL);
++			tid);
+     }
+     
+ 

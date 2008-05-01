@@ -1,0 +1,25 @@
+Mailwasher bug workaround.
+
+The program MailWasher (http://www.mailwasher.net/) has
+a bug where it can't handle getting the CAPABILITY
+response when it didn't ask for it (i.e. in response to
+a successful login)
+
+This patch removes that information.  Clients will fall
+back to asking for it if they want it anyway.
+
+Index: cyrus-imapd-2.3.12rc2/imap/imapd.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/imapd.c	2008-04-18 17:14:36.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/imapd.c	2008-04-18 17:14:44.000000000 +1000
+@@ -2143,9 +2143,7 @@
+     /* authstate already created by mysasl_proxy_policy() */
+     imapd_userisadmin = global_authisa(imapd_authstate, IMAPOPT_ADMINS);
+ 
+-    prot_printf(imapd_out, "%s OK [CAPABILITY ", tag);
+-    capa_response(CAPA_PREAUTH|CAPA_POSTAUTH);
+-    prot_printf(imapd_out, "] %s\r\n", reply);
++    prot_printf(imapd_out, "%s OK %s\r\n", tag, reply);
+ 
+     /* Create telemetry log */
+     imapd_logfd = telemetry_log(imapd_userid, imapd_in, imapd_out, 0);

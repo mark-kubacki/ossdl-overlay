@@ -1,0 +1,673 @@
+Fast Rename
+
+Currently a folder rename needs one link and one unlink per message file
+(plus each meta file) - causing an IO storm.  In particular, unlink is
+quite expensive on many filesystems.  This makes the whole operation
+slow.
+
+This patch replaces all the unlinks and relinks with a single "rename()"
+call for each of data and meta.  It's almost exactly the same as one from
+David Carter at:
+http://www-uxsup.csx.cam.ac.uk/~dpc22/cyrus/patches/2.3.8/ but has a
+check for our new folder hashing method that means it works correctly
+on mailboxes with inferiors as well.
+
+REQUIRES: cyrus-findall-txn-2.3.12.diff
+
+UPDATE: count_inferiors now takes a transaction id, and uses the new
+        mboxlist_findall_txn form to use that transaction id for all
+        database actions if provided.
+Index: cyrus-imapd-2.3.12rc2/imap/mailbox.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/mailbox.c	2008-03-24 13:09:17.000000000 -0400
++++ cyrus-imapd-2.3.12rc2/imap/mailbox.c	2008-04-19 08:39:07.000000000 -0400
+@@ -2780,7 +2780,7 @@ static void mailbox_delete_files(char *p
+     }
+ }
+ 
+-/* Callback for use by cmd_delete */
++/* Callback for use by disk_cleanup */
+ static int chkchildren(char *name __attribute__((unused)),
+ 		       int matchlen __attribute__((unused)),
+ 		       int maycreate __attribute__((unused)),
+@@ -2790,26 +2790,95 @@ static int chkchildren(char *name __attr
+ }
+ 
+ /*
+- * Delete and close the mailbox 'mailbox'.  Closes 'mailbox' whether
+- * or not the deletion was successful.  Requires a locked mailbox.
++ * Cleanup parent directories that don't have an associated mailbox.
+  */
+-int mailbox_delete(struct mailbox *mailbox, int delete_quota_root)
++static void mailbox_delete_disk_cleanup(struct mailbox *mailbox, int this_exists, struct txn **tid)
+ {
+-    int r, rquota = 0;
+     char nbuf[MAX_MAILBOX_NAME+1];
+     char pbuf[MAX_MAILBOX_PATH+1], mbuf[MAX_MAILBOX_PATH+1];
+     char *ntail, *ptail, *mtail = NULL;
+-    struct txn *tid = NULL;
++    int r;
++
++    /* prepare name */
++    strlcpy(nbuf, mailbox->name, sizeof(nbuf));
++    ntail = nbuf + strlen(nbuf);
++
++    /* Flush data (message file) directory */
++    if (this_exists)
++        mailbox_delete_files(mailbox->path);
++    strlcpy(pbuf, mailbox->path, sizeof(pbuf));
++    ptail = pbuf + strlen(pbuf);
++
++    /* Flush metadata directory */
++    if (mailbox->mpath) {
++        if (this_exists)
++            mailbox_delete_files(mailbox->mpath);
++        strlcpy(mbuf, mailbox->mpath, sizeof(mbuf));
++        mtail = mbuf + strlen(mbuf);
++    }
++
++    do {
++        /* Check if the mailbox has children */
++        strcpy(ntail, ".*");
++        /* oh fruitmuffin, we need a transaction all the way down here... */
++        r = mboxlist_findall_txn(NULL, nbuf, 1, NULL, NULL, chkchildren, NULL, tid);
++        if (r != 0) break; /* We short-circuit with CYRUSDB_DONE */
++
++        /* No children, remove mailbox spool dir(s) */
++        if (this_exists && rmdir(pbuf)) {
++            syslog(LOG_NOTICE,
++                   "Remove of supposedly empty directory %s failed: %m",
++                   pbuf);
++        }
++        ptail = strrchr(pbuf, '/');
++        *ptail ='\0';
++        if (mtail) {
++            if (this_exists && rmdir(mbuf)) {
++                syslog(LOG_NOTICE,
++                       "Remove of supposedly empty directory %s failed: %m",
++                       mbuf);
++            }
++            mtail = strrchr(mbuf, '/');
++            *mtail ='\0';
++        }
++
++        /* Check if parent mailbox exists */
++        *ntail = '\0';
++        ntail = strrchr(nbuf, '.');
++        if (!ntail || strchr(ntail, '!')) {
++            /* Hit top of hierarchy or domain separator */
++            break;
++        }
++        *ntail = '\0';
++        /* XXX: special case, should be config_userprefix */
++        if (!strcmp(nbuf, "user") ||
++            ((ntail - nbuf > 5) && !strcmp(ntail-5, "!user"))) {
++            /* Hit top of 'user' hierarchy */
++            break;
++        }
++        r = mboxlist_lookup(nbuf, NULL, NULL);
++        this_exists = 1; /* all parents will always exist */
++    } while(r == IMAP_MAILBOX_NONEXISTENT);
++}
++
++/*
++ * Delete and close the mailbox 'mailbox'.  Closes 'mailbox' whether
++ * or not the deletion was successful.  Requires a locked mailbox.
++ */
++int mailbox_delete(struct mailbox *mailbox, int delete_quota_root, struct txn **tid)
++{
++    int r, rquota = 0;
++    struct txn *qtid = NULL;
+     
+     /* Ensure that we are locked */
+     if(!mailbox->header_lock_count) return IMAP_INTERNAL;
+ 
+-    rquota = quota_read(&mailbox->quota, &tid, 1);
++    rquota = quota_read(&mailbox->quota, &qtid, 1);
+ 
+     seen_delete_mailbox(mailbox);
+ 
+     if (delete_quota_root && !rquota) {
+-	quota_delete(&mailbox->quota, &tid);
++	quota_delete(&mailbox->quota, &qtid);
+ 	free(mailbox->quota.root);
+ 	mailbox->quota.root = NULL;
+     } else if (!rquota) {
+@@ -2820,78 +2889,24 @@ int mailbox_delete(struct mailbox *mailb
+ 	else {
+ 	    mailbox->quota.used = 0;
+ 	}
+-	r = quota_write(&mailbox->quota, &tid);
++	r = quota_write(&mailbox->quota, &qtid);
+ 	if (r) {
+ 	    syslog(LOG_ERR,
+ 		   "LOSTQUOTA: unable to record free of " UQUOTA_T_FMT " bytes in quota %s",
+ 		   mailbox->quota_mailbox_used, mailbox->quota.root);
+ 	}
+ 	else
+-	    quota_commit(&tid);
++	    quota_commit(&qtid);
+     }
+ 
+-    /* Flush data (message file) directory */
+-    mailbox_delete_files(mailbox->path);
+-    strlcpy(pbuf, mailbox->path, sizeof(pbuf));
+-    ptail = pbuf + strlen(pbuf);
+-
+-    /* Flush metadata directory */
+-    if (mailbox->mpath) {
+-	mailbox_delete_files(mailbox->mpath);
+-	strlcpy(mbuf, mailbox->mpath, sizeof(mbuf));
+-	mtail = mbuf + strlen(mbuf);
+-    }
+-
+-    strlcpy(nbuf, mailbox->name, sizeof(nbuf));
+-    ntail = nbuf + strlen(nbuf);
+-    mailbox_close(mailbox);
+-
+-    do {
+-	/* Check if the mailbox has children */
+-	strcpy(ntail, ".*");
+-	r = mboxlist_findall(NULL, nbuf, 1, NULL, NULL, chkchildren, NULL);
+-	if (r != 0) break; /* We short-circuit with CYRUSDB_DONE */
+-
+-	/* No children, remove mailbox spool dir(s) */
+-	if (rmdir(pbuf)) {
+-	    syslog(LOG_NOTICE,
+-		   "Remove of supposedly empty directory %s failed: %m",
+-		   pbuf);
+-	}
+-	ptail = strrchr(pbuf, '/');
+-	*ptail ='\0';
+-
+-	if (mtail) {
+-	    if (rmdir(mbuf)) {
+-		syslog(LOG_NOTICE,
+-		       "Remove of supposedly empty directory %s failed: %m",
+-		       mbuf);
+-	    }
+-	    mtail = strrchr(mbuf, '/');
+-	    *mtail ='\0';
+-	}
+-
+-	/* Check if parent mailbox exists */
+-	*ntail = '\0';
+-	ntail = strrchr(nbuf, '.');
+-	if (!ntail || strchr(ntail, '!')) {
+-	    /* Hit top of hierarchy or domain separator */
+-	    break;
+-	}
+-	*ntail = '\0';
+-	if (!strcmp(nbuf, "user") ||
+-	    ((ntail - nbuf > 5) && !strcmp(ntail-5, "!user"))) {
+-	    /* Hit top of 'user' hierarchy */
+-	    break;
+-	}
+-	r = mboxlist_lookup(nbuf, NULL, NULL);
+-    } while(r == IMAP_MAILBOX_NONEXISTENT);
++    /* Clean up empty directories */
++    mailbox_delete_disk_cleanup(mailbox, 1, tid);
+ 
+-    *ntail = '\0';
+-    syslog(LOG_NOTICE, "Deleted mailbox %s", nbuf);
++    syslog(LOG_NOTICE, "Deleted mailbox %s", mailbox->name);
+ 
+-    if (updatenotifier) updatenotifier(nbuf);
++    if (updatenotifier) updatenotifier(mailbox->name);
+ 
++    mailbox_close(mailbox);
+     return 0;
+ }
+ 
+@@ -2907,6 +2922,135 @@ static struct data_file data_files[] = {
+     { 0, 0 }
+ };
+ 
++/* Implement mailbox_rename as simple filesystem rename(). Not as safe as
++   mailbox_rename_copy() + mailbox_rename_cleanup() if the power fails, but
++   an awful lot faster. mboxlist_renamemailbox() will fall back to the slow
++   method if mailbox_rename_fast fails, so it is important that there is no
++   change if we throw an error */
++
++int mailbox_rename_fast(struct mailbox *mailbox,
++                        const char *newname, char *newpartition, struct txn **tid)
++{
++    char oldpath[MAX_MAILBOX_PATH+1];
++    char newqroot[MAX_MAILBOX_PATH+1];
++    int newhasquota = quota_findroot(newqroot, sizeof(newqroot), newname);
++    uquota_t bytes  = mailbox->quota_mailbox_used;
++    struct txn *qtid = NULL;
++    char *path, *mpath, *p;
++    int save_errno;
++    int r = 0;
++    struct stat sbuf;
++
++    /* Check space in target quota root if different from source quota root */
++    if (newhasquota &&
++        (!mailbox->quota.root || strcmp(newqroot, mailbox->quota.root))) {
++        struct quota newquota;
++
++        newquota.root = newqroot;
++        r = quota_read(&newquota, NULL, 0);
++
++        if (!r && (newquota.limit >= 0) &&
++            (newquota.used + mailbox->quota_mailbox_used >
++             ((uquota_t) newquota.limit * QUOTA_UNITS))) {
++            return(IMAP_QUOTA_EXCEEDED);
++        }
++    }
++
++    /* Work out target directories */
++    r = mboxlist_getpath(newpartition, newname, &path, &mpath);
++    if (r) return r;
++
++    /* Fall back to rename_copy if different meta policies */
++    if ((mailbox->mpath && !mpath) || (!mailbox->mpath && mpath))
++        return(IMAP_IOERROR);
++
++    /* Create leading components in target path */
++    cyrus_mkdir(path, 0755);
++    if (mpath) cyrus_mkdir(mpath, 0755);
++    
++    /* Use last_appenddate as a timestamp? */
++    mailbox->last_appenddate = time(NULL);
++    if ((r = mailbox_write_index_header(mailbox)))
++        return(r);
++
++    /* Point of no return */
++    if (rename(mailbox->path, path) < 0) {
++        /* Fall back to rename_copy */
++        syslog(LOG_ERR, "mailbox_fast_rename() failed: %s -> %s: %m",
++               mailbox->path, path);
++        return(IMAP_IOERROR);
++    }
++    if (mailbox->mpath && mpath && rename(mailbox->mpath, mpath) < 0) {
++        /* Fall back to rename_copy (need to undo first) */
++        rename(path, mailbox->path);
++        syslog(LOG_ERR, "mailbox_fast_rename() failed: %s -> %s: %m",
++               mailbox->path, mpath);
++        return(IMAP_IOERROR);
++    }
++    /* Can't throw any errors after this point: just log problems */
++
++    /* Remove empty parent directories */
++    mailbox_delete_disk_cleanup(mailbox, 0, tid);
++
++    /* Small optimisation if source and target are on the same quotaroot */
++    if (mailbox->quota.root && newhasquota &&
++        !strcmp(mailbox->quota.root, newqroot))
++        return(0);
++
++    /* Release quota from old quotaroot */
++    if (mailbox->quota.root) {
++	r = quota_read(&(mailbox->quota), &qtid, 1);
++	mailbox->quota.used -= bytes;
++	r = quota_write(&(mailbox->quota), &qtid);
++	if (!r) {
++    quota_commit(&qtid);
++    /* my god this interface sucks.  NULL here added to avoid the
++     * bogusness of using the same qtid in two separate quota
++     * transactions.  Doesn't hurt legacy, but would break on
++     * skiplists.  Arrgh */
++    qtid = NULL;
++  }
++	if (r) {
++	    syslog(LOG_ERR,
++		   "LOSTQUOTA: unable to record free of "
++		   UQUOTA_T_FMT " bytes in quota %s",
++		   bytes, mailbox->quota.root);
++	}
++    }
++    mailbox_close(mailbox);
++
++    /* Add quota to new quotaroot */
++    r = mailbox_open_header(newname, 0, mailbox);
++    if (!r) r = mailbox_lock_header(mailbox);
++    if (r) return(0);
++
++    if (newhasquota) {
++        mailbox->quota.root = xstrdup(newqroot);
++	r = quota_read(&(mailbox->quota), &qtid, 1);
++	if (!r) {
++		mailbox->quota.used += bytes;
++		r = quota_write(&(mailbox->quota), &qtid);
++		if (!r) {
++      quota_commit(&qtid);
++      qtid = NULL; /* ... and a belt */
++    }
++	}
++	if (r) {
++		syslog(LOG_ERR,
++		       "LOSTQUOTA: unable to record add of "
++		       UQUOTA_T_FMT " bytes in quota %s",
++		       bytes, mailbox->quota.root);
++	}
++    } else
++        mailbox->quota.root = NULL;
++
++    /* Need to update quotaroot in cyrus.header file */
++    mailbox_write_header(mailbox);
++
++    /* Up to parent to close the new mailbox */
++    return(0);
++}
++
+ /* if 'userid' is set, we perform the funky RENAME INBOX INBOX.old
+    semantics, regardless of whether or not the name of the mailbox is
+    'user.foo'.*/
+@@ -2915,13 +3059,13 @@ int mailbox_rename_copy(struct mailbox *
+ 			const char *newname,
+ 			char *newpartition,
+ 			bit32 *olduidvalidityp, bit32 *newuidvalidityp,
+-			struct mailbox *newmailbox, char *userid)
++			struct mailbox *newmailbox, char *userid, struct txn **tid)
+ {
+     int r;
+     unsigned int flag;
+     struct fnamepath oldfpath, newfpath;
+     struct fnamebuf *oldfname, *newfname;
+-    struct txn *tid = NULL;
++    struct txn *qtid = NULL;
+     struct data_file *df;
+     DIR *mbdir;
+     struct dirent *next;
+@@ -2958,7 +3102,7 @@ int mailbox_rename_copy(struct mailbox *
+ 
+     /* Check quota if necessary */
+     if (newmailbox->quota.root) {
+-	r = quota_read(&(newmailbox->quota), &tid, 1);
++	r = quota_read(&(newmailbox->quota), &qtid, 1);
+ 	if (!oldmailbox->quota.root ||
+ 	    strcmp(oldmailbox->quota.root, newmailbox->quota.root) != 0) {
+ 	    if (!r && newmailbox->quota.limit >= 0 &&
+@@ -3058,8 +3202,8 @@ int mailbox_rename_copy(struct mailbox *
+     /* Record new quota usage */
+     if (!r && newmailbox->quota.root) {
+ 	newmailbox->quota.used += oldmailbox->quota_mailbox_used;
+-	r = quota_write(&(newmailbox->quota), &tid);
+-	if (!r) quota_commit(&tid);
++	r = quota_write(&(newmailbox->quota), &qtid);
++	if (!r) quota_commit(&qtid);
+     }
+     if (r) {
+ 	/* failure and back out */
+@@ -3070,7 +3214,7 @@ int mailbox_rename_copy(struct mailbox *
+     return r;
+ }
+ 
+-int mailbox_rename_cleanup(struct mailbox *oldmailbox, int isinbox) 
++int mailbox_rename_cleanup(struct mailbox *oldmailbox, int isinbox, struct txn **tid) 
+ {
+     int r = 0;
+     
+@@ -3078,7 +3222,7 @@ int mailbox_rename_cleanup(struct mailbo
+ 	/* Expunge old mailbox */
+ 	r = mailbox_expunge(oldmailbox, expungeall, (char *)0, EXPUNGE_FORCE);
+     } else {
+-	r = mailbox_delete(oldmailbox, 0);
++	r = mailbox_delete(oldmailbox, 0, tid);
+     }
+ 
+     if(r) {
+Index: cyrus-imapd-2.3.12rc2/imap/mailbox.h
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/mailbox.h	2008-03-24 13:09:17.000000000 -0400
++++ cyrus-imapd-2.3.12rc2/imap/mailbox.h	2008-04-19 08:31:52.000000000 -0400
+@@ -385,13 +385,17 @@ extern void mailbox_make_uniqueid(char *
+ extern int mailbox_create(const char *name, char *partition,
+ 			  const char *acl, const char *uniqueid, int format,
+ 			  struct mailbox *mailboxp);
+-extern int mailbox_delete(struct mailbox *mailbox, int delete_quota_root);
++extern int mailbox_delete(struct mailbox *mailbox, int delete_quota_root,
++                          struct txn **tid);
+ 
++extern int mailbox_rename_fast(struct mailbox *oldmailbox, const char *newname,
++                               char *newparition, struct txn **tid);
+ extern int mailbox_rename_copy(struct mailbox *oldmailbox, 
+ 			       const char *newname, char *newpartition,
+ 			       bit32 *olduidvalidityp, bit32 *newuidvalidityp,
+-			       struct mailbox *mailboxp, char *userid);
+-extern int mailbox_rename_cleanup(struct mailbox *oldmailbox, int isinbox);
++			       struct mailbox *mailboxp, char *userid, struct txn **tid);
++extern int mailbox_rename_cleanup(struct mailbox *oldmailbox, int isinbox,
++             struct txn **tid);
+ 
+ extern int mailbox_sync(const char *oldname, const char *oldpath, 
+ 			const char *oldmpath, const char *oldacl, 
+Index: cyrus-imapd-2.3.12rc2/imap/mboxlist.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/mboxlist.c	2008-04-19 08:22:35.000000000 -0400
++++ cyrus-imapd-2.3.12rc2/imap/mboxlist.c	2008-04-19 08:47:47.000000000 -0400
+@@ -1109,7 +1109,7 @@ int mboxlist_deletemailbox(const char *n
+ 
+     if ((r && !force) || isremote) goto done;
+ 
+-    if (!r || force) r = mailbox_delete(&mailbox, deletequotaroot);
++    if (!r || force) r = mailbox_delete(&mailbox, deletequotaroot, &tid);
+ 
+     /*
+      * See if we have to remove mailbox's quota root
+@@ -1161,6 +1161,7 @@ int mboxlist_renamemailbox(char *oldname
+     char *newpartition = NULL;
+     char *mboxent = NULL;
+     char *p;
++    int need_rename_cleanup = 0;
+ 
+     mupdate_handle *mupdate_h = NULL;
+     int madenew = 0;
+@@ -1188,7 +1189,9 @@ int mboxlist_renamemailbox(char *oldname
+     newacl = xstrdup(oldacl);
+ 
+     /* 2. verify acls */
+-    if (!strcmp(oldname, newname) && !(mbtype & MBTYPE_REMOTE)) {
++    if (forceuser) {
++	/* replication knows best */
++    } else if (!strcmp(oldname, newname) && !(mbtype & MBTYPE_REMOTE)) {
+ 	/* Attempt to move mailbox across partition */
+ 	if (!isadmin) {
+ 	    r = IMAP_PERMISSION_DENIED;
+@@ -1252,7 +1255,7 @@ int mboxlist_renamemailbox(char *oldname
+ 
+     /* Check ability to create new mailbox */
+     if (!partitionmove) {
+-	if (mboxname_isusermailbox(newname, 1)) {
++	if (!forceuser && mboxname_isusermailbox(newname, 1)) {
+ 	    if ((config_getswitch(IMAPOPT_ALLOWUSERMOVES) &&
+ 		 mboxname_isusermailbox(oldname, 1)) ||
+ 		mboxname_isdeletedmailbox(oldname)) {
+@@ -1347,14 +1350,24 @@ int mboxlist_renamemailbox(char *oldname
+ 
+     /* 6. Copy mailbox */
+     if (!(mbtype & MBTYPE_REMOTE)) {
+-	/* Rename the actual mailbox */
+-	r = mailbox_rename_copy(&oldmailbox, newname, newpartition,
+-				NULL, NULL, &newmailbox,
+-				isusermbox ? userid : NULL);
+-	if (r) {
+-	    goto done;
++	if (isusermbox || !config_getswitch(IMAPOPT_FAST_RENAME) ||
++	    (mboxlist_count_inferiors(oldname, 1, NULL, auth_state, NULL) > 0) ||
++	    (mboxlist_count_inferiors(newname, 1, NULL, auth_state, NULL) > 0) ||
++	    (mailbox_rename_fast(&oldmailbox, newname, newpartition, &tid) != 0)) {
++	    /* Fall back to slow copy */
++	    syslog(LOG_INFO, "RenameCopy: %s -> %s", oldname, newname);
++	    need_rename_cleanup = 1;
++	    r = mailbox_rename_copy(&oldmailbox, newname, newpartition,
++				    NULL, NULL, &newmailbox,
++				    isusermbox ? userid : NULL, &tid);
++	    if (r) {
++		goto done;
++	    } else {
++		newopen = 1;
++	    }
+ 	} else {
+-	    newopen = 1;
++	    syslog(LOG_INFO, "RenameFast: %s -> %s", oldname, newname);
++	    need_rename_cleanup = 0;
+ 	}
+     }
+ 
+@@ -1441,6 +1454,7 @@ int mboxlist_renamemailbox(char *oldname
+ 	/* commit now */
+ 	switch (r = DB->commit(mbdb, tid)) {
+ 	case 0: 
++      tid = NULL;
+ 	    break;
+ 
+ 	default:
+@@ -1501,8 +1515,9 @@ int mboxlist_renamemailbox(char *oldname
+     if(config_mupdate_server) mupdate_disconnect(&mupdate_h);
+ 
+     if(oldopen) {
+-	if(!r)
+-	    mailbox_rename_cleanup(&oldmailbox,isusermbox);
++	if (!r && need_rename_cleanup)
++	    mailbox_rename_cleanup(&oldmailbox, isusermbox, NULL);
++      /* the transaction is over now */
+ 
+ 	mailbox_close(&oldmailbox);
+     }
+@@ -2124,13 +2139,6 @@ static int find_cb(void *rockp, 
+  * case it wants some persistant storage or extra data.
+  */
+ /* Find all mailboxes that match 'pattern'. */
+-int mboxlist_findall(struct namespace *namespace __attribute__((unused)),
+-		     const char *pattern, int isadmin, char *userid, 
+-		     struct auth_state *auth_state, int (*proc)(), void *rock)
+-{
+-    return mboxlist_findallall_txn(namespace, pattern, isadmin, userid,
+-                                   auth_sate, proc, rock, NULL);
+-}
+ 
+ int mboxlist_findall_txn(struct namespace *namespace __attribute__((unused)),
+ 		     const char *pattern, int isadmin, char *userid, 
+@@ -2308,6 +2316,14 @@ int mboxlist_findall_txn(struct namespac
+     return r;
+ }
+ 
++int mboxlist_findall(struct namespace *namespace __attribute__((unused)),
++		     const char *pattern, int isadmin, char *userid, 
++		     struct auth_state *auth_state, int (*proc)(), void *rock)
++{
++    return mboxlist_findall_txn(namespace, pattern, isadmin, userid,
++                                auth_state, proc, rock, NULL);
++}
++
+ int mboxlist_findall_alt(struct namespace *namespace,
+ 			 const char *pattern, int isadmin, char *userid,
+ 			 struct auth_state *auth_state, int (*proc)(),
+@@ -3391,3 +3407,60 @@ int mboxlist_delayed_delete_isenabled(vo
+ 
+     return(config_delete_mode == IMAP_ENUM_DELETE_MODE_DELAYED);
+ }
++
++struct count_tmplist {
++    int alloc;
++    int num;
++    char mb[1][MAX_MAILBOX_NAME];
++};
++
++#define COUNT_TMPLIST_INC 50
++
++/* Callback used by mboxlist_count_inferiors below */
++static int
++count_addmbox(char *name,
++              int matchlen __attribute__((unused)),
++              int maycreate __attribute__((unused)),
++              void *rock)
++{
++    struct count_tmplist **lptr = (struct count_tmplist **) rock;
++    struct count_tmplist *l = *lptr;
++    
++    if (l->alloc == l->num) {
++        l->alloc += COUNT_TMPLIST_INC;
++        l = xrealloc(l, sizeof(struct count_tmplist) + 
++                     l->alloc * MAX_MAILBOX_NAME * (sizeof(char)));
++        *lptr = l;
++    }
++    
++    strcpy(l->mb[l->num++], name);
++    
++    return 0;
++}
++
++/* Check for attempt to create name which has children */
++int
++mboxlist_count_inferiors(char *mailboxname, int isadmin, char *userid,
++                         struct auth_state *authstate, struct txn **tid)
++{
++    int  count = 0;
++    char mailboxname2[MAX_MAILBOX_NAME+1];
++    struct count_tmplist *l = xmalloc(sizeof(struct count_tmplist));
++    char *p;
++
++    l->alloc = 0;
++    l->num = 0;
++  
++    strcpy(mailboxname2, mailboxname);
++    p = mailboxname2 + strlen(mailboxname2); /* end of mailboxname */
++    strcpy(p, ".*");
++
++    /* build a list of mailboxes - we're using internal names here */
++    mboxlist_findall_txn(NULL, mailboxname2, isadmin, userid,
++                         authstate, count_addmbox, &l, tid);
++    
++    count = l->num;
++    free(l);
++
++    return(count);
++}
+Index: cyrus-imapd-2.3.12rc2/imap/mboxlist.h
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/mboxlist.h	2008-03-24 13:09:18.000000000 -0400
++++ cyrus-imapd-2.3.12rc2/imap/mboxlist.h	2008-04-19 08:46:34.000000000 -0400
+@@ -152,6 +152,10 @@ int mboxlist_sync_setacls(char *name, ch
+ int mboxlist_findall(struct namespace *namespace,
+ 		     const char *pattern, int isadmin, char *userid, 
+ 		     struct auth_state *auth_state, int (*proc)(), void *rock);
++int mboxlist_findall_txn(struct namespace *namespace,
++		     const char *pattern, int isadmin, char *userid, 
++		     struct auth_state *auth_state, int (*proc)(), void *rock,
++         struct txn **tid);
+ int mboxlist_findall_std(struct namespace *namespace,
+ 			 const char *pattern, int isadmin, char *userid, 
+ 			 struct auth_state *auth_state, int (*proc)(),
+@@ -200,6 +204,10 @@ void mboxlist_open(char *name);
+ /* close the database */
+ void mboxlist_close(void);
+ 
++/* Small utility routine for mailbox_fast_rename() */
++int mboxlist_count_inferiors(char *mailboxname, int isadmin, char *userid,
++                             struct auth_state *authstate, struct txn **tid);
++
+ /* initialize database structures */
+ #define MBOXLIST_SYNC 0x02
+ void mboxlist_init(int flags);
+Index: cyrus-imapd-2.3.12rc2/lib/imapoptions
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/lib/imapoptions	2008-04-11 16:07:00.000000000 -0400
++++ cyrus-imapd-2.3.12rc2/lib/imapoptions	2008-04-19 08:24:17.000000000 -0400
+@@ -258,6 +258,10 @@ are listed with ``<none>''.
+    result in greater responsiveness for the client, especially when
+    expunging a large number of messages. */
+ 
++{ "fast_rename", 0, SWITCH }
++/* Use rename() to move mailbox data where possible. Faster, not quite
++   as safe if power fails part way through a rename. */
++
+ { "flushseenstate", 0, SWITCH }
+ /* If enabled, changes to the seen state will be flushed to disk
+    immediately, otherwise changes will be cached and flushed when the
+Index: cyrus-imapd-2.3.12rc2/imap/imapd.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/imapd.c	2008-04-19 08:36:59.000000000 -0400
++++ cyrus-imapd-2.3.12rc2/imap/imapd.c	2008-04-19 08:37:38.000000000 -0400
+@@ -8361,7 +8361,7 @@ static int do_xfer_single(char *toserver
+ 			 mailboxname);
+ 	    if(!r) {
+ 		/* Delete mailbox and quota root */
+-		r = mailbox_delete(&mailbox, 0);
++		r = mailbox_delete(&mailbox, 0, NULL);
+ 		if(r) syslog(LOG_ERR,
+ 			     "Could not delete local mailbox during move of %s",
+ 			     mailboxname);

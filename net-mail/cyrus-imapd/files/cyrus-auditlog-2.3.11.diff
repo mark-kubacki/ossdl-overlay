@@ -1,0 +1,684 @@
+Index: cyrus-2.3.12rc2/imap/append.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/append.c	2008-03-24 13:09:16.000000000 -0400
++++ cyrus-2.3.12rc2/imap/append.c	2008-04-19 09:17:35.000000000 -0400
+@@ -468,6 +468,7 @@ int append_fromstage(struct appendstate 
+     struct mailbox *mailbox = &as->m;
+     struct index_record message_index;
+     char fname[MAX_MAILBOX_PATH+1];
++    char *msgid = NULL;
+     FILE *destfile;
+     int i, r;
+     int userflag, emptyflag;
+@@ -576,7 +577,7 @@ int append_fromstage(struct appendstate 
+ 	if (!*body || (as->nummsg - 1))
+ 	    r = message_parse_file(destfile, NULL, NULL, body);
+ 	if (!r) r = message_create_record(mailbox->name, mailbox->cache_fd,
+-					  &message_index, *body);
++					  &message_index, *body, &msgid);
+     }
+     if (destfile) {
+ 	/* this will hopefully ensure that the link() actually happened
+@@ -585,6 +586,7 @@ int append_fromstage(struct appendstate 
+ 	fclose(destfile);
+     }
+     if (r) {
++	if (msgid) free(msgid);
+ 	append_abort(as);
+ 	return r;
+     }
+@@ -644,9 +646,15 @@ int append_fromstage(struct appendstate 
+     r = mailbox_append_index(mailbox, &message_index, 
+ 			     mailbox->exists + as->nummsg - 1, 1, 0);
+     if (r) {
++	if (msgid) free(msgid);
+ 	append_abort(as);
+ 	return r;
+     }
++    if (config_auditlog) syslog(LOG_NOTICE, 
++	"auditlog: append sessionid=<%s> mailbox=<%s> uniqueid=<%s> uid=<%d> guid=<%s> message-id=%s",
++	session_id(), mailbox->name, mailbox->uniqueid, message_index.uid,
++	message_guid_encode(&message_index.guid), msgid);
++    if (msgid) free(msgid);
+ 
+     /* ok, we've successfully added a message */
+     as->quota_used += message_index.size;
+@@ -698,6 +706,7 @@ int append_fromstream(struct appendstate
+     struct mailbox *mailbox = &as->m;
+     struct index_record message_index;
+     char fname[MAX_MAILBOX_PATH+1];
++    char *msgid = NULL;
+     FILE *destfile;
+     int i, r;
+     int userflag, emptyflag;
+@@ -739,10 +748,11 @@ int append_fromstream(struct appendstate
+ 	if (!*body || (as->nummsg - 1))
+ 	    r = message_parse_file(destfile, NULL, NULL, body);
+ 	if (!r) r = message_create_record(mailbox->name, mailbox->cache_fd,
+-					  &message_index, *body);
++					  &message_index, *body, &msgid);
+     }
+     fclose(destfile);
+     if (r) {
++	if (msgid) free(msgid);
+ 	append_abort(as);
+ 	return r;
+     }
+@@ -804,10 +814,17 @@ int append_fromstream(struct appendstate
+     r = mailbox_append_index(mailbox, &message_index, 
+ 			     mailbox->exists + as->nummsg - 1, 1, 0);
+     if (r) {
++	if (msgid) free(msgid);
+ 	append_abort(as);
+ 	return r;
+     }
+-    
++
++    if (config_auditlog) syslog(LOG_NOTICE, 
++	"auditlog: append sessionid=<%s> mailbox=<%s> uniqueid=<%s> uid=<%d> guid=<%s> message-id=%s",
++	session_id(), mailbox->name, mailbox->uniqueid, message_index.uid,
++	message_guid_encode(&message_index.guid), msgid);
++    if (msgid) free(msgid);
++
+     /* ok, we've successfully added a message */
+     as->quota_used += message_index.size;
+ 
+@@ -831,6 +848,7 @@ int append_copy(struct mailbox *mailbox,
+     int msg;
+     struct index_record *message_index;
+     char fname[MAX_MAILBOX_PATH+1];
++    char **msgid;
+     const char *src_base;
+     unsigned long src_size;
+     const char *startline, *endline;
+@@ -849,6 +867,7 @@ int append_copy(struct mailbox *mailbox,
+     lseek(append_mailbox->cache_fd, 0L, SEEK_END);
+     message_index = (struct index_record *)
+       xmalloc(nummsg * sizeof(struct index_record));
++    msgid = xzmalloc(nummsg * sizeof(char *));
+ 
+     /* Copy/link all files and cache info */
+     for (msg = 0; msg < nummsg; msg++) {
+@@ -901,6 +920,9 @@ int append_copy(struct mailbox *mailbox,
+ 		r = IMAP_IOERROR;
+ 		goto fail;
+ 	    }
++
++	    if (copymsg[msg].msgid) 
++		msgid[msg] = xstrdup(copymsg[msg].msgid);
+ 	} else {
+ 	    /*
+ 	     * Have to copy the message, possibly converting LF to CR LF
+@@ -947,7 +969,7 @@ int append_copy(struct mailbox *mailbox,
+ 	    if (!r) r = message_parse_file(destfile, NULL, NULL, &body);
+ 	    if (!r) r = message_create_record(append_mailbox->name,
+ 					      append_mailbox->cache_fd,
+-					      &message_index[msg], body);
++					      &message_index[msg], body, &msgid[msg]);
+ 	    if (body) message_free_body(body);
+ 	    fclose(destfile);
+ 	    if (r) goto fail;
+@@ -1011,9 +1033,22 @@ int append_copy(struct mailbox *mailbox,
+ 			     append_mailbox->exists + as->nummsg - nummsg, 
+ 			     nummsg, 0);
+ 
++    if (!r && config_auditlog) {
++	for (msg = 0; msg < nummsg; msg++) {
++	    syslog(LOG_NOTICE, "auditlog: copy sessionid=<%s> srcmailbox=<%s> srcuniqueid=<%s> srcuid=<%d> mailbox=<%s> uniqueid=<%s> uid=<%d> guid=<%s> message-id=%s",
++		    session_id(), mailbox->name, mailbox->uniqueid, copymsg[msg].uid,
++		    append_mailbox->name, append_mailbox->uniqueid, message_index[msg].uid,
++		    message_guid_encode(&message_index[msg].guid), msgid[msg]);
++	}
++    }
++
+  fail:
+     if (r) append_abort(as);
+     free(message_index);
++    for (msg = 0; msg < nummsg; msg++) {
++	if (msgid[msg]) free (msgid[msg]);
++    }
++    free(msgid);
+ 
+     return r;
+ }
+Index: cyrus-2.3.12rc2/imap/message.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/message.c	2008-03-24 13:09:18.000000000 -0400
++++ cyrus-2.3.12rc2/imap/message.c	2008-04-19 09:17:36.000000000 -0400
+@@ -522,11 +522,12 @@ void message_fetch_part(struct message_c
+  * by 'message_index'.
+  */
+ int
+-message_create_record(cache_name, cache_fd, message_index, body)
++message_create_record(cache_name, cache_fd, message_index, body, messageid)
+ const char *cache_name;
+ int cache_fd;
+ struct index_record *message_index;
+ struct body *body;
++char **messageid;
+ {
+     int n;
+     enum enum_value config_guidmode = config_getenum(IMAPOPT_GUID_MODE);
+@@ -555,6 +556,10 @@ struct body *body;
+ 	message_guid_copy(&message_index->guid, &body->guid);
+     }
+ 
++    if (messageid && body->message_id) {
++	*messageid = xstrdup(body->message_id);
++    }
++
+     return 0;
+ }
+ 
+Index: cyrus-2.3.12rc2/imap/message.h
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/message.h	2008-03-24 13:09:18.000000000 -0400
++++ cyrus-2.3.12rc2/imap/message.h	2008-04-19 09:17:35.000000000 -0400
+@@ -96,7 +96,8 @@ extern void message_fetch_part P((struct
+ extern int message_create_record P((const char *cache_name,
+ 				    int cache_fd,
+ 				    struct index_record *message_index,
+-				    struct body *body));
++				    struct body *body,
++				    char **messageid));
+ extern void message_free_body P((struct body *body));
+ 
+ #endif /* INCLUDED_MESSAGE_H */
+Index: cyrus-2.3.12rc2/imap/reconstruct.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/reconstruct.c	2008-04-10 10:19:51.000000000 -0400
++++ cyrus-2.3.12rc2/imap/reconstruct.c	2008-04-19 09:17:35.000000000 -0400
+@@ -704,6 +704,9 @@ static void reconstruct_clear_expunged(s
+         if ((uid = expunge_uidmap[msgno-1].uid) > 0) {
+             mailbox_message_get_fname(mailbox, uid, msgfname, sizeof(msgfname));
+             unlink(msgfname);
++	    if (config_auditlog) syslog(LOG_NOTICE,
++		"auditlog: unlink-expunged mailbox=<%s> uniqueid=<%s> uid=<%d>",
++		mailbox->name, mailbox->uniqueid, uid);
+         }
+     }
+ }
+@@ -829,11 +832,18 @@ int reconstruct(char *name, struct disco
+ 	mympath : mypath;
+     snprintf(mbpath, sizeof(mbpath), "%s%s", path, FNAME_HEADER);
+     if(stat(mbpath, &sbuf) == -1) {
++        struct mailbox mailbox;
+ 	/* Header doesn't exist, create it! */
+ 	r = mailbox_create(name, mypart, myacl, NULL,
+ 			   ((mytype & MBTYPE_NETNEWS) ?
+ 			    MAILBOX_FORMAT_NETNEWS :
+-			    MAILBOX_FORMAT_NORMAL), NULL);
++			    MAILBOX_FORMAT_NORMAL), &mailbox);
++	if (!r) {
++	    if (config_auditlog) syslog(LOG_NOTICE, 
++		"auditlog: recreate mailbox=<%s> uniqueid=<%s>",
++		mailbox.name, mailbox.uniqueid);
++	    mailbox_close(&mailbox);
++	}
+ 	if(r) return r;
+     }
+     
+@@ -915,6 +925,10 @@ int reconstruct(char *name, struct disco
+     mailbox.index_lock_count = 1;
+     mailbox.pop3_last_login = 0;
+ 
++    if (config_auditlog) syslog(LOG_NOTICE,
++        "auditlog: reconstruct mailbox=<%s> uniqueid=<%s>",
++        mailbox.name, mailbox.uniqueid);
++
+     /* Open, lock and then map cyrus.expunge file if it exists */
+     r = reconstruct_open_expunge(&mailbox, &expunge_fd, &expunge_size);
+     if (r) {
+@@ -1039,6 +1053,8 @@ int reconstruct(char *name, struct disco
+     expmsg = 0;
+     for (msg = 0; msg < uid_num; msg++) {
+ 	char msgfname[MAILBOX_FNAME_LEN+1];
++	int is_new = 0;
++	char *msgid = NULL;
+ 
+         memset(&message_index, 0, sizeof(struct index_record));
+ 	message_index.uid = uid[msg];
+@@ -1050,6 +1066,9 @@ int reconstruct(char *name, struct disco
+ 	    fprintf(stderr,
+                     ("reconstruct: fopen() failed for '%s' "
+                      "[error=%d] -- skipping.\n"), msgfname, errno);
++            if (config_auditlog) syslog(LOG_NOTICE,
++                "auditlog: missing mailbox=<%s> uniqueid=<%s> uid=<%d>",
++                mailbox.name, mailbox.uniqueid, uid[msg]);
+ 	    continue;
+ 	}
+ 
+@@ -1060,6 +1079,9 @@ int reconstruct(char *name, struct disco
+ 	if (sbuf.st_size == 0) {
+ 	    /* Zero-length message file--blow it away */
+ 	    fclose(msgfile);
++	    if (config_auditlog) syslog(LOG_NOTICE, 
++		"auditlog: unlink-zerolength mailbox=<%s> uniqueid=<%s> uid=<%d>",
++		mailbox.name, mailbox.uniqueid, uid[msg]);
+ 	    unlink(msgfname);
+ 	    continue;
+ 	}
+@@ -1125,6 +1147,7 @@ int reconstruct(char *name, struct disco
+             message_guid_set_null(&message_index.guid);
+             /* If we are recovering a message, reset MODSEQ */
+             message_index.modseq = 1;
++            is_new = 1;
+         }
+ 
+         if (message_index.modseq > mailbox.highestmodseq) {
+@@ -1137,7 +1160,7 @@ int reconstruct(char *name, struct disco
+ 	/* NB: message_create_record() will reconstruct GUID if NULL */
+ 	if (((r = message_parse_file(msgfile, NULL, NULL, &body)) != 0) ||
+ 	    ((r = message_create_record(mailbox.name, newcache_fd,
+-					&message_index, body)) != 0)) {
++					&message_index, body, &msgid)) != 0)) {
+             r = IMAP_IOERROR;
+             goto bail;
+ 	}
+@@ -1161,8 +1184,14 @@ int reconstruct(char *name, struct disco
+ 
+         if (n != INDEX_RECORD_SIZE) {
+             r = IMAP_IOERROR;
++	    if (msgid) free(msgid);
+             goto bail;
+         }
++
++	if (is_new && config_auditlog) syslog(LOG_NOTICE,
++	    "auditlog: found mailbox=<%s> uniqueid=<%s> uid=<%d> guid=<%s> message-id=%s",
++	    mailbox.name, mailbox.uniqueid, message_index.uid, message_guid_encode(&message_index.guid), msgid);
++	if (msgid) free(msgid);
+     }
+ 
+     /* Write out new index and expunge file headers */
+Index: cyrus-2.3.12rc2/imap/mboxlist.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/mboxlist.c	2008-04-19 08:50:47.000000000 -0400
++++ cyrus-2.3.12rc2/imap/mboxlist.c	2008-04-19 09:18:03.000000000 -0400
+@@ -595,6 +595,7 @@ int mboxlist_createmailbox(char *name, i
+ 			   int localonly, int forceuser, int dbonly)
+ {
+     int r;
++    char *uniqueid = NULL;
+     char *acl = NULL;
+     char *newpartition = NULL;
+     struct txn *tid = NULL;
+@@ -672,12 +673,18 @@ int mboxlist_createmailbox(char *name, i
+ 
+  done: /* All checks compete.  Time to fish or cut bait. */
+     if (!r && !dbonly && !(mbtype & MBTYPE_REMOTE)) {
++        struct mailbox mailbox;
+ 	/* Filesystem Operations */
+ 	r = mailbox_create(name, newpartition, acl, NULL,
+ 			   ((mbtype & MBTYPE_NETNEWS) ?
+ 			    MAILBOX_FORMAT_NETNEWS :
+ 			    MAILBOX_FORMAT_NORMAL), 
+-			   NULL);
++			   &mailbox);
++	if (!r) {
++	    if (mailbox.uniqueid)
++		uniqueid = xstrdup(mailbox.uniqueid);
++	    mailbox_close(&mailbox);
++	}
+     }
+ 
+     if (r) { /* CREATE failed */ 
+@@ -760,9 +767,14 @@ int mboxlist_createmailbox(char *name, i
+ 	}
+     }
+ 
++    if (!r && config_auditlog) syslog(LOG_NOTICE, 
++	"auditlog: create sessionid=<%s> mailbox=<%s> uniqueid=<%s>",
++	session_id(), name, uniqueid);
++
+     if(config_mupdate_server && mupdate_h) mupdate_disconnect(&mupdate_h);
+ 
+     if (acl) free(acl);
++    if (uniqueid) free (uniqueid);
+     if (newpartition) free(newpartition);
+     if (mboxent) free(mboxent);
+    
+@@ -1003,6 +1015,7 @@ int mboxlist_deletemailbox(const char *n
+ {
+     int r;
+     char *acl;
++    char *uniqueid = NULL;
+     long access;
+     struct mailbox mailbox;
+     int deletequotaroot = 0;
+@@ -1124,6 +1137,9 @@ int mboxlist_deletemailbox(const char *n
+ 
+     if ((r && !force) || isremote) goto done;
+ 
++    if (mailbox.uniqueid)
++	uniqueid = xstrdup(mailbox.uniqueid);
++
+     if (!r || force) r = mailbox_delete(&mailbox, deletequotaroot, &tid);
+ 
+     /*
+@@ -1150,6 +1166,11 @@ int mboxlist_deletemailbox(const char *n
+ 	}
+     }
+ 
++    if (!r && config_auditlog) syslog(LOG_NOTICE, 
++	"auditlog: delete sessionid=<%s> mailbox=<%s> uniqueid=<%s>",
++	session_id(), name, uniqueid);
++    if (uniqueid) free(uniqueid);
++
+     return r;
+ }
+ 
+@@ -1170,6 +1191,7 @@ int mboxlist_renamemailbox(char *oldname
+     int oldopen = 0, newopen = 0, newreserved = 0;
+     struct mailbox oldmailbox;
+     struct mailbox newmailbox;
++    char *oldunqid = NULL, *newunqid = NULL;
+     char *oldacl = NULL, *newacl = NULL;
+     const char *root = NULL;
+     struct txn *tid = NULL;
+@@ -1360,6 +1382,8 @@ int mboxlist_renamemailbox(char *oldname
+ 	    goto done;
+ 	} else {
+ 	    oldopen = 1;
++	    if (oldmailbox.uniqueid)
++		oldunqid = xstrdup(oldmailbox.uniqueid);
+ 	}
+     }
+ 
+@@ -1379,10 +1403,15 @@ int mboxlist_renamemailbox(char *oldname
+ 		goto done;
+ 	    } else {
+ 		newopen = 1;
++		if (newmailbox.uniqueid)
++		    newunqid = xstrdup(newmailbox.uniqueid);
++
+ 	    }
+ 	} else {
+ 	    syslog(LOG_INFO, "RenameFast: %s -> %s", oldname, newname);
+ 	    need_rename_cleanup = 0;
++	    if (oldmailbox.uniqueid)
++                newunqid = xstrdup(oldmailbox.uniqueid);
+ 	}
+     }
+ 
+@@ -1536,9 +1565,15 @@ int mboxlist_renamemailbox(char *oldname
+ 
+ 	mailbox_close(&oldmailbox);
+     }
++
++    if (!r && config_auditlog) syslog(LOG_NOTICE, 
++	"auditlog: rename sessionid=<%s> oldmailbox=<%s> olduniqueid=<%s> mailbox=<%s> uniqueid=<%s>",
++	session_id(), oldname, oldunqid, newname, newunqid);
+     
+     /* free memory */
+     if (newacl) free(newacl);	/* we're done with the new ACL */
++    if (oldunqid) free (oldunqid);
++    if (newunqid) free (newunqid);
+     if (newpartition) free(newpartition);
+     if (mboxent) free(mboxent);
+     
+Index: cyrus-2.3.12rc2/imap/sync_commit.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/sync_commit.c	2008-03-24 13:09:20.000000000 -0400
++++ cyrus-2.3.12rc2/imap/sync_commit.c	2008-04-19 08:50:48.000000000 -0400
+@@ -663,6 +663,13 @@ static int sync_combine_commit(struct ma
+                                IMAP_ENUM_METAPARTITION_FILES_EXPUNGE,
+                                FNAME_EXPUNGE_INDEX);
+ 
++    if (!r && config_auditlog) {
++	for (item = upload_list->head ; item ; item = item->next) {
++	    syslog(LOG_NOTICE, "auditlog: combine mailbox=<%s> uniqueid=<%s> uid=<%d> guid=<%s>",
++		   mailbox->name, mailbox->uniqueid, item->uid, message_guid_encode(&item->guid));
++	}
++    }
++
+  bail:
+     if (newexpunge) fclose(newexpunge);
+     if (newcache)   fclose(newcache);
+@@ -895,6 +902,12 @@ static int sync_append_commit(struct mai
+ 		   quota_add, mailbox->quota.root);
+ 	}
+     }
++    if (!r && config_auditlog) {
++	for (item = upload_list->head ; item ; item = item->next) {
++	    syslog(LOG_NOTICE, "auditlog: append mailbox=<%s> uniqueid=<%s> uid=<%d> guid=<%s>",
++		   mailbox->name, mailbox->uniqueid, item->uid, message_guid_encode(&item->guid));
++	}
++    }
+ 
+     free(index_chunk);
+     free(cache_iovec);
+@@ -1317,6 +1330,10 @@ int sync_create_commit(char *name, char 
+     }
+     if (!r) mailbox_write_index_header(&m);
+ 
++    if (!r && config_auditlog) syslog(LOG_NOTICE,
++	"auditlog: create mailbox=<%s> uniqueid=<%s>",
++	name, uniqueid);
++
+     if (mboxopen) mailbox_close(&m);
+ 
+     if (free_uniqueid) free(uniqueid);
+Index: cyrus-2.3.12rc2/imap/index.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/index.c	2008-03-24 13:09:17.000000000 -0400
++++ cyrus-2.3.12rc2/imap/index.c	2008-04-19 09:17:33.000000000 -0400
+@@ -1399,7 +1399,7 @@ index_copy(struct mailbox *mailbox, 
+ 
+     r = append_setup(&append_mailbox, name, MAILBOX_FORMAT_NORMAL,
+ 		     imapd_userid, imapd_authstate, ACL_INSERT, totalsize);
+-    if (r) return r;
++    if (r) goto done;
+ 
+     docopyuid = (append_mailbox.m.myrights & ACL_READ);
+ 
+@@ -1457,6 +1457,15 @@ index_copy(struct mailbox *mailbox, 
+ 	*copyuidp = copyuid;
+     }
+ 
++    done:
++    /* free messageid copies */
++    for (i = 0; i < copyargs.nummsg; i++) {
++	if (copyargs.copymsg[i].msgid) {
++	    free(copyargs.copymsg[i].msgid);
++	    copyargs.copymsg[i].msgid = NULL;
++	}
++    }
++
+     return r;
+ }
+ 
+@@ -3591,6 +3600,9 @@ void *rock;
+     }
+     copyargs->copymsg[copyargs->nummsg].flag[flag] = 0;
+ 
++    if (copyargs->copymsg[copyargs->nummsg].cache_len)
++	copyargs->copymsg[copyargs->nummsg].msgid = index_get_msgid(mailbox, msgno);
++
+     copyargs->nummsg++;
+ 
+     return 0;
+Index: cyrus-2.3.12rc2/imap/append.h
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/append.h	2008-03-24 13:09:16.000000000 -0400
++++ cyrus-2.3.12rc2/imap/append.h	2008-04-19 08:50:48.000000000 -0400
+@@ -59,6 +59,7 @@ struct copymsg {
+     unsigned long cache_version;
+     const char *cache_begin;
+     int cache_len;		/* 0 if need to copy & parse message */
++    char *msgid;  /* you need to free this after use */
+     int seen;
+     struct message_guid guid;
+     bit32 system_flags;
+Index: cyrus-2.3.12rc2/imap/sync_support.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/sync_support.c	2008-03-25 16:53:51.000000000 -0400
++++ cyrus-2.3.12rc2/imap/sync_support.c	2008-04-19 08:50:48.000000000 -0400
+@@ -1416,7 +1416,7 @@ int sync_getsimple(struct protstream *in
+     r = message_parse_file(file, NULL, NULL, &body);
+     if (!r) r = message_create_record(list->cache_name,
+ 				      list->cache_fd,
+-				      &record, body);
++				      &record, body, NULL);
+     if (body) message_free_body(body);
+ 
+     message->hdr_size     = record.header_size;
+Index: cyrus-2.3.12rc2/lib/imapoptions
+===================================================================
+--- cyrus-2.3.12rc2.orig/lib/imapoptions	2008-04-19 08:50:47.000000000 -0400
++++ cyrus-2.3.12rc2/lib/imapoptions	2008-04-19 09:17:36.000000000 -0400
+@@ -173,6 +173,11 @@ are listed with ``<none>''.
+    user on their mailboxes?  In a large organization this can cause
+    support problems, but it's enabled by default. */
+ 
++{ "auditlog", 0, SWITCH }
++/* Should cyrus output log entries for every action taken on a message
++   file or mailboxes list entry?  It's noisy so disabled by default, but
++   can be very useful for tracking down what happened if things look strange */
++
+ { "auth_mech", "unix", STRINGLIST("unix", "pts", "krb", "krb5")}
+ /* The authorization mechanism to use. */
+ 
+Index: cyrus-2.3.12rc2/lib/libconfig.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/lib/libconfig.c	2008-04-11 16:07:00.000000000 -0400
++++ cyrus-2.3.12rc2/lib/libconfig.c	2008-04-19 09:17:34.000000000 -0400
+@@ -79,6 +79,7 @@ const char *config_ident = NULL;        
+ int config_hashimapspool;	  /* f */
+ enum enum_value config_virtdomains;	          /* f */
+ enum enum_value config_mupdate_config;	/* IMAP_ENUM_MUPDATE_CONFIG_STANDARD */
++int config_auditlog;  /* f */
+ 
+ /* declared in each binary that uses libconfig */
+ extern const int config_need_data;
+@@ -282,6 +283,9 @@ void config_read(const char *alt_config)
+     config_virtdomains = config_getenum(IMAPOPT_VIRTDOMAINS);
+     config_defdomain = config_getstring(IMAPOPT_DEFAULTDOMAIN);
+ 
++    /* are we auditlogging */
++    config_auditlog = config_getswitch(IMAPOPT_AUDITLOG);
++
+     /* look up the hostname and info we should present to the user */
+     config_servername = config_getstring(IMAPOPT_SERVERNAME);
+     if (!config_servername) {
+Index: cyrus-2.3.12rc2/lib/libconfig.h
+===================================================================
+--- cyrus-2.3.12rc2.orig/lib/libconfig.h	2008-04-11 16:07:00.000000000 -0400
++++ cyrus-2.3.12rc2/lib/libconfig.h	2008-04-19 09:17:34.000000000 -0400
+@@ -78,6 +78,7 @@ extern int config_hashimapspool;
+ extern int config_implicitrights;
+ extern enum enum_value config_virtdomains;
+ extern enum enum_value config_mupdate_config;
++extern int config_auditlog;
+ 
+ /* config requirement flags */
+ #define CONFIG_NEED_PARTITION_DATA (1<<0)
+Index: cyrus-2.3.12rc2/imap/mailbox.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/mailbox.c	2008-04-19 08:50:47.000000000 -0400
++++ cyrus-2.3.12rc2/imap/mailbox.c	2008-04-19 09:17:39.000000000 -0400
+@@ -2515,20 +2515,32 @@ int mailbox_expunge(struct mailbox *mail
+     if (newcache) {
+ 	fclose(newcache);
+ 
+-	/* Delete message files */
+-	fname = &fpath.data;
+-	*(fname->tail)++ = '/';
+-	fname->len++;
+-	for (msgno = 0; msgno < numdeleted; msgno++) {
+-	    mailbox_message_get_fname(mailbox, deleted[msgno],
+-				      fname->tail,
+-				      sizeof(fname->buf) - fname->len);
+-	    unlink(fname->buf);
++	if (numdeleted > 0) {
++	    /* Delete message files */
++	    fname = &fpath.data;
++	    *(fname->tail)++ = '/';
++	    fname->len++;
++	    for (msgno = 0; msgno < numdeleted; msgno++) {
++		mailbox_message_get_fname(mailbox, deleted[msgno],
++					  fname->tail,
++					  sizeof(fname->buf) - fname->len);
++		unlink(fname->buf);
++		if (config_auditlog) syslog(LOG_NOTICE,
++		    "auditlog: unlink sessionid=<%s> mailbox=<%s> uniqueid=<%s> uid=<%d>",
++		    session_id(), mailbox->name, mailbox->uniqueid, deleted[msgno]);
++	    }
++	    syslog(LOG_NOTICE, "Immediate Expunged %d messages from %s",
++		   numdeleted, mailbox->name);
+ 	}
+-    }
+-
+-    if (numdeleted > 0) {
+-	syslog(LOG_NOTICE, "Expunged %d messages from %s",
++    } else if (numdeleted > 0) {
++	if (config_auditlog) {
++	    for (msgno = 0; msgno < numdeleted; msgno++) {
++		syslog(LOG_NOTICE,
++		    "auditlog: expunge sessionid=<%s> mailbox=<%s> uniqueid=<%s> uid=<%d>",
++		    session_id(), mailbox->name, mailbox->uniqueid, deleted[msgno]);
++	    }
++	}
++	syslog(LOG_NOTICE, "Delayed Expunged %d messages from %s",
+ 	       numdeleted, mailbox->name);
+     }
+ 
+Index: cyrus-2.3.12rc2/imap/lmtp_sieve.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/lmtp_sieve.c	2008-03-24 13:09:17.000000000 -0400
++++ cyrus-2.3.12rc2/imap/lmtp_sieve.c	2008-04-19 09:17:32.000000000 -0400
+@@ -390,6 +390,9 @@ static int sieve_redirect(void *ac, 
+ 	snmp_increment(SIEVE_REDIRECT, 1);
+ 	syslog(LOG_INFO, "sieve redirected: %s to: %s",
+ 	       m->id ? m->id : "<nomsgid>", rc->addr);
++  if (config_auditlog)
++	    syslog(LOG_NOTICE, "auditlog: redirect sessionid=<%s> message-id=%s target=<%s>",
++	           session_id(), m->id ? m->id : "<nomsgid>", rc->addr);
+ 	return SIEVE_OK;
+     } else {
+ 	if (res == -1) {
+@@ -414,6 +417,9 @@ static int sieve_discard(void *ac __attr
+     /* ok, we won't file it, but log it */
+     syslog(LOG_INFO, "sieve discarded: %s",
+ 	   md->id ? md->id : "<nomsgid>");
++    if (config_auditlog)
++	syslog(LOG_NOTICE, "auditlog: discard sessionid=<%s> message-id=%s",
++	       session_id(), md->id ? md->id : "<nomsgid>");
+ 
+     return SIEVE_OK;
+ }
+@@ -438,7 +444,10 @@ static int sieve_reject(void *ac, 
+     if (strlen(md->return_path) == 0) {
+ 	syslog(LOG_INFO, "sieve: discarded reject to <> for %s id %s",
+ 	       sd->username, md->id ? md->id : "<nomsgid>");
+-        return SIEVE_OK;
++	if (config_auditlog)
++	    syslog(LOG_NOTICE, "auditlog: discard-reject sessionid=<%s> message-id=%s",
++	           session_id(), md->id ? md->id : "<nomsgid>");
++	return SIEVE_OK;
+     }
+ 
+     body = msg_getheader(md, "original-recipient");
+@@ -449,6 +458,9 @@ static int sieve_reject(void *ac, 
+ 	snmp_increment(SIEVE_REJECT, 1);
+ 	syslog(LOG_INFO, "sieve rejected: %s to: %s",
+ 	       md->id ? md->id : "<nomsgid>", md->return_path);
++	if (config_auditlog)
++	    syslog(LOG_NOTICE, "auditlog: reject sessionid=<%s> message-id=%s target=<%s>",
++	           session_id(), md->id ? md->id : "<nomsgid>", md->return_path);
+ 	return SIEVE_OK;
+     } else {
+ 	if (res == -1) {
+Index: cyrus-2.3.12rc2/imap/duplicate.c
+===================================================================
+--- cyrus-2.3.12rc2.orig/imap/duplicate.c	2008-03-24 13:09:16.000000000 -0400
++++ cyrus-2.3.12rc2/imap/duplicate.c	2008-04-19 08:50:48.000000000 -0400
+@@ -166,6 +166,9 @@ void duplicate_log(char *msgid, const ch
+ {
+     syslog(LOG_INFO, "dupelim: eliminated duplicate message to %s id %s (%s)",
+ 	   name, msgid, action);
++    if (config_auditlog)
++	syslog(LOG_NOTICE, "auditlog: duplicate sessionid=<%s> action=<%s> message-id=%s user=<%s>",
++	       session_id(), action, msgid, name); 
+ }
+ 
+ void duplicate_mark(char *id, int idlen, const char *to, int tolen, time_t mark,

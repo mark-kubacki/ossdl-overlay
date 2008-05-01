@@ -1,0 +1,166 @@
+Index: cyrus-imapd-2.3.12rc2/imap/global.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/global.c	2008-04-18 17:16:47.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/global.c	2008-04-19 21:41:19.000000000 +1000
+@@ -98,6 +98,11 @@
+ struct cyrusdb_backend *config_ptscache_db;
+ struct cyrusdb_backend *config_statuscache_db;
+ 
++#define MAX_SESSIONID_SIZE 256
++char session_id_buf[MAX_SESSIONID_SIZE];
++int session_id_time = 0;
++int session_id_count = 0;
++
+ /* Called before a cyrus application starts (but after command line parameters
+  * are read) */
+ int cyrus_init(const char *alt_config, const char *ident, unsigned flags)
+@@ -666,3 +671,27 @@
+ 
+     return 1;
+ }
++
++/* Set up the Session ID Buffer */
++void session_new_id()
++{
++    const char *base;
++    int now = time(NULL);    
++    if (now != session_id_time) {
++        session_id_time = now;
++        session_id_count = 0;
++    }
++    ++session_id_count;
++    base = config_getstring(IMAPOPT_SYSLOG_PREFIX);
++    if (!base) base = config_getstring(IMAPOPT_SERVERNAME);
++    snprintf(session_id_buf, MAX_SESSIONID_SIZE, "%s-%d-%d-%d",
++             base, getpid(), session_id_time, session_id_count);
++}
++
++/* Return the session id */
++const char *session_id()
++{
++    if (!session_id_count) 
++        session_new_id();
++    return (const char *)session_id_buf;
++}
+Index: cyrus-imapd-2.3.12rc2/imap/global.h
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/global.h	2008-04-18 17:16:47.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/global.h	2008-04-19 21:41:19.000000000 +1000
+@@ -158,4 +158,8 @@
+ extern struct cyrusdb_backend *config_ptscache_db;
+ extern struct cyrusdb_backend *config_statuscache_db;
+ 
++/* Session ID */
++extern void session_new_id();
++extern const char *session_id();
++
+ #endif /* INCLUDED_GLOBAL_H */
+Index: cyrus-imapd-2.3.12rc2/imap/imapd.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/imapd.c	2008-04-18 17:16:47.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/imapd.c	2008-04-19 21:41:19.000000000 +1000
+@@ -716,6 +716,8 @@
+     int niflags;
+     int imapd_haveaddr = 0;
+ 
++    session_new_id();
++
+     signals_poll();
+ 
+ #ifdef ID_SAVE_CMDLINE
+@@ -1975,6 +1977,7 @@
+ void cmd_login(char *tag, char *user)
+ {
+     char userbuf[MAX_MAILBOX_NAME+1];
++    char replybuf[MAX_MAILBOX_NAME+1];
+     unsigned userlen;
+     const char *canon_user = userbuf;
+     const void *val;
+@@ -2089,7 +2092,9 @@
+ 	    return;
+ 	}
+ 
+-	reply = "User logged in";
++	snprintf(replybuf, sizeof(replybuf), 
++	    "User logged in SESSIONID=<%s>", session_id());
++	reply = replybuf;
+ 	imapd_userid = xstrdup((const char *) val);
+ 	snmp_increment_args(AUTHENTICATION_YES, 1,
+ 			    VARIABLE_AUTH, 0 /*hash_simple("LOGIN") */, 
+Index: cyrus-imapd-2.3.12rc2/imap/lmtpd.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/lmtpd.c	2008-04-18 17:16:47.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/lmtpd.c	2008-04-19 21:41:19.000000000 +1000
+@@ -261,6 +261,8 @@
+ {
+     int opt, r;
+ 
++    session_new_id();
++
+     sync_log_init();
+ 
+     deliver_in = prot_new(0, 0);
+Index: cyrus-imapd-2.3.12rc2/imap/pop3d.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/pop3d.c	2008-04-18 17:16:47.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/pop3d.c	2008-04-19 21:41:19.000000000 +1000
+@@ -469,6 +469,8 @@
+     int niflags;
+     sasl_security_properties_t *secprops=NULL;
+ 
++    session_new_id();
++
+     signals_poll();
+ 
+     sync_log_init();
+@@ -1332,9 +1334,9 @@
+ 	}
+ 	popd_userid = xstrdup((const char *) val);
+ 
+-	syslog(LOG_NOTICE, "login: %s %s%s plaintext%s %s", popd_clienthost,
++	syslog(LOG_NOTICE, "login: %s %s%s plaintext%s %s SESSIONID=<%s>", popd_clienthost,
+ 	       popd_userid, popd_subfolder ? popd_subfolder : "",
+-	       popd_starttls_done ? "+TLS" : "", "User logged in");
++	       popd_starttls_done ? "+TLS" : "", "User logged in", session_id());
+ 
+ 	if ((plaintextloginpause = config_getint(IMAPOPT_PLAINTEXTLOGINPAUSE))
+ 	     != 0) {
+@@ -1703,8 +1705,10 @@
+     /* Create telemetry log */
+     popd_logfd = telemetry_log(popd_userid, popd_in, popd_out, 0);
+ 
+-    prot_printf(popd_out, "+OK%s",
+-		statusline ? statusline : " Mailbox locked and ready\r\n");
++    if (statusline)
++	prot_printf(popd_out, "+OK%s", statusline);
++    else
++	prot_printf(popd_out, "+OK Mailbox locked and ready SESSIONID=<%s>\r\n", session_id());
+     prot_flush(popd_out);
+     return 0;
+ 
+Index: cyrus-imapd-2.3.12rc2/imap/lmtpengine.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/lmtpengine.c	2008-04-18 17:16:47.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/lmtpengine.c	2008-04-19 21:41:19.000000000 +1000
+@@ -173,7 +173,7 @@
+ {
+     switch (r) {
+     case 0:
+-	prot_printf(pout, "250 2.1.5 Ok\r\n");
++	prot_printf(pout, "250 2.1.5 Ok SESSIONID=<%s>\r\n", session_id());
+ 	break;
+ 
+     case IMAP_IOERROR:
+@@ -213,10 +213,10 @@
+     case IMAP_QUOTA_EXCEEDED:
+ 	if(config_getswitch(IMAPOPT_LMTP_OVER_QUOTA_PERM_FAILURE)) {
+ 	    /* Not Default - Perm Failure */
+-	    prot_printf(pout, "552 5.2.2 Over quota\r\n");
++	    prot_printf(pout, "552 5.2.2 Over quota SESSIONID=<%s>\r\n", session_id());
+ 	} else {
+ 	    /* Default - Temp Failure */
+-	    prot_printf(pout, "452 4.2.2 Over quota\r\n");
++	    prot_printf(pout, "452 4.2.2 Over quota SESSIONID=<%s>\r\n", session_id());
+ 	}
+ 	break;
+ 

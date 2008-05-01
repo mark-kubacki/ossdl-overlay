@@ -1,0 +1,291 @@
+Parse Received: headers for internaldate
+
+We had a drive failure and had to recover a bunch of messages from backup.
+
+We lost an index and had to run reconstruct on a replica.
+
+Eudora (amongst others?) incorrectly handles the INTERNALDATE field when
+copying messages between IMAP accounts.
+
+A couple of things where the heuristic: "file mtime is close to internaldate" turns
+out to be somewhat bogus.
+
+Something that IS close to actual internaldate - the top Received header of
+any message delivered via LMTP.
+
+This patch adds a new option "internaldate_heuristic".  If set to "receivedheader"
+then it will attempt to parse the first Received: header for the date.  Failing that
+it will fall back to either the passed INTERNALDATE (append) or the current time
+(lmtp).
+
+It also uses the utime() call to update the file modified time to match the
+INTERNALDATE exactly for safer reconstructs.  This pairs well with our other
+patch (syncmtime) which updates the modified time to the INTERNALDATE value
+on the replica during replication.
+
+Index: cyrus-imapd-2.3.12rc2/imap/append.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/append.c	2008-04-19 21:45:45.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/append.c	2008-04-19 21:45:58.000000000 +1000
+@@ -49,6 +49,7 @@
+ #endif
+ #include <stdio.h>
+ #include <ctype.h>
++#include <utime.h>
+ #include <string.h>
+ #include <sys/types.h>
+ #include <syslog.h>
+@@ -478,6 +479,9 @@
+     int sflen;
+     char *p;
+ 
++    /* to set the mtime so reconstruct can get the same internaldate */
++    struct utimbuf settime;
++
+     assert(stage != NULL && stage->parts[0] != '\0');
+     assert(mailbox->format == MAILBOX_FORMAT_NORMAL);
+ 
+@@ -559,7 +563,6 @@
+ 	message_index.modseq = 1;
+     }
+     message_index.last_updated = time(0);
+-    message_index.internaldate = internaldate;
+     lseek(mailbox->cache_fd, 0L, SEEK_END);
+ 
+     /* Create message file */
+@@ -590,6 +593,15 @@
+ 	append_abort(as);
+ 	return r;
+     }
++    /* use the passed internaldate unless our heuristic said to
++     * calculate it from the message body and we did so */
++    if (message_index.internaldate == 0)
++	message_index.internaldate = internaldate;
++
++    /* and this makes sure that if we ever reconstruct
++     * we'll get the same internaldate */
++    settime.actime = settime.modtime = message_index.internaldate;
++    utime(fname, &settime);
+ 
+     /* Handle flags the user wants to set in the message */
+     for (i = 0; i < nflags; i++) {
+Index: cyrus-imapd-2.3.12rc2/imap/message.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/message.c	2008-04-19 21:45:55.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/message.c	2008-04-19 21:45:58.000000000 +1000
+@@ -62,6 +62,7 @@
+ #include "prot.h"
+ #include "map.h"
+ #include "mailbox.h"
++#include "mkgmtime.h"
+ #include "message.h"
+ #include "message_guid.h"
+ #include "parseaddr.h"
+@@ -132,6 +133,7 @@
+     struct address *bcc;
+     char *in_reply_to;
+     char *message_id;
++    char *received_date;
+ 
+     /*
+      * Cached headers.  Only filled in at top-level
+@@ -183,6 +185,7 @@
+ static void message_fold_params P((struct param **paramp));
+ static void message_parse_language P((char *hdr, struct param **paramp));
+ static void message_parse_rfc822space P((char **s));
++static void message_parse_received_date P((char *hdr, char **hdrp));
+ 
+ static void message_parse_multipart P((struct msg *msg,
+ 				       int format, struct body *body,
+@@ -533,6 +536,12 @@
+     int n;
+     enum enum_value config_guidmode = config_getenum(IMAPOPT_GUID_MODE);
+ 
++    if (config_getenum(IMAPOPT_INTERNALDATE_HEURISTIC) 
++	    == IMAP_ENUM_INTERNALDATE_HEURISTIC_RECEIVEDHEADER) {
++	if (message_index->internaldate == 0 && body->received_date)
++	    message_index->internaldate = message_parse_date(body->received_date,
++		PARSE_DATE|PARSE_TIME|PARSE_ZONE|PARSE_NOCREATE|PARSE_GMT);
++    }
+     message_index->sentdate = message_parse_date(body->date, 0);
+     message_index->size = body->header_size + body->content_size;
+     message_index->header_size = body->header_size;
+@@ -820,6 +829,9 @@
+ 		if (!strncasecmp(next+2, "eply-to:", 8)) {
+ 		    message_parse_address(next+10, &body->reply_to);
+ 		}
++		if (!strncasecmp(next+2, "eceived:", 8)) {
++		    message_parse_received_date(next+10, &body->received_date);
++		}
+ 
+ 		break;
+ 
+@@ -839,6 +851,18 @@
+ 		    message_parse_address(next+4, &body->to);
+ 		}
+ 		break;
++
++	    case 'x':
++	    case 'X':
++		if (!strncasecmp(next+2, "-deliveredinternaldate:", 23)) {
++        /* Explicit x-deliveredinternaldate overrides received: headers */
++        if (body->received_date) {
++          free(body->received_date);
++          body->received_date = 0;
++        }
++		    message_parse_string(next+25, &body->received_date);
++   }
++		break;
+ 	    } /* switch(next[1]) */
+ 	} /* if (*next == '\n') */
+     }
+@@ -1616,7 +1640,10 @@
+ 
+     tm.tm_isdst = -1;
+ 
+-    t = mktime(&tm);
++    if (flags & PARSE_GMT)
++	t = mkgmtime(&tm);
++    else
++	t = mktime(&tm);
+     /* Don't return -1; it's never right.  Return the current time instead.
+      * That's much closer than 1969.
+      */
+@@ -1883,6 +1910,41 @@
+     }
+ }
+ 
++static void
++message_parse_received_date(hdr, hdrp)
++char *hdr;
++char **hdrp;
++{
++  char *curp, *hdrbuf = 0;
++
++  /* Ignore if we already saw one of these headers */
++  if (*hdrp) return;
++
++  /* Copy header to temp buffer */
++  message_parse_string(hdr, &hdrbuf);
++
++  /* From rfc2822, 3.6.7
++   *   received = "Received:" name-val-list ";" date-time CRLF
++   * So scan backwards for ; and assume everything after is a date.
++   * Failed parsing will return 0, and we'll use time() elsewhere
++   * instead anyway
++   */
++  curp = hdrbuf + strlen(hdrbuf) - 1;
++  while (curp > hdrbuf && *curp != ';')
++    curp--;
++
++  /* Didn't find ; - fill in hdrp so we don't look at next received header */
++  if (curp == hdrbuf) {
++    *hdrp = hdrbuf;
++    return;
++  }
++
++  /* Found it, copy out date string part */
++  curp++;
++  message_parse_string(curp, hdrp);
++  free(hdrbuf);
++}
++
+ 
+ /*
+  * Read a line from 'msg' (or at most 'n' characters) into 's'
+@@ -2726,6 +2788,7 @@
+     if (body->bcc) parseaddr_free(body->bcc);
+     if (body->in_reply_to) free(body->in_reply_to);
+     if (body->message_id) free(body->message_id);
++    if (body->received_date) free(body->received_date);
+ 
+     if (body->subpart) {
+ 	if (body->numparts) {
+Index: cyrus-imapd-2.3.12rc2/imap/message.h
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/message.h	2008-04-19 21:45:45.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/message.h	2008-04-19 21:45:58.000000000 +1000
+@@ -65,6 +65,7 @@
+ #define PARSE_DATE	(1<<0)  /* Default (always parsed) */
+ #define PARSE_TIME	(1<<1)
+ #define PARSE_ZONE	(1<<2)
++#define PARSE_GMT	(1<<3) /* Output time in GMT rather than local timezone */
+ #define PARSE_NOCREATE	(1<<15) /* Don't create one if its missing/invalid */
+ 
+ extern time_t message_parse_date P((char *hdr, unsigned flags));
+Index: cyrus-imapd-2.3.12rc2/imap/reconstruct.c
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/imap/reconstruct.c	2008-04-19 21:45:45.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/imap/reconstruct.c	2008-04-19 21:45:58.000000000 +1000
+@@ -53,6 +53,7 @@
+ #include <string.h>
+ #include <fcntl.h>
+ #include <ctype.h>
++#include <utime.h>
+ #include <syslog.h>
+ #include <sys/types.h>
+ #include <netinet/in.h>
+@@ -818,6 +819,8 @@
+     int expunge_found, index_found;
+     char unique_buf[32];
+ 
++    struct utimbuf settime;
++
+     /* Start by looking up current data in mailbox list */
+     r = mboxlist_detail(name, &mytype, &mypath, &mympath,
+ 			&mypart, &myacl, NULL);
+@@ -1121,7 +1124,6 @@
+ 
+         if (index_found) {
+             /* Use data in old index file, subject to validity checks */
+-            message_index.internaldate = tmp_index.internaldate;
+             message_index.last_updated = tmp_index.last_updated;
+ 
+             message_index.modseq = tmp_index.modseq;
+@@ -1137,8 +1139,6 @@
+             /* Copy across MessageGUID if confident that data on disk */
+             message_guid_copy(&message_index.guid, &tmp_index.guid);
+         } else {
+-            /* Message file write time is good estimate of internaldate */
+-            message_index.internaldate = sbuf.st_mtime;
+             message_index.last_updated = time(0);
+             /* If we are recovering a message, assume new UIDL
+                so that stupid clients will retrieve this message */
+@@ -1170,6 +1170,20 @@
+         /* Clear out existing or regenerated GUID */
+         if (guid_clear) message_guid_set_null(&message_index.guid);
+ 
++        /* if internaldate didn't get updated the body parse, get the old one
++         * or fall back on the mtime (should be accurate since we set it
++         * everywhere now */
++        if (message_index.internaldate == 0) {
++            if (index_found)
++                message_index.internaldate = tmp_index.internaldate;
++            else
++                message_index.internaldate = sbuf.st_mtime;
++        }
++ 
++        /* make sure that if we reconstruct again we'll get the same internaldate */
++        settime.actime = settime.modtime = message_index.internaldate;
++        utime(msgfname, &settime);
++
+ 	if (expunge_found && keepflag) {
+             /* Write out new entry in expunge file */
+             reconstruct_counts_update(&expunge_counts, &message_index);
+Index: cyrus-imapd-2.3.12rc2/lib/imapoptions
+===================================================================
+--- cyrus-imapd-2.3.12rc2.orig/lib/imapoptions	2008-04-19 21:45:54.000000000 +1000
++++ cyrus-imapd-2.3.12rc2/lib/imapoptions	2008-04-19 21:45:58.000000000 +1000
+@@ -364,6 +364,12 @@
+    The mailboxes database should be dumped before the option is changed,
+    removed, and then undumped after changing the option. */
+ 
++{ "internaldate_heuristic", "standard", ENUM("standard", "receivedheader") }
++/* Mechanism to determine email internaldates on delivery/reconstruct.
++   "standard" uses time() when delivering a message, mtime on reconstruct.
++   "receivedheader" looks at the top most Received header
++   or time/mtime otherwise */
++
+ { "ldap_authz", NULL, STRING }
+ /* SASL authorization ID for the LDAP server */
+ 

@@ -1,0 +1,28 @@
+Fix sync of non-user mailboxes
+
+If a non-user mailbox is being considered for promotion to a USER
+event in sync_client, it trys to xstrdup the folder name starting
+at the user name - except that's a NULL string and it segfaults.
+
+This patch tests the result of mboxname_isusermailbox in the
+conditional instead, and then makes the copy only if it's non-NULL.
+Index: cyrus-imapd-2.3.12rc1/imap/sync_client.c
+===================================================================
+--- cyrus-imapd-2.3.12rc1.orig/imap/sync_client.c	2008-04-09 07:40:07.000000000 -0400
++++ cyrus-imapd-2.3.12rc1/imap/sync_client.c	2008-04-09 07:42:11.000000000 -0400
+@@ -3196,12 +3196,12 @@ static int do_sync(const char *filename)
+ 	    if (r) {
+ 		/* promote failed personal mailboxes to USER */
+ 		struct sync_folder *folder;
+-		char *userid, *p;
++		char *userid, *p, *useridp;
+ 
+ 		for (folder = folder_list->head; folder && folder->mark;
+ 		     folder = folder->next);
+-		if (folder &&
+-		    (userid = xstrdup(mboxname_isusermailbox(folder->name, 0)))) {
++		if (folder && (useridp = mboxname_isusermailbox(folder->name, 0))) {
++		    userid = xstrdup(useridp);
+ 		    if ((p = strchr(userid, '.'))) *p = '\0';
+ 		    folder->mark = 1;
+ 		    if (--folder_list->count == 0) r = 0;

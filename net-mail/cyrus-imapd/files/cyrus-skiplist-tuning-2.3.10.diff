@@ -1,0 +1,43 @@
+Skiplist tuning
+
+<b>Not a candiate for upstream without additional debate</b>
+
+With random changes to a mailboxes.db file, it could be nearly 100%
+random seeks before it recompressed.
+
+A seen file would need to reach 16kb before even considering
+re-compressing, with a real data length of just a couple of hundred
+bytes.
+
+This patch reduces the limits to:
+
+4kb overhead
+120% rather than 200% of current "sorted" size.
+
+
+It's been running happily on our servers, but hey - tuning is
+a black art!  I don't really care too much either way.  Would
+prefer a way to force a "checkpoint", since ctl_cyrusdb -c
+doesn't actually do it...
+Index: cyrus-imapd-2.3.12rc1/lib/cyrusdb_skiplist.c
+===================================================================
+--- cyrus-imapd-2.3.12rc1.orig/lib/cyrusdb_skiplist.c	2008-04-09 07:43:22.000000000 -0400
++++ cyrus-imapd-2.3.12rc1/lib/cyrusdb_skiplist.c	2008-04-09 07:43:28.000000000 -0400
+@@ -313,7 +313,7 @@ enum {
+     SKIPLIST_VERSION = 1,
+     SKIPLIST_VERSION_MINOR = 2,
+     SKIPLIST_MAXLEVEL = 20,
+-    SKIPLIST_MINREWRITE = 16834 /* don't rewrite logs smaller than this */
++    SKIPLIST_MINREWRITE = 4096 /* don't rewrite logs smaller than this */
+ };
+ 
+ #define BIT32_MAX 4294967295U
+@@ -1512,7 +1512,7 @@ int mycommit(struct db *db, struct txn *
+ 	db->current_txn = NULL;
+ 
+     /* consider checkpointing */
+-    if (!r && tid->logend > (2 * db->logstart + SKIPLIST_MINREWRITE)) {
++    if (!r && tid->logend > (12 * db->logstart / 10 + SKIPLIST_MINREWRITE)) {
+ 	r = mycheckpoint(db, 1);
+     }
+     

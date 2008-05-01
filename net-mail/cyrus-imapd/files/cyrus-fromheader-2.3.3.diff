@@ -1,0 +1,22 @@
+Accept 'From ' header from IMAP clients
+
+Hotmail used to create a 'From ' header and export it via IMAP.
+Outlook would send that header right up to the IMAP server.  Yet
+another workaround for misbehaving clients.  The bane of our
+existance they are, yes indeed.
+
+This patch causes any line starting with 'From ' in the header
+to be ignored rather than triggering a MESSAGE_BADHEADER error.
+
+Index: cyrus-imapd-2.3.12rc1/imap/message.c
+===================================================================
+--- cyrus-imapd-2.3.12rc1.orig/imap/message.c	2008-04-09 07:42:46.000000000 -0400
++++ cyrus-imapd-2.3.12rc1/imap/message.c	2008-04-09 07:48:43.000000000 -0400
+@@ -315,6 +315,7 @@ int allow_null;
+ 	/* Check for valid header name */
+ 	if (sawnl && buf[0] != ' ' && buf[0] != '\t') {
+ 	    if (buf[0] == ':') return IMAP_MESSAGE_BADHEADER;
++      if (strstr(buf, "From ") != buf)
+ 	    for (p = (unsigned char *)buf; *p != ':'; p++) {
+ 		if (*p <= ' ') return IMAP_MESSAGE_BADHEADER;
+ 	    }

@@ -16,7 +16,7 @@ AUTOSIEVE_PATCH_VER="0.6.0"
 LICENSE="as-is"
 SLOT="0"
 KEYWORDS="x86 sparc amd64 ppc ~hppa ppc64"
-IUSE="autocreate autosieve drac idled kerberos nntp pam replication snmp ssl tcpd"
+IUSE="autocreate autosieve drac idled kerberos nntp pam replication snmp ssl tcpd fastmail"
 
 PROVIDE="virtual/imapd"
 RDEPEND=">=sys-libs/db-3.2
@@ -120,6 +120,27 @@ src_unpack() {
 
 	# Add libwrap defines as we don't have a dynamicly linked library.
 	use tcpd && epatch "${FILESDIR}/${PN}-${LIBWRAP_PATCH_VER}-libwrap.patch"
+
+	# patches from fastmail.fm
+	if use fastmail ; then
+		epatch "${FILESDIR}/cyrus-findall-txn-2.3.12.diff"
+		epatch "${FILESDIR}/cyrus-fastrename-2.3.12.diff"
+		epatch "${FILESDIR}/cyrus-folder-limit-2.3.12.diff"
+		epatch "${FILESDIR}/cyrus-writefullheader-2.3.10.diff"
+		epatch "${FILESDIR}/cyrus-sync-nonusermailbox-2.3.11.diff"
+		epatch "${FILESDIR}/cyrus-sessionid-2.3.11.diff"
+		epatch "${FILESDIR}/cyrus-auditlog-2.3.11.diff"
+		epatch "${FILESDIR}/cyrus-expunged-nocache-2.3.10.diff"
+		epatch "${FILESDIR}/cyrus-skiplist-tuning-2.3.10.diff"
+		epatch "${FILESDIR}/cyrus-clean-shutdown-2.3.10.diff"
+		epatch "${FILESDIR}/cyrus-fromheader-2.3.3.diff"
+		epatch "${FILESDIR}/cyrus-imapd-2.3.1-autoreply-0.1-0.diff"
+		epatch "${FILESDIR}/cyrus-longwords-2.3.4.diff"
+		epatch "${FILESDIR}/cyrus-mailwasher-2.3.6.diff"
+		epatch "${FILESDIR}/cyrus-receivedtime-2.3.8.diff"
+		epatch "${FILESDIR}/cyrus-warnmismatchedguid-2.3.10.diff"
+		epatch "${FILESDIR}/cyrus-digest-sha1-2.3.11.diff"
+	fi
 
 	# Fix master(8)->cyrusmaster(8) manpage.
 	for i in `grep -rl -e 'master\.8' -e 'master(8)' "${S}"` ; do
