@@ -362,6 +362,7 @@ src_unpack() {
 	mkdir -p "${EPATCH_SOURCE}" || die "Unable to create epatch directory"
 	mysql_mv_patches
 	epatch
+	epatch "${FILESDIR}/mysql-bug-35298.patch"
 
 	# Additional checks, remove bundled zlib
 	rm -f "${S}/zlib/"*.[ch]
