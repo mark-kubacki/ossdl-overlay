@@ -1,0 +1,26 @@
+*** opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp	Tue May  8 11:31:09 2007
+--- opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp.new	Tue May  8 12:31:54 2007
+***************
+*** 41,49 ****
+  
+  #include "_highgui.h"
+  
+! 
+  extern "C" {
+  #include <ffmpeg/avformat.h>
+  }
+  
+  #ifdef NDEBUG
+--- 41,52 ----
+  
+  #include "_highgui.h"
+  
+! #define __STDC_CONSTANT_MACROS
+  extern "C" {
+  #include <ffmpeg/avformat.h>
++ #include <ffmpeg/avcodec.h>
++ #include <sys/types.h> /* size_t */
++ #include <sys/errno.h>
+  }
+  
+  #ifdef NDEBUG
