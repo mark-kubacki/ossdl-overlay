@@ -20,6 +20,15 @@ IUSE=""
 SLOT="0"
 
 RDEPEND="dev-python/setuptools"
+DEPEND="${RDEPEND}
+	dev-python/imaging"
 
 PYTHON_MODNAME=$MY_PN
 S="${WORKDIR}/${MY_P}"
+
+src_unpack() {
+	unpack ${A}
+	cd "${S}"
+
+	epatch "${FILESDIR}/hubarcode-0.52-datamatrix-PIL.patch"
+}
