@@ -32,3 +32,10 @@ src_unpack() {
 
 	epatch "${FILESDIR}/hubarcode-0.52-datamatrix-PIL.patch"
 }
+
+src_install() {
+        distutils_src_install
+        distutils_python_version
+
+	cp -r "${S}/qrcode/qrcode_data" "${D}/usr/$(get_libdir)/python${PYVER}/site-packages/${MY_PN}/qrcode/"
+}
