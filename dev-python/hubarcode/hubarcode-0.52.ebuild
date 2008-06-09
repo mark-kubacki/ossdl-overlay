@@ -1,0 +1,25 @@
+# Copyright 2008 OSSDL.de
+# Distributed under the terms of the GNU General Public License v2
+# $Header: $
+
+NEED_PYTHON=2.4
+
+inherit distutils
+
+MY_PN="huBarcode"
+MY_P="${MY_PN}-${PV}"
+
+DESCRIPTION="generation of barcodes in Python"
+HOMEPAGE="https://cybernetics.hudora.biz/projects/wiki/huBarcode"
+SRC_URI="http://cybernetics.hudora.biz/dist/${MY_PN}/${MY_P}.tar.gz"
+RESTRICT="nomirror"
+
+LICENSE="BSD"
+KEYWORDS="~amd64 ~ia64 ~ppc ~sparc ~x86"
+IUSE=""
+SLOT="0"
+
+RDEPEND="dev-python/setuptools"
+
+PYTHON_MODNAME=$MY_PN
+S="${WORKDIR}/${MY_P}"
