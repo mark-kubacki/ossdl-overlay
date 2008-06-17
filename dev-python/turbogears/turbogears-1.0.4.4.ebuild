@@ -50,6 +50,7 @@ src_unpack() {
 	cd "${S}"
 
 	epatch "${FILESDIR}/tg-1.0-url_encoding.patch"
+	epatch "${FILESDIR}/tg-1.0-mako_i18n_collect.patch"
 }
 
 src_test() {
