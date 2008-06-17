@@ -45,6 +45,13 @@ S="${WORKDIR}/${MY_P}"
 
 DOCS="CHANGELOG.txt CONTRIBUTORS.txt"
 
+src_unpack() {
+	unpack ${A}
+	cd "${S}"
+
+	epatch "${FILESDIR}/tg-1.0-url_encoding.patch"
+}
+
 src_test() {
 	PYTHONPATH=. "${python}" setup.py test || die "tests failed"
 }

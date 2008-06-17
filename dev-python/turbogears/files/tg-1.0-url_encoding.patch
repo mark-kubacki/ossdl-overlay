@@ -1,0 +1,23 @@
+--- turbogears/controllers.py.old	2008-06-17 10:57:10.799491325 +0200
++++ turbogears/controllers.py	2008-06-17 10:57:08.567364123 +0200
+@@ -528,7 +528,7 @@
+             tgparams.update(kw)
+         except AttributeError:
+             raise TypeError('url() expects a dictionary for query parameters')
+-    args = []
++    args = dict()
+     for key, value in tgparams.iteritems():
+         if value is None:
+             continue
+@@ -541,9 +541,9 @@
+                 continue
+             if isinstance(v, unicode):
+                 v = v.encode("utf8")
+-            args.append("%s=%s" % (k, urllib.quote(str(v))))
++            args[k] = v
+     if args:
+-        result += "?" + "&".join(args)
++        result += (('?' in result) and '&' or '?') + urllib.urlencode(args, True)
+     return result
+ 
+ def check_app_root():
