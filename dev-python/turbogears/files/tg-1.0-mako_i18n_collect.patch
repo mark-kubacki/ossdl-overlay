@@ -1,13 +1,13 @@
 Index: turbogears/toolbox/admi18n/__init__.py
 ===================================================================
---- turbogears/toolbox/admi18n/__init__.py	(revision 4397)
+--- turbogears/toolbox/admi18n/__init__.py	(revision 4755)
 +++ turbogears/toolbox/admi18n/__init__.py	(working copy)
 @@ -251,7 +251,7 @@
                      continue
                  p = os.path.join(dirpath, name)
                  if os.path.isfile(p) and \
 -                        os.path.splitext(name)[-1] in ['.py','.kid','.tmpl']:
-+                        os.path.splitext(name)[-1] in ['.py','.kid','.tmpl','.mak']:
++                        os.path.splitext(name)[-1] in ['.py','.kid','.tmpl','.mak','.html']:
                      slot2.append(dict(dir=dirpath, file_name=name,
                          path=p, isdir=os.path.isdir(p), level=level+1))
              # decide if current directory (and ancestors) should be visible

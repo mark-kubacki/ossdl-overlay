@@ -1,10 +1,10 @@
-# Copyright 1999-2007 Gentoo Foundation
+# Copyright 2008 OSSDL.de
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/dev-python/turbogears/turbogears-1.0.3.2.ebuild,v 1.1 2007/08/01 06:13:32 dev-zero Exp $
+# $Header: $
 
 NEED_PYTHON=2.4
 
-inherit distutils
+inherit distutils subversion
 
 KEYWORDS="amd64 x86"
 
@@ -13,7 +13,7 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="The rapid web development meta-framework you've been looking for."
 HOMEPAGE="http://www.turbogears.org/"
-SRC_URI="http://pypi.python.org/packages/source/T/${MY_PN}/${MY_P}.tar.gz"
+ESVN_REPO_URI="http://svn.turbogears.org/tags/${PV}"
 LICENSE="MIT"
 SLOT="0"
 IUSE="test"
@@ -46,7 +46,7 @@ S="${WORKDIR}/${MY_P}"
 DOCS="CHANGELOG.txt CONTRIBUTORS.txt"
 
 src_unpack() {
-	unpack ${A}
+	subversion_src_unpack
 	cd "${S}"
 
 	epatch "${FILESDIR}/tg-1.0-url_encoding.patch"
