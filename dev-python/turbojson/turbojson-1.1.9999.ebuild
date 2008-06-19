@@ -26,6 +26,14 @@ DEPEND="${RDEPEND}
 
 S=${WORKDIR}/${MY_P}
 
+src_unpack() {
+	subversion_src_unpack
+	cd "${S}"
+
+	# tag .dev breaks TurboGears' dependency checks
+	epatch "${FILESDIR}/tj-1.1-no_tag_build.patch"
+}
+
 src_test() {
 	PYTHONPATH=. "${python}" setup.py test || die "tests failed"
 }

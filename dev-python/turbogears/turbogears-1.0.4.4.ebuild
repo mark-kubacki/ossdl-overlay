@@ -18,7 +18,7 @@ LICENSE="MIT"
 SLOT="0"
 IUSE="test"
 
-RDEPEND=">=dev-python/turbojson-1.0
+RDEPEND=">=dev-python/turbojson-1.1.3
 	>=dev-python/turbocheetah-1.0
 	>=dev-python/turbokid-1.0.2
 	=dev-python/cherrypy-2.3*
