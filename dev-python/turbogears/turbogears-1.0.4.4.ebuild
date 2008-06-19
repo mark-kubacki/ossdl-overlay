@@ -51,7 +51,6 @@ src_unpack() {
 
 	epatch "${FILESDIR}/tg-1.0-url_encoding.patch"
 	epatch "${FILESDIR}/tg-1.0-mako_i18n_collect.patch"
-	epatch "${FILESDIR}/tg-1.0.4.4-r4741_upgrade.patch"
 }
 
 src_test() {
