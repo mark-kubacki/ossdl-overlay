@@ -4,7 +4,7 @@
 
 NEED_PYTHON=2.4
 
-inherit distutils subversion
+inherit distutils
 
 KEYWORDS="amd64 x86"
 
@@ -13,12 +13,13 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="The rapid web development meta-framework you've been looking for."
 HOMEPAGE="http://www.turbogears.org/"
-ESVN_REPO_URI="http://svn.turbogears.org/tags/${PV}"
+SRC_URI="http://pypi.python.org/packages/source/T/${MY_PN}/${MY_P}.tar.gz"
+RESTRICT="nomirror"
 LICENSE="MIT"
 SLOT="0"
 IUSE="test"
 
-RDEPEND=">=dev-python/turbojson-1.1.3
+RDEPEND=">=dev-python/turbojson-1.1.2
 	>=dev-python/turbocheetah-1.0
 	>=dev-python/turbokid-1.0.2
 	=dev-python/cherrypy-2.3*
@@ -46,7 +47,7 @@ S="${WORKDIR}/${MY_P}"
 DOCS="CHANGELOG.txt CONTRIBUTORS.txt"
 
 src_unpack() {
-	subversion_src_unpack
+	unpack ${A}
 	cd "${S}"
 
 	epatch "${FILESDIR}/tg-1.0-url_encoding.patch"
