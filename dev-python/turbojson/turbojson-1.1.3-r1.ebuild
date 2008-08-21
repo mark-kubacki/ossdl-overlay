@@ -30,6 +30,8 @@ src_unpack() {
 	subversion_src_unpack
 	cd "${S}"
 
+	# tag .dev breaks TurboGears' dependency checks
+	epatch "${FILESDIR}/tj-1.1-no_tag_build.patch"
 	epatch "${FILESDIR}/turbojson-1.1.3_UnicodeDecodeError_workaround.patch"
 }
 
