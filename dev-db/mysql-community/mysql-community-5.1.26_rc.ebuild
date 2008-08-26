@@ -2,9 +2,9 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: /var/cvsroot/gentoo-x86/dev-db/mysql-community/mysql-community-5.1.15_beta.ebuild,v 1.2 2007/03/04 12:38:38 vivo Exp $
 
-MY_EXTRAS_VER="20080524"
+MY_EXTRAS_VER="20080601"
 SERVER_URI="ftp://sunsite.informatik.rwth-aachen.de/pub/mirror/www.mysql.com/Downloads/MySQL-${PV%.*}/mysql-${PV//_/-}.tar.gz"
-PBXT_VERSION="1.0.01-alpha"
+PBXT_VERSION="1.0.04-alpha"
 #SPHINX_VERSION="0.9.7-rc2"
 
 # REMEMBER: also update eclass/mysql*.eclass before committing!
