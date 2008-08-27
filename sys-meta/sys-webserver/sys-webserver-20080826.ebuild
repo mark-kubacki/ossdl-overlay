@@ -15,7 +15,6 @@ IUSE=""
 RDEPEND="
 	sys-meta/sys-base
 	>=virtual/mysql-5.1
-	>=www-apache/mod_auth_mysql-3.0.0
 	>=www-servers/apache-2.2.9
 	>=www-apache/mod_macro-1.1.9
 	net-www/awstats
