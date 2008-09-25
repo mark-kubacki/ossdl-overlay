@@ -1,99 +1,47 @@
 #!/sbin/runscript
-# Copyright 1999-2006 Gentoo Foundation
+# Copyright 1999-2007 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/mail-filter/dk-milter/files/dk-filter.init,v 1.3 2006/07/20 01:27:05 langthang Exp $
+# $Header: /var/cvsroot/gentoo-x86/mail-filter/dk-milter/files/dk-filter.init,v 1.4 2007/10/12 20:31:23 mrness Exp $
 
 depend() {
-	# need net
 	use dns logger net
 }
-warn_msg() {
-	echo
-	ewarn "$1 parameter is not set!"
-	ewarn "dk-filter starts with"
-	ewarn "$1=${!1}"
-	ewarn "please set it in /etc/conf.d/dk-filter"
-	echo
-}
 
-die_msg() {
-	echo
-	eerror "please set paramter $1 in"
-	eerror "/etc/conf.d/dk-filter then start again"
-	echo
-}
+PIDFILE="/var/run/dk-filter/${SVCNAME}.pid"
 
 check_cfg() {
 
-	if [[ ! -f /etc/conf.d/dk-filter ]] ; then
-		eerror "/etc/conf.d/dk-filter is missing"
+	if [ -z "${DAEMON_USER}" ] ; then
+		eerror "DAEMON_USER is unset"
 		return 1
 	fi
 
-	source /etc/conf.d/dk-filter || {
-		eerror "Prolem sourcing /etc/conf.d/dk-filter"
-		eerror "Please correct them then start dk-filter again"
-		return 1
-	}
-
-	if [[ -z "${DK_FILTER_OPTS}" ]] ; then
-		die_msg DK_FILTER_OPTS
+	SOCKET_TYPE=${SOCKET_SPEC%%:*}
+	SOCKET_ADDRESS=${SOCKET_SPEC#*:}
+	if [ -z "${SOCKET_TYPE}" -o -z "${SOCKET_ADDRESS}" ]; then
+		eerror "SOCKET_SPEC is invalid"
 		return 1
 	fi
 
-	if [[ -z "${SELECTOR}" ]] ; then
-		die_msg SELECTOR
-		return 1
+	if [[ " ${ADDITIONAL_OPTS} " == *" -"[fpP]" "* ]]; then
+			eerror "-f, -p or -P are not allowed in ADDITIONAL_OPTS"
+			return 1
 	fi
-
-	if [[ -z "${KEYPATH}" ]] ; then
-		die_msg KEYPATH
-		return 1
-	fi
-
-	if [[ ! -f "${KEYPATH}" ]] ; then
-		echo
-		eerror "run gentxt.sh to generate a private key first"
-		eerror "then set KEYPATH in /etc/conf.d/dk-filter to"
-		eerror "the location of your private key"
-		echo
-		return 1
-	fi
-
-	if [[ -z "${SOCKETSPEC}" ]] ; then
-		SOCKETSPEC="inet:8025@localhost"
-		warn_msg SOCKETSPEC
-	fi
-
-	if [[ -z "${DOMAIN}" ]] ; then
-		DOMAIN=$(domainname)
-		warn_msg DOMAIN
-	fi
-
-	if [[ -z "${CANON}" ]] ; then
-		CANON="simple"
-		warn_msg CANON
-	fi
-
-	if [[ -z "${CANON}" ]] ; then
-		USER="milter"
-		warn_msg USER
-	fi
-
-	source /etc/conf.d/dk-filter
 }
 
 start() {
+	local SOCKET_TYPE SOCKET_ADDRESS
 	check_cfg || return 1
-	einfo "DK_FILTER_OPTS: $DK_FILTER_OPTS"
-	ebegin "Starting DomainKeys Filter"
-	start-stop-daemon --start --quiet --background \
-		--exec /usr/bin/dk-filter -- ${DK_FILTER_OPTS}
+	
+	ebegin "Starting DomainKeys filter"
+	start-stop-daemon --start --pidfile "${PIDFILE}" \
+		--exec /usr/bin/dk-filter -- -u "${DAEMON_USER}" -p "${SOCKET_SPEC}" -P "${PIDFILE}" ${ADDITIONAL_OPTS} && \
+		[ "${SOCKET_TYPE}" != "local" -a "${SOCKET_TYPE}" != "unix" ] || chmod a+rwx "${SOCKET_ADDRESS}"
 	eend $?
 }
 
 stop() {
-	ebegin "Stopping DomainKeys Filter"
-	start-stop-daemon --stop --quiet --name dk-filter
+	ebegin "Stopping DomainKeys filter"
+	start-stop-daemon --stop --pidfile "${PIDFILE}"
 	eend $?
 }
