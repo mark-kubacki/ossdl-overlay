@@ -1,0 +1,127 @@
+--- udhcp/dhcpc.c
++++ udhcp/dhcpc.c
+@@ -68,6 +68,8 @@
+ 	clientid: NULL,
+ 	hostname: NULL,
+ 	fqdn: NULL,
++ 	envList: NULL,
++ 	envListLength: 0,
+ 	ifindex: 0,
+ 	arp: "\0\0\0\0\0\0",		/* appease gcc-3.0 */
+ };
+@@ -78,6 +80,7 @@
+ 	printf(
+ "Usage: udhcpc [OPTIONS]\n\n"
+ "  -c, --clientid=CLIENTID         Client identifier\n"
++"  -e, --env=\"FOO=BAR\"           Environment variable passed to script\n"
+ "  -H, --hostname=HOSTNAME         Client hostname\n"
+ "  -h                              Alias for -H\n"
+ "  -F, --fqdn=FQDN                 Client fully qualified domain name\n"
+@@ -193,9 +196,11 @@
+ 	long now;
+ 	int max_fd;
+ 	int sig;
++	struct stringList *env_tmp;
+ 
+ 	static const struct option arg_options[] = {
+ 		{"clientid",	required_argument,	0, 'c'},
++		{"env",		required_argument,	0, 'e'},
+ 		{"foreground",	no_argument,		0, 'f'},
+ 		{"background",	no_argument,		0, 'b'},
+ 		{"hostname",	required_argument,	0, 'H'},
+@@ -214,7 +219,7 @@
+ 	/* get options */
+ 	while (1) {
+ 		int option_index = 0;
+-		c = getopt_long(argc, argv, "c:fbH:h:F:i:np:qr:s:v", arg_options, &option_index);
++		c = getopt_long(argc, argv, "c:e:fbH:h:F:i:np:qr:s:v", arg_options, &option_index);
+ 		if (c == -1) break;
+ 
+ 		switch (c) {
+@@ -227,6 +232,17 @@
+ 			client_config.clientid[OPT_DATA] = '\0';
+ 			strncpy(client_config.clientid + OPT_DATA, optarg, len);
+ 			break;
++		case 'e':
++			env_tmp = xmalloc(strlen(optarg) + sizeof *env_tmp);
++			if (!env_tmp) {
++				DEBUG(LOG_ERR, "No memory for %s", optargs);
++				exit(1);
++			}
++			strncpy(env_tmp->string, optarg, strlen(optarg));
++			env_tmp->next=client_config.envList;
++			client_config.envList=env_tmp;
++			client_config.envListLength++;
++			break;
+ 		case 'f':
+ 			client_config.foreground = 1;
+ 			break;
+--- udhcp/dhcpc.h
++++ udhcp/dhcpc.h
+@@ -17,6 +17,12 @@
+ #define RELEASED	7
+ 
+ 
++struct stringList {
++	struct stringList *next;
++	char string[1];
++};
++
++
+ struct client_config_t {
+ 	char foreground;		/* Do not fork */
+ 	char quit_after_lease;		/* Quit after obtaining lease */
+@@ -28,6 +34,8 @@
+ 	uint8_t *clientid;		/* Optional client id to use */
+ 	uint8_t *hostname;		/* Optional hostname to use */
+ 	uint8_t *fqdn;			/* Optional fully qualified domain name to use */
++	struct stringList *envList;	/* Environment variables to pass to the script */
++	int envListLength;		/* Length of the environment variable list */
+ 	int ifindex;			/* Index number of the interface to use */
+ 	uint8_t arp[6];			/* Our arp address */
+ };
+--- udhcp/script.c
++++ udhcp/script.c
+@@ -141,6 +141,7 @@
+ 	uint8_t *temp;
+ 	struct in_addr subnet;
+ 	char over = 0;
++	struct stringList *sp;
+ 
+ 	if (packet == NULL)
+ 		num_options = 0;
+@@ -158,7 +159,7 @@
+ 		if (!(over & SNAME_FIELD) && packet->sname[0]) num_options++;
+ 	}
+ 
+-	envp = xcalloc(sizeof(char *), num_options + 5);
++	envp = xcalloc(sizeof(char *), num_options + client_config.envListLength + 5);
+ 	j = 0;
+ 	asprintf(&envp[j++], "interface=%s", client_config.interface);
+ 	asprintf(&envp[j++], "%s=%s", "PATH",
+@@ -198,6 +199,10 @@
+ 		packet->sname[sizeof(packet->sname) - 1] = '\0';
+ 		asprintf(&envp[j++], "sname=%s", packet->sname);
+ 	}
++	if (client_config.envList) {
++		for (sp=client_config.envList; sp; sp=sp->next)
++			asprintf(&envp[j++], "%s", sp->string);
++	}
+ 	return envp;
+ }
+ 
+--- udhcp/udhcpc.8
++++ udhcp/udhcpc.8
+@@ -13,6 +13,12 @@
+ Send the client identifier
+ .IR CLIENTID .
+ .TP
++.BI \-e\  ENV=VALUE ,\ \-\-env= VARIABLE=VALUE
++Send the script the given enviroment variable
++.IR VARIABLE
++set to the value
++.IR VALUE .
++.TP
+ .BR -f ,\  \-\-foreground
+ Do not fork after obtaining a lease.
+ .TP

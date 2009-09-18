@@ -1,0 +1,11 @@
+diff -Naur old/dhcpc.c new/dhcpc.c
+--- old/dhcpc.c	2004-09-04 01:13:55.325759257 +0200
++++ new/dhcpc.c	2004-09-04 01:13:36.004144921 +0200
+@@ -132,6 +132,7 @@
+ 		state = INIT_SELECTING;
+ 		break;
+ 	case INIT_SELECTING:
++		break;
+ 	}
+ 
+ 	/* start things over */
