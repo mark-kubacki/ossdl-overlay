@@ -7,7 +7,7 @@ HOMEPAGE="http://www.ossdl.de/"
 
 LICENSE=""
 SLOT="0"
-KEYWORDS="amd64 sparc x86"
+KEYWORDS="amd64 arm sparc x86"
 IUSE="no-net"
 
 RDEPEND="
@@ -22,22 +22,19 @@ RDEPEND="
 	app-portage/eix
 	app-portage/gentoolkit
 	app-shells/bash-completion
-	app-shells/bash-completion-config
 	app-text/tree
 	net-analyzer/netcat
 	sys-process/htop
 	sys-process/iotop
 	net-ftp/ncftp
 	sys-apps/acl
-        sys-boot/grub
         sys-fs/xfsprogs
         >=sys-process/fcron-3.0.1
 	sys-process/htop
         !no-net? ( net-dns/bind-tools )
-        !no-net? ( net-firewall/iptables ) 
+        !no-net? ( net-firewall/iptables )
 	!no-net? ( net-ftp/ncftp )
         !no-net? ( net-misc/udhcp )
         !no-net? ( net-misc/ntp )
-	!no-net? ( sys-apps/iproute2 )
 	!no-net? ( net-misc/gwhois )
 	"

@@ -7,7 +7,7 @@ HOMEPAGE="http://www.ossdl.de/"
 
 LICENSE="GPL-2 Apache-2.0 BSD"
 SLOT="0"
-KEYWORDS="amd64 ~sparc x86"
+KEYWORDS="amd64 arm ~sparc x86"
 IUSE=""
 
 # Apache 2.2* crashes with MySQL support build in APR-Util
