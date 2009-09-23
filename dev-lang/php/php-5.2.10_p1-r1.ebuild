@@ -467,7 +467,7 @@ src_install() {
 				# php-fpm patch support
 				if use fpm ; then
 					einfo "Installing php-fpm config"
-					FPMSRCDIR="${WORKDIR}/${P}/sapi/cgi/fpm"
+					FPMSRCDIR="${WORKDIR}/${MY_PHP_P}/sapi/cgi/fpm"
 					insinto	${PHP_INI_DIR}
 					doins "${FPMSRCDIR}/php-fpm.conf"
 					newins "${FPMSRCDIR}/php-fpm.conf" "php-fpm.conf.dist"
