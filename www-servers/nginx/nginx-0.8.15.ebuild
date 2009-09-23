@@ -72,6 +72,7 @@ src_compile() {
 	tc-export CC
 	./configure \
 		--prefix=/usr \
+		--lock-path=/tmp \
 		--conf-path=/etc/${PN}/${PN}.conf \
 		--http-log-path=/var/log/${PN}/access_log \
 		--error-log-path=/var/log/${PN}/error_log \
