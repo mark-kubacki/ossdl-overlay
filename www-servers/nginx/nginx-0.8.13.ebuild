@@ -11,7 +11,7 @@ SRC_URI="http://sysoev.ru/nginx/${P}.tar.gz"
 LICENSE="BSD"
 RESTRICT="nomirror"
 SLOT="0"
-KEYWORDS="~amd64 ~ppc x86 ~x86-fbsd"
+KEYWORDS="~amd64 ~ppc x86 ~x86-fbsd ~arm"
 IUSE="addition debug fastcgi flv imap ipv6 pcre perl random-index securelink ssl status sub webdav zlib"
 
 DEPEND="dev-lang/perl
@@ -72,6 +72,7 @@ src_compile() {
 	tc-export CC
 	./configure \
 		--prefix=/usr \
+		--lock-path=/tmp \
 		--conf-path=/etc/${PN}/${PN}.conf \
 		--http-log-path=/var/log/${PN}/access_log \
 		--error-log-path=/var/log/${PN}/error_log \
