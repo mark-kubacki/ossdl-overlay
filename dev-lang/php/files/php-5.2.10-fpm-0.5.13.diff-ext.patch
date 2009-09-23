@@ -1,0 +1,16 @@
+diff -ur php-5.2.10-orig/sapi/cgi/fpm/conf/php-fpm.conf.in php-5.2.10/sapi/cgi/fpm/conf/php-fpm.conf.in
+--- php-5.2.10-orig/sapi/cgi/fpm/conf/php-fpm.conf.in	2009-07-22 13:31:05.000000000 +0800
++++ php-5.2.10/sapi/cgi/fpm/conf/php-fpm.conf.in	2009-07-22 13:36:28.000000000 +0800
+@@ -60,10 +60,10 @@
+ 			</value>
+ 
+ 			Unix user of processes
+-		<!--	<value name="user">nobody</value>				-->
++			<value name="user">nobody</value>
+ 
+ 			Unix group of processes
+-		<!--	<value name="group">@php_fpm_group@</value>		-->
++			<value name="group">@php_fpm_group@</value>
+ 
+ 			Process manager settings
+ 			<value name="pm">
