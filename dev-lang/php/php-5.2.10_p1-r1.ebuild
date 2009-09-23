@@ -74,6 +74,14 @@ pkg_setup() {
 		ebeep 1
 		die
 	fi
+	if use fpm && use fastbuild ; then
+		eerror
+		eerror "USE flag 'fastbuild' causes compilation of php-fpm"
+		eerror "to break. Remove the experimental 'fastbuild'."
+		eerror
+		ebeep 1
+		die
+	fi
 
 	# Threaded Apache2 support
 	if use apache2 ; then
@@ -154,6 +162,7 @@ src_unpack() {
 	if use fpm ; then
 		EPATCH_OPTS="-p1 -d ${S}" epatch "${WORKDIR}/${FPM_PATCH}"
 		epatch "${FILESDIR}/php-5.2.10-fpm-0.5.13.diff-ext.patch"
+		epatch "${FILESDIR}/php-5.2.10-fpm-0.5.13.diff-gcc.patch"
 	fi
 
 	# Concurrent PHP Apache2 modules support
