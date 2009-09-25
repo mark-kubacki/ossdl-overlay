@@ -1,0 +1,128 @@
+diff -uNr nginx-0.8.16-orig/auto/lib/conf nginx-0.8.16/auto/lib/conf
+--- nginx-0.8.16-orig/auto/lib/conf	2009-07-20 09:10:43.000000000 +0200
++++ nginx-0.8.16/auto/lib/conf	2009-09-25 17:29:48.623702445 +0200
+@@ -63,6 +63,10 @@
+     . auto/lib/libgd/conf
+ fi
+ 
++if [ $USE_LIBATOMIC = YES ]; then
++    . auto/lib/libatomic/conf
++fi
++
+ if [ $USE_PERL = YES ]; then
+     . auto/lib/perl/conf
+ fi
+diff -uNr nginx-0.8.16-orig/auto/lib/libatomic/conf nginx-0.8.16/auto/lib/libatomic/conf
+--- nginx-0.8.16-orig/auto/lib/libatomic/conf	1970-01-01 01:00:00.000000000 +0100
++++ nginx-0.8.16/auto/lib/libatomic/conf	2009-09-25 17:57:01.913702475 +0200
+@@ -0,0 +1,29 @@
++
++# Copyright (C) W-Mark Kubacki
++
++    ngx_feature="libatomic_ops library"
++    ngx_feature_name=
++    ngx_feature_run=no
++    ngx_feature_incs="#include <atomic_ops.h>"
++    ngx_feature_path=
++    ngx_feature_libs="-latomic_ops"
++    ngx_feature_test="AO_nop()"
++    . auto/feature
++
++if [ $ngx_found = yes ]; then
++    CORE_LIBS="$CORE_LIBS $ngx_feature_libs"
++    LIBATOMIC=YES
++    ngx_found=no
++    have=NGX_LIBATOMIC . auto/have
++
++else
++
++cat << END
++
++$0: error: --with-libatomic requires the libatomic_ops library.
++You can either do not enable the module or install the library.
++
++END
++
++    exit 1
++fi
+diff -uNr nginx-0.8.16-orig/auto/options nginx-0.8.16/auto/options
+--- nginx-0.8.16-orig/auto/options	2009-08-28 10:12:35.000000000 +0200
++++ nginx-0.8.16/auto/options	2009-09-25 18:37:48.543702573 +0200
+@@ -128,6 +128,8 @@
+ USE_LIBXSLT=NO
+ USE_LIBGD=NO
+ 
++USE_LIBATOMIC=NO
++
+ NGX_GOOGLE_PERFTOOLS=NO
+ NGX_CPP_TEST=NO
+ 
+@@ -270,6 +272,8 @@
+         --test-build-rtsig)              NGX_TEST_BUILD_RTSIG=YES   ;;
+         --test-build-solaris-sendfilev)  NGX_TEST_BUILD_SOLARIS_SENDFILEV=YES ;;
+ 
++        --with-libatomic)                USE_LIBATOMIC=YES          ;;
++
+         *)
+             echo "$0: error: invalid option \"$option\""
+             exit 1
+@@ -400,6 +404,9 @@
+   --with-openssl=DIR                 set path to OpenSSL library sources
+   --with-openssl-opt=OPTIONS         set additional options for OpenSSL building
+ 
++  --with-libatomic                   use libatomic_ops
++                                     else nginx will try using either no atomic
++                                     functions at all or those of GCC
+   --with-debug                       enable the debugging logging
+ 
+ END
+diff -uNr nginx-0.8.16-orig/src/os/unix/ngx_atomic.h nginx-0.8.16/src/os/unix/ngx_atomic.h
+--- nginx-0.8.16-orig/src/os/unix/ngx_atomic.h	2008-07-31 09:55:46.000000000 +0200
++++ nginx-0.8.16/src/os/unix/ngx_atomic.h	2009-09-25 18:46:23.743702289 +0200
+@@ -203,6 +203,30 @@
+ 
+ #include "ngx_gcc_atomic_ppc.h"
+ 
++#elif ( NGX_LIBATOMIC )
++
++#define NGX_HAVE_ATOMIC_OPS  1
++#define AO_REQUIRE_CAS
++#include <atomic_ops.h>
++
++#if (NGX_PTR_SIZE == 8)
++
++typedef int64_t                     ngx_atomic_int_t;
++typedef uint64_t                    ngx_atomic_uint_t;
++#define NGX_ATOMIC_T_LEN            sizeof("-9223372036854775808") - 1
++
++#else
++
++typedef int32_t                     ngx_atomic_int_t;
++typedef AO_t                        ngx_atomic_uint_t;
++#define NGX_ATOMIC_T_LEN            sizeof("-2147483648") - 1
++
++#endif
++
++typedef volatile AO_t               ngx_atomic_t;
++
++
++#include "ngx_libatomic_atomic.h"
+ 
+ #endif
+ 
+diff -uNr nginx-0.8.16-orig/src/os/unix/ngx_libatomic_atomic.h nginx-0.8.16/src/os/unix/ngx_libatomic_atomic.h
+--- nginx-0.8.16-orig/src/os/unix/ngx_libatomic_atomic.h	1970-01-01 01:00:00.000000000 +0100
++++ nginx-0.8.16/src/os/unix/ngx_libatomic_atomic.h	2009-09-25 18:46:05.073702267 +0200
+@@ -0,0 +1,12 @@
++/*
++ * Copyright (c) W-Mark Kubacki; wmark@hurrikane.de
++ * Version 1.0
++ */
++
++#define AO_REQUIRE_CAS
++#include <atomic_ops.h>
++
++#define ngx_atomic_cmp_set(lock,old,set) AO_compare_and_swap(lock,old,set)
++#define ngx_atomic_fetch_add(value,add) AO_fetch_and_add(value,add)
++#define ngx_memory_barrier() AO_nop()
++#define ngx_cpu_pause()
