@@ -6,7 +6,7 @@ NEED_PYTHON=2.4
 
 inherit distutils
 
-KEYWORDS="amd64 x86"
+KEYWORDS="amd64 x86 arm"
 
 MY_PN=TurboGears
 MY_P=${MY_PN}-${PV}
