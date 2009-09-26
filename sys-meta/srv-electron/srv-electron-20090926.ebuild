@@ -11,7 +11,6 @@ KEYWORDS="amd64 ~sparc x86 arm"
 IUSE="turbogears websever mutlimedia"
 
 RDEPEND="
-	>=net-misc/omniORB-4.1.0
 	app-arch/cfv
 	app-misc/colordiff
 	dev-embedded/u-boot-tools
@@ -37,7 +36,6 @@ RDEPEND="
 		dev-python/ipython
 		dev-python/matplotlib
 		dev-python/mechanize
-		>=dev-python/omniorbpy-3.0
 		dev-python/setuptools
 		dev-python/soappy
 		dev-python/turbogears
