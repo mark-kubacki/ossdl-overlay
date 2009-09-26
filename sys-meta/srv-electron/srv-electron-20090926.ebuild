@@ -8,7 +8,7 @@ HOMEPAGE="http://www.ossdl.de/"
 LICENSE="GPL-2 Apache-2.0 BSD"
 SLOT="0"
 KEYWORDS="amd64 ~sparc x86 arm"
-IUSE="turbogears websever"
+IUSE="turbogears websever mutlimedia"
 
 RDEPEND="
 	>=net-misc/omniORB-4.1.0
