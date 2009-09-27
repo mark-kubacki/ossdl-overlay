@@ -75,6 +75,10 @@ src_compile() {
 	use libatomic	&& myconf="${myconf} --with-libatomic"
 
 	tc-export CC
+	# nginx SEGFAULTs quite often with custom CFLAGS,
+	# so we must remove them
+	CFLAGS=""
+	CXXFLAGS=""
 	./configure \
 		--prefix=/usr \
 		--lock-path=/var/run \
