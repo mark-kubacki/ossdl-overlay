@@ -1,0 +1,78 @@
+diff -uNr nginx-0.8.27.orig/src/http/modules/ngx_http_rewrite_module.c nginx-0.8.27/src/http/modules/ngx_http_rewrite_module.c
+--- nginx-0.8.27.orig/src/http/modules/ngx_http_rewrite_module.c	2009-11-16 13:19:02.000000000 +0100
++++ nginx-0.8.27/src/http/modules/ngx_http_rewrite_module.c	2009-11-19 15:43:42.175671546 +0100
+@@ -780,6 +780,11 @@
+             return NGX_CONF_OK;
+         }
+ 
++        if (p[1] == 'z') {
++            fop->op = ngx_http_script_file_empty;
++            return NGX_CONF_OK;
++        }
++
+         if (p[0] == '!') {
+             if (p[2] == 'f') {
+                 fop->op = ngx_http_script_file_not_plain;
+@@ -800,6 +805,11 @@
+                 fop->op = ngx_http_script_file_not_exec;
+                 return NGX_CONF_OK;
+             }
++
++            if (p[2] == 'z') {
++                fop->op = ngx_http_script_file_not_empty;
++                return NGX_CONF_OK;
++            }
+         }
+ 
+         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+diff -uNr nginx-0.8.27.orig/src/http/ngx_http_script.c nginx-0.8.27/src/http/ngx_http_script.c
+--- nginx-0.8.27.orig/src/http/ngx_http_script.c	2009-11-16 20:10:45.000000000 +0100
++++ nginx-0.8.27/src/http/ngx_http_script.c	2009-11-19 15:41:17.105672214 +0100
+@@ -1412,12 +1412,14 @@
+         case ngx_http_script_file_dir:
+         case ngx_http_script_file_exists:
+         case ngx_http_script_file_exec:
++        case ngx_http_script_file_not_empty:
+              goto false_value;
+ 
+         case ngx_http_script_file_not_plain:
+         case ngx_http_script_file_not_dir:
+         case ngx_http_script_file_not_exists:
+         case ngx_http_script_file_not_exec:
++        case ngx_http_script_file_empty:
+              goto true_value;
+         }
+ 
+@@ -1472,6 +1474,18 @@
+             goto false_value;
+         }
+         goto true_value;
++
++    case ngx_http_script_file_empty:
++        if (of.size == 0) {
++             goto true_value;
++        }
++        goto false_value;
++
++    case ngx_http_script_file_not_empty:
++        if (of.size > 0) {
++            goto false_value;
++        }
++        goto true_value;
+     }
+ 
+ false_value:
+diff -uNr nginx-0.8.27.orig/src/http/ngx_http_script.h nginx-0.8.27/src/http/ngx_http_script.h
+--- nginx-0.8.27.orig/src/http/ngx_http_script.h	2009-11-16 13:19:02.000000000 +0100
++++ nginx-0.8.27/src/http/ngx_http_script.h	2009-11-19 15:42:08.625672425 +0100
+@@ -171,7 +171,9 @@
+     ngx_http_script_file_exists,
+     ngx_http_script_file_not_exists,
+     ngx_http_script_file_exec,
+-    ngx_http_script_file_not_exec
++    ngx_http_script_file_not_exec,
++    ngx_http_script_file_empty,
++    ngx_http_script_file_not_empty
+ } ngx_http_script_file_op_e;
+ 
+ 
