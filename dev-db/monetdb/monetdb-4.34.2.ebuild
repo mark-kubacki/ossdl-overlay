@@ -1,16 +1,17 @@
-# Copyright 1999-2007 Gentoo Foundation
+# Copyright 2009 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/dev-db/monetdb/Attic/monetdb-4.20.0.ebuild,v 1.2 2007/11/13 09:33:43 grobian Exp $
+# $Header: $
 
 inherit eutils flag-o-matic
 
-M4_PV=4.20.0
-XQ_PV=0.20.0
+M4_PV=${PV}
+XQ_PV=0.34.2
 
 DESCRIPTION="MonetDB/SQL is a main-memory column-store database"
 HOMEPAGE="http://monetdb.cwi.nl/"
-SRC_URI="mirror://sourceforge/monetdb/MonetDB4-${M4_PV}.tar.gz
-	mirror://sourceforge/monetdb/pathfinder-${XQ_PV}.tar.gz"
+SRC_URI="http://monetdb.cwi.nl/downloads/sources/Nov2009-SP1/MonetDB4-server-${M4_PV}.tar.lzma
+	http://monetdb.cwi.nl/downloads/sources/Nov2009-SP1/MonetDB-XQuery-${XQ_PV}.tar.lzma"
+RESTRICT="nomirror"
 
 LICENSE="MonetDBPL-1.1 PathfinderPL-1.1"
 SLOT="4"
@@ -19,14 +20,15 @@ IUSE="java boehmgc"
 
 S=${WORKDIR}
 
-DEPEND="dev-libs/libpcre
+RDEPEND="dev-libs/libpcre
 	dev-libs/openssl
 	sys-libs/readline
 	dev-libs/libxml2
 	java? ( dev-java/ant >=virtual/jdk-1.5 )
 	boehmgc? ( dev-libs/boehm-gc )
 	>=dev-db/monetdb-5"
-RDEPEND="${DEPEND}"
+DEPEND="app-arch/lzma-utils
+	${RDEPEND}"
 
 pkg_preinst() {
 	# should already exist, but for completeness here
@@ -65,7 +67,7 @@ src_compile() {
 	append-ldflags -L"${S}"/MonetDB4-${M4_PV}/src/modules/plain/.libs
 	append-flags -I"${S}"/MonetDB4-${M4_PV}/src/modules/contrib
 	append-ldflags -L"${S}"/MonetDB4-${M4_PV}/src/modules/contrib/.libs
-	cd "${S}"/pathfinder-${XQ_PV} || die
+	cd "${S}"/MonetDB-XQuery-${XQ_PV} || die
 	econf --with-monetdb="${EPREFIX}" --with-monetdb4="${T}" ${myconf} || die
 	emake || die "xquery"
 }
@@ -74,7 +76,7 @@ src_install() {
 	cd "${S}"/MonetDB4-${M4_PV} || die
 	emake DESTDIR="${D}" install || die "MonetDB4"
 
-	cd "${S}"/pathfinder-${XQ_PV} || die
+	cd "${S}"/MonetDB-XQuery-${XQ_PV} || die
 	emake DESTDIR="${D}" install || die "xquery"
 
 	# remove windows cruft
