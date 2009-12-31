@@ -1,6 +1,6 @@
-# Copyright 1999-2009 Gentoo Foundation
+# Copyright 1999-2009 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/sci-libs/geos/geos-3.1.1.ebuild,v 1.6 2009/11/17 07:23:15 bicatali Exp $
+# $Header: $
 
 EAPI=2
 inherit eutils
@@ -20,6 +20,12 @@ DEPEND="${RDEPEND}
 	doc? ( app-doc/doxygen )
 	ruby?  ( dev-lang/swig )
 	python? ( dev-lang/swig )"
+
+src_prepare() {
+	if use arm; then
+		epatch "${FILESDIR}/${PN}-3.2.0-ARM.patch"
+	fi
+}
 
 src_configure() {
 	econf $(use_enable python) $(use_enable ruby)

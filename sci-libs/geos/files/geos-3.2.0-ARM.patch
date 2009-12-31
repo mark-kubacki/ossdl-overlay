@@ -1,0 +1,21 @@
+--- inlines-3.2.0.cpp   2009-12-20 11:38:18.000000000 +0100
++++ build/geos-3.2.0/source/inlines.cpp 2009-12-20 11:43:48.000000000 +0100
+@@ -59,7 +59,17 @@
+ #include <geos/geom/CoordinateArraySequenceFactory.inl>
+ #include <geos/noding/SegmentString.inl>
+ #include <geos/noding/snapround/HotPixel.inl>
+-#include <geos/noding/snapround/MCIndexSnapRounder.inl>
++//
++// Include MCIndexSnapRounder.inl line commented.
++//  Resolves double definition of geos::noding::snapround::MCIndexSnapRounder
++//  on ARM platform.
++//  The header inclusion does not just include, but also creates code for
++//  MCIndexSnapRounder.
++// osgeo.org Ticket #222
++// Fix suggested by Mario De Weerd.
++// Impact must be analysed on other platforms.
++//
++//#include <geos/noding/snapround/MCIndexSnapRounder.inl>
+ #include <geos/noding/MCIndexNoder.inl>
+
+ #endif // defined __CYGWIN__
