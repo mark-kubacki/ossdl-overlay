@@ -48,18 +48,18 @@ pkg_preinst() {
 src_compile() {
 	local myconf=
 	# Upstream likes to stick things like -O6 and what more in CFLAGS
-	myconf="${myconf} --disable-strict --disable-optimize --disable-assert"
+	myconf+=" --disable-strict --disable-optimize --disable-assert"
 	# Deal with auto-dependencies
-	use python 	&& myconf="${myconf} $(use_with python)"
-	use perl	&& myconf="${myconf} $(use_with perl)"
-	use php		&& myconf="${myconf} $(use_with php)"
-	use java 	&& myconf="${myconf} $(use_with java)"
-	use iconv	&& myconf="${myconf} $(use_with iconv)"
-	use curl	&& myconf="${myconf} $(use_with curl)"
-	use bzip2	&& myconf="${myconf} $(use_with bzip2 bz2)"
-	use zlib	&& myconf="${myconf} $(use_with zlib z)"
-	use rdf		&& myconf="${myconf} $(use_with rdf raptor)"
-	use xml		&& myconf="${myconf} $(use_with xml libxml2)"
+	use python 	&& myconf+=" $(use_with python)"
+	use perl	&& myconf+=" $(use_with perl)"
+	use php		&& myconf+=" $(use_with php)"
+	use java 	&& myconf+=" $(use_with java)"
+	use iconv	&& myconf+=" $(use_with iconv)"
+	use curl	&& myconf+=" $(use_with curl)"
+	use bzip2	&& myconf+=" $(use_with bzip2 bz2)"
+	use zlib	&& myconf+=" $(use_with zlib z)"
+	use rdf		&& myconf+=" $(use_with rdf raptor)"
+	use xml		&& myconf+=" $(use_with xml libxml2)"
 
 	cd "${S}"/MonetDB-${COMMON_PV} || die
 	econf ${myconf} || die

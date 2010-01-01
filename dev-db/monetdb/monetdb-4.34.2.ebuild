@@ -1,4 +1,4 @@
-# Copyright 2009 W-Mark Kubacki
+# Copyright 2009-2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -15,7 +15,7 @@ RESTRICT="nomirror"
 
 LICENSE="MonetDBPL-1.1 PathfinderPL-1.1"
 SLOT="4"
-KEYWORDS="~amd64 ~x86"
+KEYWORDS="~amd64 ~x86 ~arm"
 IUSE="java boehmgc"
 
 S=${WORKDIR}
@@ -45,10 +45,10 @@ src_unpack() {
 src_compile() {
 	local myconf=
 	# Upstream likes to stick things like -O6 and what more in CFLAGS
-	myconf="${myconf} --disable-strict --disable-optimize --disable-assert"
-	myconf="${myconf} $(use_with java)"
-	myconf="${myconf} --without-php"
-	myconf="${myconf} $(use_with boehmgc gc)"
+	myconf+=" --disable-strict --disable-optimize --disable-assert"
+	myconf+=" $(use_with java)"
+	myconf+=" --without-php"
+	myconf+=" $(use_with boehmgc gc)"
 
 	cd "${S}"/MonetDB4-${M4_PV} || die
 	econf --with-monetdb="${EPREFIX}" ${myconf} || die
