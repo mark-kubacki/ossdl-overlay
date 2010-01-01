@@ -19,7 +19,7 @@ RESTRICT="nomirror"
 
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
-KEYWORDS="~amd64 ~x86"
+KEYWORDS="~amd64 ~x86 ~arm"
 IUSE="python perl php java"
 
 S=${WORKDIR}
@@ -127,6 +127,12 @@ src_install() {
 
 	newinitd "${FILESDIR}/${PN}.init-5.2.0" monetdb || die "init.d script"
 	newconfd "${FILESDIR}/${PN}.conf-5.2.0" monetdb || die "conf.d file"
+
+	# rewrites to match FHS-2.3
+	sed -e 's#/var/lib/log#/var/log#g' -e 's#/var/lib/run#/var/run#g' -i "${D}/etc/monetdb5.conf" \
+	|| die "monetdb5.conf"
+	mv "${D}/var/lib/log" "${D}/var/log"
+	mv "${D}/var/lib/run" "${D}/var/run"
 
 	# merovingian needs this
 	keepdir /var/lib/MonetDB5/dbfarm
