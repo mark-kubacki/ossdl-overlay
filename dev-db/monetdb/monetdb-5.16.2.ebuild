@@ -1,4 +1,4 @@
-# Copyright 2009 W-Mark Kubacki
+# Copyright 2009-2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -20,16 +20,22 @@ RESTRICT="nomirror"
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
 KEYWORDS="~amd64 ~x86 ~arm"
-IUSE="python perl php java"
+IUSE="python perl php iconv curl bzip2 zlib rdf xml java"
 
 S=${WORKDIR}
 
-RDEPEND="dev-libs/libpcre
-	dev-libs/openssl
+RDEPEND=">=dev-libs/libpcre-4.5
+	>=dev-libs/openssl-0.9.8
 	sys-libs/readline
 	python? ( dev-lang/python )
 	perl? ( dev-lang/perl )
 	php? ( dev-lang/php )
+	iconv? ( virtual/libiconv )
+	curl? ( net-misc/curl )
+	bzip2? ( || ( app-arch/bzip2 app-arch/pbzip2 ) )
+	zlib? ( sys-libs/zlib )
+	rdf? ( media-libs/raptor )
+	xml? ( dev-libs/libxml2 )
 	java? ( dev-java/ant >=virtual/jdk-1.4 <=virtual/jdk-1.6 )"
 DEPEND="app-arch/lzma-utils
 	${RDEPEND}"
@@ -44,10 +50,16 @@ src_compile() {
 	# Upstream likes to stick things like -O6 and what more in CFLAGS
 	myconf="${myconf} --disable-strict --disable-optimize --disable-assert"
 	# Deal with auto-dependencies
-	myconf="${myconf} $(use_with python)"
-	myconf="${myconf} $(use_with perl)"
-	myconf="${myconf} $(use_with php)"
-	myconf="${myconf} $(use_with java)"
+	use python 	&& myconf="${myconf} $(use_with python)"
+	use perl	&& myconf="${myconf} $(use_with perl)"
+	use php		&& myconf="${myconf} $(use_with php)"
+	use java 	&& myconf="${myconf} $(use_with java)"
+	use iconv	&& myconf="${myconf} $(use_with iconv)"
+	use curl	&& myconf="${myconf} $(use_with curl)"
+	use bzip2	&& myconf="${myconf} $(use_with bzip2 bz2)"
+	use zlib	&& myconf="${myconf} $(use_with zlib z)"
+	use rdf		&& myconf="${myconf} $(use_with rdf raptor)"
+	use xml		&& myconf="${myconf} $(use_with xml libxml2)"
 
 	cd "${S}"/MonetDB-${COMMON_PV} || die
 	econf ${myconf} || die
