@@ -48,18 +48,17 @@ src_compile() {
 	use zlib	&& myconf+=" $(use_with zlib z)"
 	use coroutines	&& myconf+=" $(use_with coroutines pcl)"
 
-#	cd "${S}" || die "cd ${S}"
 	econf ${myconf} || die "econf"
 	emake || die "emake"
-
-	mkdir "${T}"/bin
-	cp conf/monetdb-config "${T}"/bin/monetdb-config
-	chmod 755 "${T}"/bin/monetdb-config
 }
 
 src_install() {
 	emake DESTDIR="${D}" install || die "install"
 
+	# prevent binaries from being installed in wrong paths (FHS 2.3)
+	rm "${D}"/usr/bin/monetdb-config
+	dosbin conf/monetdb-config
+
 	# remove windows cruft
-	find "${D}" -name "*.bat" | xargs rm -f || die "removing windows stuff"
+	find "${D}" -name "*.bat" -exec rm "{}" \; || die "removing windows stuff"
 }
