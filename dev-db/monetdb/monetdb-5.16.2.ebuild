@@ -19,8 +19,8 @@ RESTRICT="nomirror"
 
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
-KEYWORDS="~amd64 ~x86 ~arm"
-IUSE="python perl php iconv curl bzip2 zlib rdf xml java"
+KEYWORDS="amd64 x86 arm"
+IUSE="python perl php iconv bzip2 zlib rdf xml java"
 
 S=${WORKDIR}
 
@@ -31,10 +31,9 @@ RDEPEND=">=dev-libs/libpcre-4.5
 	perl? ( dev-lang/perl )
 	php? ( dev-lang/php )
 	iconv? ( virtual/libiconv )
-	curl? ( net-misc/curl )
 	bzip2? ( || ( app-arch/bzip2 app-arch/pbzip2 ) )
 	zlib? ( sys-libs/zlib )
-	rdf? ( media-libs/raptor )
+	rdf? ( >=media-libs/raptor-1.4.16 )
 	xml? ( dev-libs/libxml2 )
 	java? ( dev-java/ant >=virtual/jdk-1.4 <=virtual/jdk-1.6 )"
 DEPEND="app-arch/lzma-utils
@@ -55,10 +54,9 @@ src_compile() {
 	use php		&& myconf+=" $(use_with php)"
 	use java 	&& myconf+=" $(use_with java)"
 	use iconv	&& myconf+=" $(use_with iconv)"
-	use curl	&& myconf+=" $(use_with curl)"
+#	use curl	&& myconf+=" $(use_with curl)"
 	use bzip2	&& myconf+=" $(use_with bzip2 bz2)"
 	use zlib	&& myconf+=" $(use_with zlib z)"
-	use rdf		&& myconf+=" $(use_with rdf raptor)"
 	use xml		&& myconf+=" $(use_with xml libxml2)"
 
 	cd "${S}"/MonetDB-${COMMON_PV} || die
@@ -92,6 +90,10 @@ src_compile() {
 	append-ldflags -L"${S}"/MonetDB5-server-${M5_PV}/src/{mal,optimizer,scheduler}/.libs
 	append-flags -I"${S}"/MonetDB5-server-${M5_PV}/src/modules/{atoms,kernel,mal}
 	append-ldflags -L"${S}"/MonetDB5-server-${M5_PV}/src/modules/{atoms,kernel,mal}/.libs
+	if use rdf; then
+		myconf+=" $(use_with rdf raptor)"
+		append-ldflags -L"${S}"/MonetDB5-server-${M5_PV}/src/modules/mal/rdf/.libs
+	fi
 	cd "${S}"/MonetDB-SQL-${SQL_PV} || die
 	econf --with-monetdb="${T}" --with-monetdb5="${T}" ${myconf} || die
 	emake || die "sql"
