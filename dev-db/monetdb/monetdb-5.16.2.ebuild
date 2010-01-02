@@ -20,7 +20,7 @@ RESTRICT="nomirror"
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
 KEYWORDS="amd64 x86 arm"
-IUSE="python perl php iconv bzip2 zlib rdf xml java"
+IUSE="debug python perl php iconv bzip2 zlib xml java"
 
 S=${WORKDIR}
 
@@ -46,8 +46,14 @@ pkg_preinst() {
 
 src_compile() {
 	local myconf=
-	# Upstream likes to stick things like -O6 and what more in CFLAGS
-	myconf+=" --disable-strict --disable-optimize --disable-assert"
+	if use debug; then
+		myconf+=" --disable-optimize --enable-debug --enable-assert"
+	else
+		myconf+=" --disable-debug --disable-assert"
+		if ! hasq "-O" ${CXXFLAGS}; then
+			myconf+=" --enable-optimize"
+		fi
+	fi
 	# Deal with auto-dependencies
 	use python 	&& myconf+=" $(use_with python)"
 	use perl	&& myconf+=" $(use_with perl)"
@@ -90,16 +96,24 @@ src_compile() {
 	append-ldflags -L"${S}"/MonetDB5-server-${M5_PV}/src/{mal,optimizer,scheduler}/.libs
 	append-flags -I"${S}"/MonetDB5-server-${M5_PV}/src/modules/{atoms,kernel,mal}
 	append-ldflags -L"${S}"/MonetDB5-server-${M5_PV}/src/modules/{atoms,kernel,mal}/.libs
-	if use rdf; then
-		myconf+=" $(use_with rdf raptor)"
-		append-ldflags -L"${S}"/MonetDB5-server-${M5_PV}/src/modules/mal/rdf/.libs
-	fi
+#	if use rdf; then
+#		myconf+=" $(use_with rdf raptor)"
+#		append-ldflags -L"${S}"/MonetDB5-server-${M5_PV}/src/modules/mal/rdf/.libs
+#	fi
 	cd "${S}"/MonetDB-SQL-${SQL_PV} || die
 	econf --with-monetdb="${T}" --with-monetdb5="${T}" ${myconf} || die
 	emake || die "sql"
 }
 
 src_install() {
+	# set right ACL
+	diropts -m0755 -o monetdb -g root
+	dodir /var/run/MonetDB
+	diropts -m0750 -o monetdb -g monetdb
+	dodir /var/log/MonetDB
+	diropts -m0750 -o monetdb -g monetdb
+	dodir /var/lib/MonetDB5
+
 	cd "${S}"/MonetDB-${COMMON_PV} || die
 	emake DESTDIR="${D}" install || die "common"
 
@@ -145,6 +159,8 @@ src_install() {
 	# rewrites to match FHS-2.3
 	sed -e 's#/var/lib/log#/var/log#g' -e 's#/var/lib/run#/var/run#g' -i "${D}/etc/monetdb5.conf" \
 	|| die "monetdb5.conf"
+	chown monetdb:monetdb "${D}/etc/monetdb5.conf"
+	chmod 0750 "${D}/etc/monetdb5.conf"
 	mv "${D}/var/lib/log" "${D}/var/log"
 	mv "${D}/var/lib/run" "${D}/var/run"
 
