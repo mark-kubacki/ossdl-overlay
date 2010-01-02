@@ -1,0 +1,10 @@
+Author: W-Mark Kubacki <wmark@hurrikane.de>
+Date:   Sat Jan 2 22:44:00 2010 +0100
+
+MonetDB-client doesn't respect --without-X flags, therefore
+even installs e.g. files for Python in USE python was not set.
+This causes totally superflous compilations during src_compile
+and should be eliminated.
+
+If Python module is installed, it should be pre-compiled for
+.pyc and .pyo files.
