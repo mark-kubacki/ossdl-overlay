@@ -64,9 +64,9 @@ src_compile() {
 src_install() {
 	emake DESTDIR="${D}" install || die "install"
 
-        # prevent binaries from being installed in wrong paths (FHS 2.3)
-        rm "${D}"/usr/bin/monetdb-clients-config
-        dosbin conf/monetdb-clients-config
+	# prevent binaries from being installed in wrong paths (FHS 2.3)
+	rm "${D}"/usr/bin/monetdb-clients-config
+	dosbin conf/monetdb-clients-config
 
 	# remove testing framework and compiled tests
 	rm -rf "${D}"/usr/lib/MonetDB/Tests "${D}"/usr/lib64/MonetDB/Tests || true
