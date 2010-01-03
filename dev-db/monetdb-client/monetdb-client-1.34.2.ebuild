@@ -7,7 +7,7 @@ inherit flag-o-matic
 MY_PN="MonetDB-client"
 MY_P=${MY_PN}-${PV}
 
-DESCRIPTION="fundamental libraries used in the other parts of the MonetDB/SQL suite"
+DESCRIPTION="libraries and programs to communicate with the server(s) that are part of the MonetDB/SQL suite"
 HOMEPAGE="http://monetdb.cwi.nl/"
 SRC_URI="http://monetdb.cwi.nl/downloads/sources/Nov2009-SP1/${MY_P}.tar.lzma"
 RESTRICT="nomirror"
