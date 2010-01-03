@@ -77,7 +77,7 @@ src_install() {
 	dosed "s:/var/lib/log:/var/log:g" /etc/monetdb5.conf
 	dosed "s:/var/lib/run:/var/run:g" /etc/monetdb5.conf
 	fowners monetdb:monetdb /etc/monetdb5.conf
-	fperms 0750 /etc/monetdb5.conf
+	fperms 0644 /etc/monetdb5.conf
 
 	# remove windows cruft
 	find "${D}" -name "*.bat" -exec rm "{}" \; || die "removing windows stuff"
