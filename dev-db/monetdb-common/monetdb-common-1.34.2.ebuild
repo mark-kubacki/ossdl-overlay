@@ -27,7 +27,7 @@ RDEPEND=">=dev-libs/libpcre-4.5
 	zlib? ( sys-libs/zlib )
 	coroutines? ( dev-libs/pcl )
 	!!dev-db/monetdb"
-DEPEND="app-arch/lzma-utils
+DEPEND="|| ( app-arch/xz-utils app-arch/lzma-utils )
 	${RDEPEND}"
 
 S="${WORKDIR}/${MY_P}"
