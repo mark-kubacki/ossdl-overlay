@@ -79,6 +79,14 @@ src_install() {
 	fowners monetdb:monetdb /etc/monetdb5.conf
 	fperms 0644 /etc/monetdb5.conf
 
+	# directory moves to match FHS-2.3
+	mv "${D}"/var/lib/log "${D}"/var/log
+	mv "${D}"/var/lib/run "${D}"/var/run
+	chown -R monetdb:root "${D}"/var/run/MonetDB
+	chmod -R 0755 "${D}"/var/run/MonetDB
+	chown -R monetdb:monetdb "${D}"/var/log/MonetDB
+	chmod -R 0750 "${D}"/var/log/MonetDB
+
 	# remove windows cruft
 	find "${D}" -name "*.bat" -exec rm "{}" \; || die "removing windows stuff"
 }
