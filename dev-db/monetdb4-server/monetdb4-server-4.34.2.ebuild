@@ -15,17 +15,13 @@ RESTRICT="nomirror"
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
 KEYWORDS="amd64 x86 arm"
-IUSE="debug curl iconv bzip2 zlib rdf xml coroutines"
+IUSE="debug bzip2 zlib netcdf coroutines"
 
 RDEPEND=">=dev-libs/libpcre-4.5
 	>=dev-libs/openssl-0.9.8
 	sys-libs/readline
-	curl? ( net-misc/curl )
-	iconv? ( virtual/libiconv )
 	bzip2? ( || ( app-arch/bzip2 app-arch/pbzip2 ) )
 	zlib? ( sys-libs/zlib )
-	rdf? ( >=media-libs/raptor-1.4.16 )
-	xml? ( dev-libs/libxml2 )
 	netcdf? ( sci-libs/netcdf )
 	coroutines? ( dev-libs/pcl )
 	>=dev-db/monetdb-common-1.34.0
@@ -53,12 +49,8 @@ src_compile() {
 		fi
 	fi
 	# Deal with auto-dependencies
-	use curl	&& myconf+=" $(use_with curl)"
-	use iconv	&& myconf+=" $(use_with iconv)"
 	use bzip2	&& myconf+=" $(use_with bzip2 bz2)"
 	use zlib	&& myconf+=" $(use_with zlib z)"
-	use xml		&& myconf+=" $(use_with xml libxml2)"
-	use rdf		&& myconf+=" $(use_with rdf raptor)"
 	use coroutines	&& myconf+=" $(use_with coroutines pcl)"
 	use netcdf	&& myconf+=" $(use_with netcdf)"
 
