@@ -47,7 +47,7 @@ src_compile() {
 		myconf+=" --enable-strict --disable-optimize --enable-debug --enable-assert"
 	else
 		myconf+=" --disable-strict --disable-debug --disable-assert"
-		if !hasq "-O6" ${CFLAGS}; then
+		if ! hasq "-O6" ${CFLAGS}; then
 			myconf+=" --enable-optimize"
 			filter-flags "-Os" "-O" "-O[012345]"
 		fi
