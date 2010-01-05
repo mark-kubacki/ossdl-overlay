@@ -13,7 +13,7 @@ RESTRICT="nomirror"
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
 KEYWORDS="amd64 x86 arm"
-IUSE="curl iconv bzip2 zlib coroutines odbc"
+IUSE=""
 
 RDEPEND="dev-java/ant
 	>=virtual/jdk-1.4
@@ -24,7 +24,7 @@ DEPEND="|| ( app-arch/xz-utils app-arch/lzma-utils )
 S="${WORKDIR}/${MY_P}"
 
 src_compile() {
-	local myconf="--enable-jdbc"
+	local myconf="--enable-jdbc --enable-xrpcwrapper"
 	econf ${myconf} || die "econf"
 	emake || die "emake"
 }
