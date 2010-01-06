@@ -14,11 +14,23 @@ IUSE="python"
 SLOT="0"
 
 RDEPEND="python? ( >=dev-lang/python-2.5 )"
-DEPEND="${RDEPEND}"
+DEPEND=">=sys-devel/autoconf-2.63
+	${RDEPEND}"
 
 pkg_setup() {
 	enewgroup redis 75 || die "problem adding 'redis' group"
 	enewuser redis 75 -1 /var/lib/redis redis || die "problem adding 'redis' user"
+}
+
+src_unpack() {
+	unpack ${A}
+	cd "${S}"
+
+	cp "${FILESDIR}"/Makefile.in-1.02 Makefile.in \
+	&& cp "${FILESDIR}"/configure.ac-1.02 configure.ac \
+	&& rm Makefile
+
+	autoconf
 }
 
 src_install() {
