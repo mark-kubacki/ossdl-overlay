@@ -40,9 +40,15 @@ src_unpack() {
 }
 
 src_install() {
-        insinto /etc/
-        doins "${FILESDIR}"/redis.conf
-	dosed "s:/var/log/:/var/log/redis/:g" /etc/redis.conf
+	# configuration file rewrites
+	insinto /etc/
+	doins redis.conf
+	dosed "s:daemonize no:daemonize yes:g" /etc/redis.conf
+	dosed "s:# bind:bind:g" /etc/redis.conf
+	dosed "s:dbfilename :dbfilename /var/lib/redis/:g" /etc/redis.conf
+	dosed "s:dir ./:dir /var/lib/redis/:g" /etc/redis.conf
+	dosed "s:loglevel debug:loglevel notice:g" /etc/redis.conf
+	dosed "s:logfile stdout:logfile /var/log/redis/redis.log:g" /etc/redis.conf
 	fowners redis:redis /etc/redis.conf
 	fperms 0644 /etc/redis.conf
 
