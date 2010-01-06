@@ -9,7 +9,7 @@ HOMEPAGE="http://code.google.com/p/redis/"
 SRC_URI="http://redis.googlecode.com/files/${PN}-${PV}.tar.gz"
 
 LICENSE="BSD"
-KEYWORDS="amd64 x86 >~arm"
+KEYWORDS="amd64 x86 ~arm"
 IUSE="python"
 SLOT="0"
 
@@ -17,8 +17,8 @@ RDEPEND="python? ( >=dev-lang/python-2.5 )"
 DEPEND="${RDEPEND}"
 
 pkg_setup() {
-	enewgroup redis 75
-	enewuser redis 75 -1 -1 redis
+	enewgroup redis 75 || die "problem adding 'redis' group"
+	enewuser redis 75 -1 /var/lib/redis redis || die "problem adding 'redis' user"
 }
 
 src_install() {
