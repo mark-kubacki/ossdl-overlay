@@ -28,9 +28,13 @@ src_unpack() {
 	unpack ${A}
 	cd "${S}"
 
-	cp "${FILESDIR}"/Makefile.in-1.02 Makefile.in \
-	&& cp "${FILESDIR}"/configure.ac-1.02 configure.ac \
-	&& rm Makefile
+	cp "${FILESDIR}"/configure.ac-1.02 configure.ac
+	mv Makefile Makefile.in
+	sed -i	-e 's:$(CC):@CC@:g' \
+		-e 's:$(CFLAGS):@AM_CFLAGS@:g' \
+		-e 's: $(DEBUG)::g' \
+		Makefile.in \
+	|| die "Sed failed!"
 
 	eautoconf
 }
