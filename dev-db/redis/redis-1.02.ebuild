@@ -2,6 +2,8 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
+WANT_AUTOCONF="latest"
+
 inherit autotools eutils python
 
 DESCRIPTION="Persistent distributed key-value data caching system."
@@ -30,7 +32,7 @@ src_unpack() {
 	&& cp "${FILESDIR}"/configure.ac-1.02 configure.ac \
 	&& rm Makefile
 
-	autoconf
+	eautoconf
 }
 
 src_install() {
