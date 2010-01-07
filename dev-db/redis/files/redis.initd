@@ -1,0 +1,37 @@
+#!/sbin/runscript
+# $Header: $
+
+REDIS_EXEC=${REDIS_EXEC:-`which redis-server`}
+REDIS_PID=${REDIS_PID:-/var/run/redis.pid}
+REDIS_DIR=${REDIS_DIR:-/var/lib/redis}
+REDIS_CONF=${REDIS_CONF:-/etc/redis.conf}
+REDIS_OPTS=${REDIS_OPTS:-"${REDIS_CONF}"}
+REDIS_USER=${REDIS_USER:-redis}
+REDIS_GROUP=${REDIS_GROUP:-redis}
+
+opts="start stop restart"
+
+depend() {
+	need net
+        use net localmount logger
+	after keepalived
+}
+
+start() {
+	ebegin "Starting Redis server"
+	cd ${REDIS_DIR}
+	start-stop-daemon --chuid ${REDIS_USER}:${REDIS_GROUP} --start \
+		--pidfile ${REDIS_PID} --exec ${REDIS_EXEC} -- ${REDIS_OPTS}
+	ret=$?
+	pidof -o $$ -o $PPID -o %PPID -x ${REDIS_EXEC} > ${REDIS_PID}
+	[ ${ret} -ne 0 ] && rm -f ${REDIS_PID}
+	eend ${ret}
+}
+
+stop() {
+	ebegin "Stopping Redis server"
+	start-stop-daemon --stop --quiet --pidfile ${REDIS_PID}
+        ret=$?
+        rm -f ${REDIS_PID}
+	eend ${ret}
+}
