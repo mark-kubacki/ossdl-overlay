@@ -4,7 +4,7 @@
 
 WANT_AUTOCONF="latest"
 
-inherit autotools eutils python
+inherit autotools eutils python flag-o-matic
 
 DESCRIPTION="Persistent distributed key-value data caching system."
 HOMEPAGE="http://code.google.com/p/redis/"
@@ -37,6 +37,16 @@ src_unpack() {
 	|| die "Sed failed!"
 
 	eautoconf
+}
+
+src_compile() {
+	if ! ( use x86 || use amd64 ); then
+		replace-flags "-Os" "-O2"
+		filter-flags -fomit-frame-pointer "-march=*" "-mtune=*" "-mcpu=*"
+	fi
+
+	econf ${myconf} || die "econf"
+	emake || die "emake"
 }
 
 src_install() {
