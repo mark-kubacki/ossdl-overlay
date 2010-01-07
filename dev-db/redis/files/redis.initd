@@ -1,7 +1,7 @@
 #!/sbin/runscript
 # $Header: $
 
-REDIS_EXEC=${REDIS_EXEC:-`which redis-server`}
+REDIS_EXEC=/usr/sbin/redis-server
 REDIS_PID=${REDIS_PID:-/var/run/redis.pid}
 REDIS_DIR=${REDIS_DIR:-/var/lib/redis}
 REDIS_CONF=${REDIS_CONF:-/etc/redis.conf}
