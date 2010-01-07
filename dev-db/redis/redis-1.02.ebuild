@@ -63,11 +63,11 @@ src_install() {
 	fperms 0644 /etc/redis.conf
 
 	newconfd "${FILESDIR}/redis.confd" redis
-        newinitd "${FILESDIR}/redis.initd" redis
+	newinitd "${FILESDIR}/redis.initd" redis
 
 	if use python ; then
 		insinto $(python_get_sitedir)/redis
-                touch "${D}$(python_get_sitedir)/redis/__init__.py"
+		touch "${D}$(python_get_sitedir)/redis/__init__.py"
 		doins client-libraries/python/redis.py
 	fi
 
@@ -75,8 +75,9 @@ src_install() {
 	docinto html
 	dodoc doc/*
 
-        dobin redis-benchmark redis-cli
-	dosbin redis-server
+	dobin redis-cli
+	dosbin redis-benchmark redis-server
+	fperms 0750 /usr/sbin/redis-benchmark
 
 	diropts -m0750 -o redis -g redis
 	dodir /var/lib/redis
