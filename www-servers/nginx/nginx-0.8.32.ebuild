@@ -7,12 +7,15 @@ inherit eutils ssl-cert toolchain-funcs
 DESCRIPTION="Robust, small and high performance http and reverse proxy server"
 
 HOMEPAGE="http://nginx.net/"
-SRC_URI="http://sysoev.ru/nginx/${P}.tar.gz"
+SRC_URI="http://sysoev.ru/nginx/${P}.tar.gz
+	nginx_modules_redis? ( http://people.freebsd.org/~osa/ngx_http_redis-0.3.1.tar.gz )"
 LICENSE="BSD"
 RESTRICT="nomirror"
 SLOT="0"
 KEYWORDS="amd64 ppc x86 arm sparc ~x86-fbsd"
-IUSE="addition debug fastcgi flv imap ipv6 pcre perl random-index securelink ssl status sub webdav zlib libatomic"
+IUSE="nginx_modules_redis addition debug fastcgi flv imap ipv6 pcre perl random-index securelink ssl status sub webdav zlib libatomic"
+
+IUSE_MODULES="redis"
 
 DEPEND="dev-lang/perl
 	pcre? ( >=dev-libs/libpcre-4.2 )
@@ -73,6 +76,9 @@ src_compile() {
 	use random-index	&& myconf="${myconf} --with-http_random_index_module"
 	use securelink	&& myconf="${myconf} --with-http_secure_link_module"
 	(use libatomic || use arm)	&& myconf="${myconf} --with-libatomic"
+
+	# now come modules
+	use nginx_modules_redis	&& myconf+=" --add-module=../ngx_http_redis-0.3.1"
 
 	tc-export CC
 	# nginx SEGFAULTs quite often with custom CFLAGS,
