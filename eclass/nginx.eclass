@@ -17,17 +17,17 @@ SRC_URI="http://sysoev.ru/nginx/${P}.tar.gz
 LICENSE="BSD"
 RESTRICT="nomirror"
 IUSE="debug fastcgi ipv6 perl ssl zlib libatomic"
-IUSE_NGINX_MODULES=(addition access auth_basic autoindex browser empty_gif \
-flv geo imap index limit_zone limit_req map memcached random-index redis \
-referer proxy static securelink status sub rewrite upstream_ip_hash webdav)
+IUSE_NGINX_MODULES=(addition access auth_basic autoindex empty_gif \
+flv geo imap limit_zone limit_req map memcached random-index perl redis \
+referer proxy securelink status sub rewrite upstream_ip_hash webdav)
 
 # @VARIABLE: NGINX_DEFAULT_MODULES
 # @DESCRIPTION:
 # Contains a space-separated list of tokens which represent the alias of a
 # module to be found in IUSE_NGINX_MODULES and which correspond to modules
 # which "are automatically compiled in unless explicitly disabled".
-NGINX_DEFAULT_MODULES="static index rewrite autoindex auth_basic \
-access limit_zone limit_req geo map referer rewrite proxy browser \
+NGINX_DEFAULT_MODULES="rewrite autoindex auth_basic access empty_gif \
+limit_zone limit_req geo map memcached referer rewrite proxy \
 upstream_ip_hash"
 
 # @VARIABLE: NGINX_MODULES
@@ -37,10 +37,13 @@ upstream_ip_hash"
 # module to be found in IUSE_NGINX_MODULES
 NGINX_MODULES=${NGINX_MODULES:-${NGINX_DEFAULT_MODULES}}
 
+# Modules which cannot be deselected:
+# static, index, browser
+
 RDEPEND="nginx_modules_rewrite? ( >=dev-libs/libpcre-4.2 )
 	ssl? ( dev-libs/openssl )
 	zlib? ( sys-libs/zlib )
-	perl? ( >=dev-lang/perl-5.8 )"
+	nginx_modules_perl? ( >=dev-lang/perl-5.8 )"
 DEPEND="${RDEPEND}
 	arm? ( dev-libs/libatomic_ops )
 	libatomic? ( dev-libs/libatomic_ops )"
@@ -49,7 +52,6 @@ DEPEND="${RDEPEND}
 # NGINX_MODULES parsing
 # ==============================================================================
 NUM_MODULES=${#IUSE_NGINX_MODULES[@]}
-MY_MODS=""
 index=0
 while [ "${index}" -lt "${NUM_MODULES}" ] ; do
 	if hasq ${IUSE_NGINX_MODULES[${index}]} ${NGINX_DEFAULT_MODULES} ; then
@@ -70,9 +72,8 @@ nginx_makefile_check() {
 		eerror "Please make sure you have defined following in your /etc/make.conf:"
 		eerror "  USE_EXPAND=\"\${USE_EXPAND}\ NGINX_MODULES\""
 		eerror "Then you can select modules for Nginx by:"
-		eerror "  NGINX_MODULES=\"static index rewrite autoindex auth_basic \\"
-		eerror "      access limit_zone limit_req geo map referer rewrite proxy browser \\"
-		eerror "      upstream_ip_hash\""
+		eerror "  NGINX_MODULES=\"rewrite autoindex auth_basic access \\"
+		eerror "  limit_zone limit_req geo map referer rewrite proxy upstream_ip_hash\""
 		elog "USE_EXPAND for NGINX_MODULES was not set. Aborting."
 		die "USE_EXPAND for NGINX_MODULES was not set. Aborting."
 	fi
@@ -92,8 +93,14 @@ nginx_create_user() {
 
 use_module() {
 	[[ -z "${1}" ]] && die "usage: \$(use_module name) or \$(use_module name alias)"
-	if useq ${1} || useq "nginx_modules_${1}" ; then
-		echo " --with-http_${2:-${1}}_module"
+	if useq "nginx_modules_${1}" ; then
+		if ! hasq ${1} ${NGINX_DEFAULT_MODULES} ; then
+			echo " --with-http_${2:-${1}}_module"
+		fi
+	else
+		if hasq ${1} ${NGINX_DEFAULT_MODULES} ; then
+			echo " --without-http_${2:-${1}}_module"
+		fi
 	fi
 }
 
@@ -123,26 +130,36 @@ nginx_src_configure() {
 	local myconf
 	myconf=${1:-""}
 
+	# active/deactivate all modules, except those for "special treatment"
+	SPECIAL_TREATMENT="addition imap random-index redis rewrite securelink status webdav zlib"
+	index=0
+	while [ "${index}" -lt "${NUM_MODULES}" ] ; do
+		if ! hasq ${IUSE_NGINX_MODULES[${index}]} ${SPECIAL_TREATMENT} ; then
+			myconf+="$(use_module ${IUSE_NGINX_MODULES[${index}]})"
+		fi
+		let "index = ${index} + 1"
+	done
+
+	# now come the modules which qualified for "special treatment"
+	# by needing renames or by being pulled in by casual use flags
+	# or which are enable-only
 	use debug			&& myconf+=" --with-debug"
 	use ipv6			&& myconf+=" --with-ipv6"
-	use perl			&& myconf+="$(use_module perl)"
-	use ssl				&& myconf+="$(use_module ssl)"
+	use ssl				&& myconf+=" --with-http_ssl_module"
 	use zlib			|| myconf+=" --without-http_gzip_module"
 
+	use nginx_modules_addition	&& myconf+="$(use_module addition)"
 	if use fastcgi; then
 		myconf+=" --with-http_realip_module"
 	else
 		myconf+=" --without-http_fastcgi_module"
 	fi
-	use nginx_modules_addition	&& myconf+="$(use_module addition)"
-	use nginx_modules_flv		&& myconf+="$(use_module flv)"
 	if ! use nginx_modules_rewrite; then
 		myconf+=" --without-pcre --without-http_rewrite_module"
 	fi
 	use nginx_modules_imap		&& myconf+=" --with-imap" # pop3/imap4 proxy support
 	use nginx_modules_status	&& myconf+="$(use_module status stub_status)"
-	use nginx_modules_webdav	&& myconf+="$(use_module wevdav dav)"
-	use nginx_modules_sub		&& myconf+="$(use_module sub)"
+	use nginx_modules_webdav	&& myconf+="$(use_module webdav dav)"
 	use nginx_modules_random-index	&& myconf+="$(use_module random-index random_index)"
 	use nginx_modules_securelink	&& myconf+="$(use_module securelink secure_link)"
 	(use libatomic || use arm)	&& myconf+=" --with-libatomic"
