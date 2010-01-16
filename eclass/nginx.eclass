@@ -17,14 +17,25 @@ SRC_URI="http://sysoev.ru/nginx/${P}.tar.gz
 LICENSE="BSD"
 RESTRICT="nomirror"
 IUSE="debug fastcgi ipv6 perl ssl zlib libatomic"
-IUSE_NGINX_MODULES=(addition flv imap random-index securelink status sub webdav redis rewrite)
+IUSE_NGINX_MODULES=(addition access auth_basic autoindex browser empty_gif \
+flv geo imap index limit_zone limit_req map memcached random-index redis \
+referer proxy static securelink status sub rewrite upstream_ip_hash webdav)
+
+# @VARIABLE: NGINX_DEFAULT_MODULES
+# @DESCRIPTION:
+# Contains a space-separated list of tokens which represent the alias of a
+# module to be found in IUSE_NGINX_MODULES and which correspond to modules
+# which "are automatically compiled in unless explicitly disabled".
+NGINX_DEFAULT_MODULES="static index rewrite autoindex auth_basic \
+access limit_zone limit_req geo map referer rewrite proxy browser \
+upstream_ip_hash"
 
 # @VARIABLE: NGINX_MODULES
 # @DESCRIPTION:
 # This variable needs to be set prior pulling an ebuild and contains
 # a space-separated list of tokens which represent the alias of a
 # module to be found in IUSE_NGINX_MODULES
-NGINX_MODULES=${NGINX_MODULES:-"rewrite"}
+NGINX_MODULES=${NGINX_MODULES:-${NGINX_DEFAULT_MODULES}}
 
 RDEPEND="nginx_modules_rewrite? ( >=dev-libs/libpcre-4.2 )
 	ssl? ( dev-libs/openssl )
@@ -41,7 +52,11 @@ NUM_MODULES=${#IUSE_NGINX_MODULES[@]}
 MY_MODS=""
 index=0
 while [ "${index}" -lt "${NUM_MODULES}" ] ; do
-	IUSE="${IUSE} nginx_modules_${IUSE_NGINX_MODULES[${index}]}"
+	if hasq ${IUSE_NGINX_MODULES[${index}]} ${NGINX_DEFAULT_MODULES} ; then
+		IUSE+=" +nginx_modules_${IUSE_NGINX_MODULES[${index}]}"
+	else
+		IUSE+=" nginx_modules_${IUSE_NGINX_MODULES[${index}]}"
+	fi
 	let "index = ${index} + 1"
 done
 
@@ -55,7 +70,9 @@ nginx_makefile_check() {
 		eerror "Please make sure you have defined following in your /etc/make.conf:"
 		eerror "  USE_EXPAND=\"\${USE_EXPAND}\ NGINX_MODULES\""
 		eerror "Then you can select modules for Nginx by:"
-		eerror "  NGINX_MODULES=\"zlib rewrite\""
+		eerror "  NGINX_MODULES=\"static index rewrite autoindex auth_basic \\"
+		eerror "      access limit_zone limit_req geo map referer rewrite proxy browser \\"
+		eerror "      upstream_ip_hash\""
 		elog "USE_EXPAND for NGINX_MODULES was not set. Aborting."
 		die "USE_EXPAND for NGINX_MODULES was not set. Aborting."
 	fi
