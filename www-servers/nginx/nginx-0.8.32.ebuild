@@ -13,9 +13,15 @@ LICENSE="BSD"
 RESTRICT="nomirror"
 SLOT="0"
 KEYWORDS="amd64 ppc x86 arm sparc ~x86-fbsd"
-IUSE="nginx_modules_redis addition debug fastcgi flv imap ipv6 pcre perl random-index securelink ssl status sub webdav zlib libatomic"
+IUSE="addition debug fastcgi flv imap ipv6 pcre perl random-index securelink ssl status sub webdav zlib libatomic"
 
-IUSE_MODULES="redis"
+IUSE_NGINX_MODULES=(redis memcached)
+NUM_MODULES=${#IUSE_NGINX_MODULES[@]}
+index=0
+while [ "${index}" -lt "${NUM_MODULES}" ] ; do
+	IUSE="${IUSE} nginx_modules_${IUSE_NGINX_MODULES[${index}]}"
+	let "index = ${index} + 1"
+done
 
 DEPEND="dev-lang/perl
 	pcre? ( >=dev-libs/libpcre-4.2 )
@@ -25,7 +31,21 @@ DEPEND="dev-lang/perl
 	arm? ( dev-libs/libatomic_ops )
 	perl? ( >=dev-lang/perl-5.8 )"
 
+nginx_makefile_check() {
+	ebegin "checking make.conf for Nginx module settings"
+	if ! $(grep -q '^USE_EXPAND=.*NGINX.*$' /etc/make.conf); then
+		eerror "Please make sure you have defined following in your /etc/make.conf:"
+		eerror "  USE_EXPAND=\"\${USE_EXPAND}\ NGINX_MODULES\""
+		eerror "Then you can select modules for Nginx by:"
+		eerror "  NGINX_MODULES=\"addition zlib rewrite dav sub\""
+		elog "USE_EXPAND for NGINX_MODULES was not set. Aborting."
+		die "USE_EXPAND for NGINX_MODULES was not set. Aborting."
+	fi
+	eend
+}
+
 pkg_setup() {
+	nginx_makefile_check
 	ebegin "Creating nginx user and group"
 	enewgroup ${PN}
 	enewuser ${PN} -1 -1 -1 ${PN}
