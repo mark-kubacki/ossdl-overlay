@@ -21,8 +21,8 @@ PHP_PACKAGE="1"
 # php patch settings, general
 PHP_PATCHSET_REV="${PR/r/}"
 PHP_PATCHSET_URI="http://dev.gentoo.org/~hoffie/distfiles/php-patchset-${MY_PHP_PV}-r${PHP_PATCHSET_REV}.tar.bz2"
-SUHOSIN_PATCH="suhosin-patch-5.2.11-0.9.7.patch.gz"
-FPM_PATCH="php-5.2.10-fpm-0.5.13.diff"
+SUHOSIN_PATCH="suhosin-patch-5.2.12-0.9.7.patch.gz"
+FPM_PATCH="php-5.2.12-fpm-0.5.13.diff"
 MULTILIB_PATCH="${MY_PHP_PV}/opt/multilib-search-path.patch"
 # php patch settings, ebuild specific
 FASTBUILD_PATCH="${MY_PHP_PV}/opt/fastbuild.patch"
@@ -34,10 +34,10 @@ KOLAB_PATCH="${MY_PHP_PV}/opt/kolab-imap-annotations.patch"
 inherit versionator php5_2-sapi apache-module
 
 # Suhosin patch support
-[[ -n "${SUHOSIN_PATCH}" ]] && SRC_URI="${SRC_URI} suhosin? ( http://gentoo.longitekk.com/${SUHOSIN_PATCH} )"
+[[ -n "${SUHOSIN_PATCH}" ]] && SRC_URI="${SRC_URI} suhosin? ( http://download.suhosin.org/${SUHOSIN_PATCH} )"
 
 # php-fpm patch support
-[[ -n "${FPM_PATCH}" ]] && SRC_URI="${SRC_URI} fpm? ( http://php-fpm.org/downloads/${FPM_PATCH}.gz )"
+[[ -n "${FPM_PATCH}" ]] && SRC_URI="${SRC_URI} fpm? ( http://binhost.ossdl.de/distfiles/${FPM_PATCH}.gz )"
 
 DESCRIPTION="The PHP language runtime engine: CLI, CGI and Apache2 SAPIs."
 
