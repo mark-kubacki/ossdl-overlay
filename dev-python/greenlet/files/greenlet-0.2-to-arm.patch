@@ -1,0 +1,11 @@
+diff -uNr greenlet-0.2.iphoneos/slp_platformselect.h greenlet-0.2/slp_platformselect.h
+--- greenlet-0.2.iphoneos/slp_platformselect.h	2010-01-19 22:55:58.956800222 +0100
++++ greenlet-0.2/slp_platformselect.h	2010-01-19 23:01:18.486800767 +0100
+@@ -18,6 +18,6 @@
+ #include "switch_s390_unix.h"	/* Linux/S390 */
+ #elif defined(__GNUC__) && defined(__s390x__) && defined(__linux__)
+ #include "switch_s390_unix.h"	/* Linux/S390 zSeries (identical) */
+-#elif defined(__GNUC__) && defined(__arm__) && defined(__APPLE__)
++#elif defined(__GNUC__) && defined(__arm__)
+ #include "switch_arm_iphoneos_gcc.h" /* Apple IPhoneOS on arm hardware with gcc */
+ #endif
