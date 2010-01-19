@@ -1,4 +1,4 @@
-# Copyright 2010 W-Mark Kubacki, Wais Darwish
+# Copyright 2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -12,11 +12,11 @@ SRC_URI="http://redis.googlecode.com/files/${PN}-${PV}.tar.gz"
 RESTRICT="nomirror"
 
 LICENSE="BSD"
-KEYWORDS="amd64 x86 arm ~sparc ~ppc"
-IUSE="python"
+KEYWORDS="amd64 x86 ~arm ~sparc ~ppc"
+IUSE=""
 SLOT="0"
 
-RDEPEND="python? ( >=dev-lang/python-2.5 )"
+RDEPEND=""
 DEPEND=">=sys-devel/autoconf-2.63
 	${RDEPEND}"
 
@@ -34,6 +34,7 @@ src_unpack() {
 	sed -i	-e 's:$(CC):@CC@:g' \
 		-e 's:$(CFLAGS):@AM_CFLAGS@:g' \
 		-e 's: $(DEBUG)::g' \
+		-e 's:ARCH:TARCH:g' \
 		Makefile.in \
 	|| die "Sed failed!"
 
@@ -66,11 +67,8 @@ src_install() {
 	newconfd "${FILESDIR}/redis.confd" redis
 	newinitd "${FILESDIR}/redis.initd" redis
 
-	if use python ; then
-		insinto $(python_get_sitedir)/redis
-		touch "${D}$(python_get_sitedir)/redis/__init__.py"
-		doins client-libraries/python/redis.py
-	fi
+	einfo "Redis doesn't ship with Python client library anymore."
+	einfo "If you need one, install dev-python/redis-py."
 
 	dodoc 00-RELEASENOTES BETATESTING.txt BUGS COPYING Changelog README TODO
 	docinto html
