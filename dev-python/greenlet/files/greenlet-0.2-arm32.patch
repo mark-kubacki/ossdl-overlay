@@ -1,6 +1,6 @@
 diff -uNr greenlet-0.2.orig/slp_platformselect.h greenlet-0.2/slp_platformselect.h
---- greenlet-0.2.orig/slp_platformselect.h	2010-01-19 23:28:30.496801226 +0100
-+++ greenlet-0.2/slp_platformselect.h	2010-01-19 23:27:54.586800864 +0100
+--- greenlet-0.2.orig/slp_platformselect.h	2010-01-20 17:49:32.926801786 +0100
++++ greenlet-0.2/slp_platformselect.h	2010-01-20 17:49:20.016801753 +0100
 @@ -20,4 +20,6 @@
  #include "switch_s390_unix.h"	/* Linux/S390 zSeries (identical) */
  #elif defined(__GNUC__) && defined(__arm__) && defined(__APPLE__)
@@ -10,8 +10,8 @@ diff -uNr greenlet-0.2.orig/slp_platformselect.h greenlet-0.2/slp_platformselect
  #endif
 diff -uNr greenlet-0.2.orig/switch_arm32_gcc.h greenlet-0.2/switch_arm32_gcc.h
 --- greenlet-0.2.orig/switch_arm32_gcc.h	1970-01-01 01:00:00.000000000 +0100
-+++ greenlet-0.2/switch_arm32_gcc.h	2008-06-11 23:22:27.000000000 +0200
-@@ -0,0 +1,49 @@
++++ greenlet-0.2/switch_arm32_gcc.h	2010-01-20 17:58:18.016801444 +0100
+@@ -0,0 +1,55 @@
 +/*
 + * this is the internal transfer function.
 + *
@@ -20,18 +20,17 @@ diff -uNr greenlet-0.2.orig/switch_arm32_gcc.h greenlet-0.2/switch_arm32_gcc.h
 + *  3-Sep-06 Commented out saving of r1-r3 (r4 already commented out) as I
 + *           read that these do not need to be saved.  Also added notes and
 + *           errors related to the frame pointer. Richard Tew.
-+ *
-+ * NOTES
-+ *
-+ *   It is not possible to detect if fp is used or not, so the supplied
-+ *   switch function needs to support it, so that you can remove it if
-+ *   it does not apply to you.
++ * 20-Jan-10 According to ARM Prodcedure Call Standard handbook
++ *           r4-r8 and r10-r11 have to be saved. r10-r11 is regarded as
++ *           "fp" on some architectures, such as Feroceon.
++ *           Therefore I've added another FP check.
 + *
 + * POSSIBLE ERRORS
 + *
-+ *   "fp cannot be used in asm here"
++ *   "Illegal instruction" with GCC
 + *
-+ *   - Try commenting out "fp" in REGS_TO_SAVE.
++ *   - You have to set correct -march CFLAG and most probably
++ *     -fomit-frame-pointer. E.g., for SheevaPlug it is -march=armv5te
 + *
 + */
 +
@@ -39,7 +38,11 @@ diff -uNr greenlet-0.2.orig/switch_arm32_gcc.h greenlet-0.2/switch_arm32_gcc.h
 +
 +#ifdef SLP_EVAL
 +#define STACK_MAGIC 0
++#if defined (__VFP_FP__) && !defined(__SOFTFP__)
++#define REGS_TO_SAVE "r4", "r5", "r6", "r7", "r8", "fp", "ip", "lr"
++#else // for armv5tel and friends
 +#define REGS_TO_SAVE "r4", "r5", "r6", "r7", "r8", /* "r10", "r11", */ "ip", "lr"
++#endif
 +
 +static int
 +slp_switch(void)
@@ -51,6 +54,9 @@ diff -uNr greenlet-0.2.orig/switch_arm32_gcc.h greenlet-0.2/switch_arm32_gcc.h
 +		SLP_SAVE_STATE(stackref, stsizediff);
 +		__asm__ volatile (
 +		    "add sp,sp,%0\n"
++#if defined (__VFP_FP__) && !defined(__SOFTFP__)
++		    "add fp,fp,%0\n"
++#endif
 +		    :
 +		    : "r" (stsizediff)
 +		    );
