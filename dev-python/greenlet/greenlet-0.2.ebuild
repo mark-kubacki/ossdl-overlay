@@ -11,7 +11,7 @@ RESTRICT="nomirror"
 
 LICENSE="MIT"
 SLOT="0"
-KEYWORDS="x86 amd64"
+KEYWORDS="x86 amd64 ppc ~sparc"
 IUSE="doc"
 
 RDEPEND=""
@@ -24,7 +24,7 @@ src_unpack() {
 
 	if use arm; then
         	epatch "${FILESDIR}/greenlet-0.2-iphoneos.patch"
-        	epatch "${FILESDIR}/greenlet-0.2-to-arm.patch"
+        	epatch "${FILESDIR}/greenlet-0.2-arm32.patch"
 	fi
 }
 
