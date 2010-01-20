@@ -11,7 +11,7 @@ diff -uNr greenlet-0.2.orig/slp_platformselect.h greenlet-0.2/slp_platformselect
 diff -uNr greenlet-0.2.orig/switch_arm32_gcc.h greenlet-0.2/switch_arm32_gcc.h
 --- greenlet-0.2.orig/switch_arm32_gcc.h	1970-01-01 01:00:00.000000000 +0100
 +++ greenlet-0.2/switch_arm32_gcc.h	2008-06-11 23:22:27.000000000 +0200
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,49 @@
 +/*
 + * this is the internal transfer function.
 + *
@@ -39,7 +39,7 @@ diff -uNr greenlet-0.2.orig/switch_arm32_gcc.h greenlet-0.2/switch_arm32_gcc.h
 +
 +#ifdef SLP_EVAL
 +#define STACK_MAGIC 0
-+#define REGS_TO_SAVE /*"r1", "r2", "r3", "r4",*/ "r5", "r6", "fp", "ip", "lr"
++#define REGS_TO_SAVE "r4", "r5", "r6", "r7", "r8", /* "r10", "r11", */ "ip", "lr"
 +
 +static int
 +slp_switch(void)
@@ -51,7 +51,6 @@ diff -uNr greenlet-0.2.orig/switch_arm32_gcc.h greenlet-0.2/switch_arm32_gcc.h
 +		SLP_SAVE_STATE(stackref, stsizediff);
 +		__asm__ volatile (
 +		    "add sp,sp,%0\n"
-+		    "add fp,fp,%0\n"
 +		    :
 +		    : "r" (stsizediff)
 +		    );
