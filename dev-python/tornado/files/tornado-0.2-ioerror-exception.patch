@@ -1,0 +1,12 @@
+diff -uNr tornado-0.2.orig/tornado/httpclient.py tornado-0.2/tornado/httpclient.py
+--- tornado-0.2.orig/tornado/httpclient.py	2009-09-17 20:39:02.000000000 +0200
++++ tornado-0.2/tornado/httpclient.py	2010-01-24 18:09:21.480000000 +0100
+@@ -220,7 +220,7 @@ class AsyncHTTPClient(object):
+             elif old_events != events:
+                 try:
+                     self.io_loop.update_handler(fd, events)
+-                except OSError, e:
++                except (OSError, IOError), e:
+                     if e[0] == errno.ENOENT:
+                         self.io_loop.add_handler(fd, self._handle_events,
+                                                  events)
