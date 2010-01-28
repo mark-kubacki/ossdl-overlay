@@ -33,6 +33,13 @@ DEPEND="|| ( app-arch/xz-utils app-arch/lzma-utils )
 
 S="${WORKDIR}/${MY_P}"
 
+src_unpack() {
+	unpack ${A}
+	cd "${S}"
+
+	epatch "${FILESDIR}"/monetdb-common-1.34-curl.patch
+}
+
 src_compile() {
 	local myconf=
 	if use debug; then

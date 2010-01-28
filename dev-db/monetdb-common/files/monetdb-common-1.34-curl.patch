@@ -1,0 +1,28 @@
+diff -uNr MonetDB-1.34.4.orig/src/common/stream.c MonetDB-1.34.4/src/common/stream.c
+--- MonetDB-1.34.4.orig/src/common/stream.c	2010-01-12 11:34:18.000000000 +0100
++++ MonetDB-1.34.4/src/common/stream.c	2010-01-28 17:17:55.842741000 +0100
+@@ -1211,8 +1211,8 @@
+ 	}
+ 	curl_easy_setopt(c->handle, CURLOPT_URL, s->name);
+ 	curl_easy_setopt(c->handle, CURLOPT_WRITEDATA, s);
+-	curl_easy_setopt(c->handle, CURLOPT_VERBOSE, FALSE);
+-	curl_easy_setopt(c->handle, CURLOPT_NOSIGNAL, TRUE);
++	curl_easy_setopt(c->handle, CURLOPT_VERBOSE, 0);
++	curl_easy_setopt(c->handle, CURLOPT_NOSIGNAL, 1);
+ 	curl_easy_setopt(c->handle, CURLOPT_WRITEFUNCTION, write_callback);
+ #ifdef USE_CURL_MULTI
+ 	if (multi_handle == NULL)
+diff -uNr MonetDB-1.34.4.orig/src/common/stream.mx MonetDB-1.34.4/src/common/stream.mx
+--- MonetDB-1.34.4.orig/src/common/stream.mx	2010-01-07 16:00:24.000000000 +0100
++++ MonetDB-1.34.4/src/common/stream.mx	2010-01-28 17:16:54.022741000 +0100
+@@ -1497,8 +1497,8 @@
+ 	}
+ 	curl_easy_setopt(c->handle, CURLOPT_URL, s->name);
+ 	curl_easy_setopt(c->handle, CURLOPT_WRITEDATA, s);
+-	curl_easy_setopt(c->handle, CURLOPT_VERBOSE, FALSE);
+-	curl_easy_setopt(c->handle, CURLOPT_NOSIGNAL, TRUE);
++	curl_easy_setopt(c->handle, CURLOPT_VERBOSE, 0);
++	curl_easy_setopt(c->handle, CURLOPT_NOSIGNAL, 1);
+ 	curl_easy_setopt(c->handle, CURLOPT_WRITEFUNCTION, write_callback);
+ #ifdef USE_CURL_MULTI
+ 	if (multi_handle == NULL)
