@@ -1,7 +1,0 @@
-Author: W-Mark Kubacki <wmark@hurrikane.de>
-Date:   Sat Jan 2 21:04:44 2010 +0100
-
-See: https://sourceforge.net/tracker/?func=detail&aid=2924999&group_id=56967&atid=482468
-
- * MonetDB doesn't compile with USE curl.
-   Re-introduce USE curl if the issue is resolved or write an patch.
