@@ -1,0 +1,39 @@
+diff --git a/tornado/web.py b/tornado/web.py
+index 731dff8..f645417 100644
+--- a/tornado/web.py
++++ b/tornado/web.py
+@@ -142,7 +142,7 @@ class RequestHandler(object):
+     def clear(self):
+         """Resets all headers and content for this response."""
+         self._headers = {
+-            "Server": "TornadoServer/0.1",
++            "Server": "TornadoServer/0.2",
+             "Content-Type": "text/html; charset=UTF-8",
+         }
+         if not self.request.supports_http_1_1():
+diff --git a/tornado/websocket.py b/tornado/websocket.py
+index dfca709..9e237e4 100644
+--- a/tornado/websocket.py
++++ b/tornado/websocket.py
+@@ -73,7 +73,7 @@ class WebSocketHandler(tornado.web.RequestHandler):
+             "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
+             "Upgrade: WebSocket\r\n"
+             "Connection: Upgrade\r\n"
+-            "Server: TornadoServer/0.1\r\n"
++            "Server: TornadoServer/0.2\r\n"
+             "WebSocket-Origin: " + self.request.headers["Origin"] + "\r\n"
+             "WebSocket-Location: ws://" + self.request.host +
+             self.request.path + "\r\n\r\n")
+diff --git a/tornado/wsgi.py b/tornado/wsgi.py
+index 0e437e7..a0ff46c 100644
+--- a/tornado/wsgi.py
++++ b/tornado/wsgi.py
+@@ -222,7 +222,7 @@ class WSGIContainer(object):
+         body = escape.utf8(body)
+         headers["Content-Length"] = str(len(body))
+         headers.setdefault("Content-Type", "text/html; charset=UTF-8")
+-        headers.setdefault("Server", "TornadoServer/0.1")
++        headers.setdefault("Server", "TornadoServer/0.2")
+ 
+         parts = ["HTTP/1.1 " + data["status"] + "\r\n"]
+         for key, value in headers.iteritems():

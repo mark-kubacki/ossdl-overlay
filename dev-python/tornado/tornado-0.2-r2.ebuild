@@ -14,12 +14,13 @@ SRC_URI="http://www.tornadoweb.org/static/${P}.tar.gz
 LICENSE="Apache-2.0"
 SLOT="0"
 KEYWORDS="amd64 x86 arm ~ppc ~hpa ~sparc"
-IUSE=""
+IUSE="+mark_extras"
 
 DEPEND=">=dev-lang/python-2.5"
 RDEPEND="${DEPEND}
 	dev-python/simplejson
 	>=dev-python/pycurl-7.19.0
+	mark_extras? ( dev-python/murmur )
 	!!www-servers/tornado"
 DEPEND="${DEPEND}
 	|| ( app-arch/xz-utils app-arch/lzma-utils )"
@@ -29,4 +30,9 @@ src_unpack() {
 	cd "${S}"
 
 	epatch ../tornado-0.2-to-24c9ee9d.patch
+	if use mark_extras ; then
+		epatch "${FILESDIR}"/tornado-0.2-murmurhash.patch
+	fi
+	sed -e "s:0.2:${PV}:g" "${FILESDIR}"/tornado-0.2-versionstring.patch > "${WORKDIR}"/tornado-versionstring.patch
+	epatch "${WORKDIR}"/tornado-versionstring.patch
 }

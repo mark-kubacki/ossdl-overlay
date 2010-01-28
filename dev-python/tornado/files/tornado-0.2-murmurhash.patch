@@ -1,0 +1,48 @@
+diff --git a/tornado/web.py b/tornado/web.py
+index abe9126..731dff8 100644
+--- a/tornado/web.py
++++ b/tornado/web.py
+@@ -59,6 +59,7 @@ import httplib
+ import locale
+ import logging
+ import mimetypes
++import murmur
+ import os.path
+ import re
+ import stat
+@@ -455,10 +456,10 @@ class RequestHandler(object):
+         # we have not flushed any content yet.
+         if not self._headers_written:
+             if self._status_code == 200 and self.request.method == "GET":
+-                hasher = hashlib.sha1()
++                hash = 0L
+                 for part in self._write_buffer:
+-                    hasher.update(part)
+-                etag = '"%s"' % hasher.hexdigest()
++                    hash += murmur.string_hash(part)
++                etag = '"%s"' % hash
+                 inm = self.request.headers.get("If-None-Match")
+                 if inm and inm.find(etag) != -1:
+                     self._write_buffer = []
+@@ -652,17 +653,17 @@ class RequestHandler(object):
+         hashes = RequestHandler._static_hashes
+         if path not in hashes:
+             try:
+-                f = open(os.path.join(
++                def baseN(num,b): return "0" if num == 0 else ( baseN(num // b, b).lstrip("0") + "0123456789abcdefghijklmnopqrstuvwxyz"[num % b])
++                hash = murmur.file_hash(os.path.join(
+                     self.application.settings["static_path"], path))
+-                hashes[path] = hashlib.md5(f.read()).hexdigest()
+-                f.close()
++                hashes[path] = baseN(hash, 36)
+             except:
+                 logging.error("Could not open static file %r", path)
+                 hashes[path] = None
+         base = self.request.protocol + "://" + self.request.host \
+             if getattr(self, "include_host", False) else ""
+         if hashes.get(path):
+-            return base + "/static/" + path + "?v=" + hashes[path][:5]
++            return base + "/static/" + path + "?v=" + hashes[path]
+         else:
+             return base + "/static/" + path
+ 
