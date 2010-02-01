@@ -10,8 +10,8 @@ EAPI="2"
 
 inherit eutils ssl-cert toolchain-funcs
 
-MODULE_DRIZZLE_PV=${MODULE_DRIZZLE_PV:-"d7fe9e6"}
-#MODULE_RDS_JSON_PV=${MODULE_RDS_JSON_PV:-"4a053ec"}
+MODULE_DRIZZLE_PV=${MODULE_DRIZZLE_PV:-"aa3269a"}
+MODULE_RDS_JSON_PV=${MODULE_RDS_JSON_PV:-"9cf3bef"}
 MODULE_XSS_PV=${MODULE_XSS_PV:-"58732b0"}
 MODULE_ACLANG_PV=${MODULE_ACLANG_PV:-"20081217"}
 MODULE_REDIS_PV=${MODULE_REDIS_PV:-"0.3.1"}
@@ -20,17 +20,17 @@ DESCRIPTION="Robust, small and high performance http and reverse proxy server"
 HOMEPAGE="http://nginx.net/"
 SRC_URI="http://sysoev.ru/nginx/${P}.tar.gz
 	nginx_modules_drizzle? ( http://download.github.com/chaoslawful-drizzle-nginx-module-${MODULE_DRIZZLE_PV}.tar.gz )
+	nginx_modules_rds_json? ( http://download.github.com/agentzh-rds-json-nginx-module-${MODULE_RDS_JSON_PV}.tar.gz )
 	nginx_modules_xss? ( http://download.github.com/agentzh-xss-nginx-module-${MODULE_XSS_PV}.tar.gz )
 	nginx_modules_accept_language? ( http://binhost.ossdl.de/distfiles/nginx_accept_language_module-${MODULE_ACLANG_PV}.tbz2 )
 	nginx_modules_redis? ( http://people.freebsd.org/~osa/ngx_http_redis-${MODULE_REDIS_PV}.tar.gz )"
-#	nginx_modules_rds-json? ( http://download.github.com/agentzh-rds-json-nginx-module-${MODULE_RDS_JSON_PV}.tar.gz )
 LICENSE="BSD"
 RESTRICT="nomirror"
 IUSE="debug fastcgi ipv6 perl ssl zlib libatomic"
 IUSE_NGINX_MODULES=(addition access auth_basic autoindex empty_gif \
 flv geo geoip imap limit_zone limit_req map memcached random-index perl redis \
 referer proxy securelink status sub rewrite upstream_ip_hash webdav \
-accept_language xss drizzle)
+accept_language xss drizzle rds_json)
 
 # @VARIABLE: NGINX_DEFAULT_MODULES
 # @DESCRIPTION:
@@ -144,7 +144,7 @@ nginx_src_configure() {
 	myconf=${1:-""}
 
 	# active/deactivate all modules, except those for "special treatment"
-	SPECIAL_TREATMENT="accept_language addition drizzle imap random-index redis rewrite securelink status webdav xss zlib"
+	SPECIAL_TREATMENT="accept_language addition drizzle imap random-index rds_json redis rewrite securelink status webdav xss zlib"
 	index=0
 	while [ "${index}" -lt "${NUM_MODULES}" ] ; do
 		if ! hasq ${IUSE_NGINX_MODULES[${index}]} ${SPECIAL_TREATMENT} ; then
@@ -181,7 +181,7 @@ nginx_src_configure() {
 	use nginx_modules_redis		&& myconf+=" --add-module=../ngx_http_redis-${MODULE_REDIS_PV}"
 	use nginx_modules_accept_language	&& myconf+=" --add-module=../nginx_accept_language_module"
 	use nginx_modules_xss		&& myconf+=" --add-module=../agentzh-xss-nginx-module-${MODULE_XSS_PV}"
-#	use nginx_modules_rds-json	&& myconf+=" --add-module=../agentzh-rds-json-nginx-module-${MODULE_RDS_JSON_PV}"
+	use nginx_modules_rds_json	&& myconf+=" --add-module=../agentzh-rds-json-nginx-module-${MODULE_RDS_JSON_PV}"
 	use nginx_modules_drizzle	&& myconf+=" --add-module=../chaoslawful-drizzle-nginx-module-${MODULE_DRIZZLE_PV}"
 
 	tc-export CC
