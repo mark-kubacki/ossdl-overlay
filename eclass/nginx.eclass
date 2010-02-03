@@ -58,6 +58,7 @@ RDEPEND="nginx_modules_rewrite? ( >=dev-libs/libpcre-4.2 )
 	nginx_modules_drizzle? ( >=dev-db/libdrizzle-0.6 )
 	nginx_modules_perl? ( >=dev-lang/perl-5.8 )"
 DEPEND="${RDEPEND}
+	>=sys-apps/portage-2.1.7.16
 	arm? ( dev-libs/libatomic_ops )
 	libatomic? ( dev-libs/libatomic_ops )"
 
