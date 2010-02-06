@@ -16,6 +16,7 @@ RDEPEND="
 	app-admin/syslog-ng
 	app-arch/lzop
 	app-arch/pbzip2
+	app-arch/xz-utils
 	app-crypt/gnupg
 	app-misc/mc
 	app-misc/screen
@@ -23,6 +24,7 @@ RDEPEND="
 	app-portage/gentoolkit
 	app-shells/bash-completion
 	app-text/tree
+	dev-util/ccache
 	net-analyzer/netcat
 	sys-process/htop
 	sys-process/iotop
@@ -31,8 +33,6 @@ RDEPEND="
         sys-fs/xfsprogs
         >=sys-process/fcron-3.0.1
 	sys-process/htop
-	app-shells/zsh[static,unicode]
-	app-shells/zsh-completion
         !no-net? ( net-dns/bind-tools )
         !no-net? ( net-firewall/iptables )
 	!no-net? ( net-ftp/ncftp )
