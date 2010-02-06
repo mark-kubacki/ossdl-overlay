@@ -1,0 +1,20 @@
+diff -uNr hash_ring-1.2.orig/setup.py hash_ring-1.2/setup.py
+--- hash_ring-1.2.orig/setup.py	2009-02-28 23:32:48.000000000 +0100
++++ hash_ring-1.2/setup.py	2010-02-06 19:54:37.000000000 +0100
+@@ -6,10 +6,12 @@
+ # your option) any later version.
+ 
+ import os
+-import ez_setup
+-ez_setup.use_setuptools()
+-
+-from setuptools import setup
++try:
++    from setuptools import setup
++except ImportError:
++    from ez_setup import use_setuptools
++    use_setuptools()
++    from setuptools import setup
+ 
+ def list_files(path):
+     for fn in os.listdir(path):
