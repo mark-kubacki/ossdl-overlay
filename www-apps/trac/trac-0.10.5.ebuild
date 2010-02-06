@@ -1,8 +1,8 @@
-# Copyright 1999-2008 Gentoo Foundation
+# Copyright 1999-2008 Gentoo Foundation, 2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/www-apps/trac/trac-0.10.5.ebuild,v 1.5 2008/08/04 16:31:51 keytoaster Exp $
+# $Header: $
 
-inherit distutils webapp
+inherit distutils webapp eutils
 
 DESCRIPTION="Trac is a minimalistic web-based project management, wiki and bug/issue tracking system."
 HOMEPAGE="http://trac.edgewall.com/"

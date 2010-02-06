@@ -1,10 +1,10 @@
-# Copyright 2008 OSSDL.de
+# Copyright 2008-2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
 NEED_PYTHON=2.4
 
-inherit distutils
+inherit distutils eutils
 
 MY_PN="huBarcode"
 MY_P="${MY_PN}-${PV}"

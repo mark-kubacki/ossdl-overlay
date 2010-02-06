@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-inherit flag-o-matic
+inherit flag-o-matic eutils
 
 MY_PN="MonetDB"
 MY_P=${MY_PN}-${PV}

@@ -4,7 +4,7 @@
 
 MODULE_REDIS_PV="0.3.1"
 
-inherit nginx
+inherit nginx eutils
 
 SLOT="0"
 KEYWORDS="amd64 ppc x86 arm sparc ~x86-fbsd"

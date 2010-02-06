@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header:  $
 
-inherit distutils flag-o-matic
+inherit distutils flag-o-matic eutils
 
 DESCRIPTION="Lightweight in-process concurrent programming."
 HOMEPAGE="http://pypi.python.org/pypi/greenlet"

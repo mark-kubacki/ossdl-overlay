@@ -1,10 +1,10 @@
-# Copyright 1999-2007 Gentoo Foundation
+# Copyright 1999-2007 Gentoo Foundation, 2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: /var/cvsroot/gentoo-x86/dev-python/kid/kid-0.9.5.ebuild,v 1.1 2007/02/03 22:43:15 dev-zero Exp $
 
 NEED_PYTHON=2.3
 
-inherit distutils
+inherit distutils eutils
 
 DESCRIPTION="A simple and Pythonic XML template language"
 SRC_URI="http://www.kid-templating.org/dist/${PV}/${P}.tar.gz"

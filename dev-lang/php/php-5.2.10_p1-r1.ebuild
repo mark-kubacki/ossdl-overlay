@@ -33,7 +33,7 @@ CONCURRENTMODPHP_PATCH="${MY_PHP_PV}/opt/concurrent_apache_modules.patch"
 # bugs about this go to wrobel@gentoo.org
 KOLAB_PATCH="${MY_PHP_PV}/opt/kolab-imap-annotations.patch"
 
-inherit versionator php5_2-sapi apache-module
+inherit versionator php5_2-sapi apache-module eutils
 
 # Suhosin patch support
 [[ -n "${SUHOSIN_PATCH}" ]] && SRC_URI="${SRC_URI} suhosin? ( http://gentoo.longitekk.com/${SUHOSIN_PATCH} )"

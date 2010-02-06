@@ -4,7 +4,7 @@
 
 EAPI="2"
 
-inherit distutils
+inherit distutils eutils
 
 DESCRIPTION="a scalable, non-blocking web server and tools (as used at FriendFeed)"
 HOMEPAGE="http://www.tornadoweb.org/"

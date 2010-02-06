@@ -1,10 +1,10 @@
-# Copyright 1999-2007 Gentoo Foundation
+# Copyright 1999-2007 Gentoo Foundation, 2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
 NEED_PYTHON=2.2
 
-inherit distutils subversion
+inherit distutils subversion eutils
 
 MY_PN=SQLObject
 MY_P=${MY_PN}-${PV}

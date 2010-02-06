@@ -1,10 +1,10 @@
-# Copyright 2008-2009 OSSDL.de
+# Copyright 2008-2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
 NEED_PYTHON=2.4
 
-inherit distutils
+inherit distutils eutils
 
 KEYWORDS="amd64 x86 arm"
 
