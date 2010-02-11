@@ -19,13 +19,13 @@ MODULE_REDIS_PV=${MODULE_REDIS_PV:-"0.3.1"}
 DESCRIPTION="Robust, small and high performance http and reverse proxy server"
 HOMEPAGE="http://nginx.net/"
 SRC_URI="http://sysoev.ru/nginx/${P}.tar.gz
-	nginx_modules_drizzle? ( http://download.github.com/chaoslawful-drizzle-nginx-module-${MODULE_DRIZZLE_PV}.tar.gz )
-	nginx_modules_rds_json? ( http://download.github.com/agentzh-rds-json-nginx-module-${MODULE_RDS_JSON_PV}.tar.gz )
-	nginx_modules_xss? ( http://download.github.com/agentzh-xss-nginx-module-${MODULE_XSS_PV}.tar.gz )
+	nginx_modules_drizzle? ( http://binhost.ossdl.de/distfiles/chaoslawful-drizzle-nginx-module-${MODULE_DRIZZLE_PV}.tar.gz )
+	nginx_modules_rds_json? ( http://binhost.ossdl.de/distfiles/agentzh-rds-json-nginx-module-${MODULE_RDS_JSON_PV}.tar.gz )
+	nginx_modules_xss? ( http://binhost.ossdl.de/distfiles/agentzh-xss-nginx-module-${MODULE_XSS_PV}.tar.gz )
 	nginx_modules_accept_language? ( http://binhost.ossdl.de/distfiles/nginx_accept_language_module-${MODULE_ACLANG_PV}.tbz2 )
 	nginx_modules_redis? ( http://people.freebsd.org/~osa/ngx_http_redis-${MODULE_REDIS_PV}.tar.gz )"
 LICENSE="BSD"
-RESTRICT="nomirror"
+RESTRICT="primaryuri"
 IUSE="debug fastcgi ipv6 perl ssl zlib libatomic"
 IUSE_NGINX_MODULES=(addition access auth_basic autoindex empty_gif \
 flv geo geoip imap limit_zone limit_req map memcached random-index perl redis \
