@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header:  $
 
-inherit distutils
+inherit distutils eutils
 
 DESCRIPTION="A python templating language."
 HOMEPAGE="http://www.makotemplates.org/"
@@ -13,11 +13,21 @@ RESTRICT="nomirror"
 LICENSE="MIT"
 SLOT="0"
 KEYWORDS="x86 amd64 arm sparc ppc hppa"
-IUSE="doc test"
+IUSE="doc test gstringc"
 
-DEPEND="dev-python/setuptools"
-RDEPEND=""
+RDEPEND="gstringc? ( dev-python/gstringc )"
+DEPEND="${RDEPEND}
+	dev-python/setuptools"
 S="${WORKDIR}/${MY_P}"
+
+src_unpack() {
+	unpack "${A}"
+	cd "${S}"
+
+	if use gstringc; then
+		epatch "${FILESDIR}"/mako-0.2.5-gstringc.patch
+	fi
+}
 
 src_install() {
 	distutils_src_install
