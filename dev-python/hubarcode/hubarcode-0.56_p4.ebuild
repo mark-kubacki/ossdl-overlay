@@ -7,30 +7,33 @@ NEED_PYTHON=2.4
 inherit distutils eutils
 
 MY_PN="huBarcode"
-MY_P="${MY_PN}-${PV}"
+MY_P="${MY_PN}-${PV/_/}"
 
 DESCRIPTION="generation of barcodes in Python"
 HOMEPAGE="https://cybernetics.hudora.biz/projects/wiki/huBarcode"
-SRC_URI="http://cybernetics.hudora.biz/dist/${MY_PN}/${MY_P}.tar.gz"
-RESTRICT="nomirror"
+SRC_URI="http://binhost.ossdl.de/distfiles/${MY_P}.tar.lzma"
+RESTRICT="primaryuri"
 
 LICENSE="BSD"
-KEYWORDS="~amd64 ~ia64 ~ppc ~sparc ~x86"
+KEYWORDS="x86 amd64 arm ~ia64 ~ppc ~sparc"
 IUSE=""
 SLOT="0"
 
 RDEPEND="dev-python/imaging"
-DEPEND="${RDEPEND}
-	dev-python/setuptools"
+DEPEND="|| ( app-arch/xz-utils app-arch/lzma-utils )
+	dev-python/setuptools
+	${RDEPEND}"
 
 PYTHON_MODNAME=$MY_PN
 S="${WORKDIR}/${MY_P}"
 
 src_unpack() {
-	unpack ${A}
+	unpack "${A}"
 	cd "${S}"
-
-	epatch "${FILESDIR}/hubarcode-0.52-datamatrix-PIL.patch"
+	sed -i \
+		-e '/use_setuptools/d' \
+		-e '/install_requires=\[.*\],/d' \
+		setup.py || die "sed failed"
 }
 
 src_install() {
