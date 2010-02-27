@@ -10,7 +10,7 @@ MY_P=${MY_PN}-${PV}
 DESCRIPTION="XML/XQuery engine built on top of MonetDB4"
 HOMEPAGE="http://monetdb.cwi.nl/"
 SRC_URI="http://monetdb.cwi.nl/downloads/sources/Nov2009-SP2/${MY_P}.tar.lzma"
-RESTRICT="nomirror"
+RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
 SLOT="5"

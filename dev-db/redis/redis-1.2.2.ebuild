@@ -9,7 +9,7 @@ inherit autotools eutils python flag-o-matic
 DESCRIPTION="Persistent distributed key-value data caching system."
 HOMEPAGE="http://code.google.com/p/redis/"
 SRC_URI="http://redis.googlecode.com/files/${PN}-${PV}.tar.gz"
-RESTRICT="nomirror"
+RESTRICT="primaryuri"
 
 LICENSE="BSD"
 KEYWORDS="amd64 x86 ~arm ~sparc ~ppc"

@@ -25,7 +25,7 @@ DEPEND="!amd64? (
 RDEPEND="${DEPEND}
 	virtual/x11
 	"
-RESTRICT="nostrip nomirror"
+RESTRICT="nostrip primaryuri"
 
 src_install() {
 	dodir /opt/${MY_PN}

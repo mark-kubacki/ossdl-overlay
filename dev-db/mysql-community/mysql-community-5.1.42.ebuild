@@ -9,7 +9,7 @@ SPHINX_VERSION="0.9.9-rc2"
 
 # REMEMBER: also update eclass/mysql*.eclass before committing!
 KEYWORDS="~alpha amd64 arm ~hppa ~ia64 ~ppc ~ppc64 ~s390 ~sh ~sparc ~sparc-fbsd x86 ~x86-fbsd"
-RESTRICT="nomirror"
+RESTRICT="primaryuri"
 
 WANT_AUTOCONF="latest"
 WANT_AUTOMAKE="latest"

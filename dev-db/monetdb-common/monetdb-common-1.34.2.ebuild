@@ -12,7 +12,7 @@ MY_P=${MY_PN}-${PV}
 DESCRIPTION="fundamental libraries used in the other parts of the MonetDB/SQL suite"
 HOMEPAGE="http://monetdb.cwi.nl/"
 SRC_URI="http://monetdb.cwi.nl/downloads/sources/Nov2009-SP1/${MY_P}.tar.lzma"
-RESTRICT="nomirror"
+RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
 SLOT="5"

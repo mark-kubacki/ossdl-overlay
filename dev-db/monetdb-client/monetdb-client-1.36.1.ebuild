@@ -12,7 +12,7 @@ MY_P=${MY_PN}-${PV}
 DESCRIPTION="libraries and programs to communicate with the server(s) that are part of the MonetDB/SQL suite"
 HOMEPAGE="http://monetdb.cwi.nl/"
 SRC_URI="http://monetdb.cwi.nl/downloads/testing/sources/Feb2010/${MY_P}.tar.lzma"
-RESTRICT="nomirror"
+RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
