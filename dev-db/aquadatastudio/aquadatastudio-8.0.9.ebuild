@@ -1,4 +1,4 @@
-# Copyright 2006 Ossdl.de, Hurrikane Systems
+# Copyright 2006-2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -8,7 +8,7 @@ MY_PN="datastudio"
 S=${WORKDIR}/${MY_PN}
 DESCRIPTION="Aqua Data Studio provides an integrated database environment with a single consistent interface to all major relational databases."
 HOMEPAGE="http://www.aquafold.com/"
-SRC_URI="http://aquafold.fileburst.com/download/v${PV}/linux/ads-linux-x86-${PV}.tar.gz"
+SRC_URI="http://download.aquafold.com/download/v${PV:0:3}.0/linux/ads-linux-x86-${PV}.tar.gz"
 
 LICENSE="free-noncomm"
 SLOT="0"
