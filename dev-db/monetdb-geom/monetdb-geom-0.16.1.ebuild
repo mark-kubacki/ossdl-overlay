@@ -2,6 +2,8 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
+EAPI="2"
+
 inherit flag-o-matic
 
 MY_PN="MonetDB-geom"
@@ -33,7 +35,7 @@ DEPEND="|| ( app-arch/xz-utils app-arch/lzma-utils )
 
 S="${WORKDIR}/${MY_P}"
 
-src_compile() {
+src_configure() {
 	local myconf=
 	if use debug; then
 		myconf+=" --enable-strict --disable-optimize --enable-debug --enable-assert"
@@ -49,9 +51,12 @@ src_compile() {
 	use iconv	&& myconf+=" $(use_with iconv)"
 	use bzip2	&& myconf+=" $(use_with bzip2 bz2)"
 	use zlib	&& myconf+=" $(use_with zlib z)"
-	use coroutines	&& myconf+=" $(use_with coroutines pcl)"
+	use coroutines	&& myconf+=" --with-pcl=/usr/include"
 
 	econf ${myconf} || die "econf"
+}
+
+src_compile() {
 	emake || die "emake"
 }
 

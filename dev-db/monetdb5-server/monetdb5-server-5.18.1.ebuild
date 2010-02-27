@@ -42,7 +42,7 @@ pkg_setup() {
 	enewuser monetdb 61 -1 /dev/null monetdb || die "problem adding 'monetdb' user"
 }
 
-src_compile() {
+src_configure() {
 	local myconf=
 	if use debug; then
 		myconf+=" --enable-strict --disable-optimize --enable-debug --enable-assert"
@@ -60,9 +60,12 @@ src_compile() {
 	use zlib	&& myconf+=" $(use_with zlib z)"
 	use xml		&& myconf+=" $(use_with xml libxml2)"
 	use rdf		&& myconf+=" $(use_with rdf raptor)"
-	use coroutines	&& myconf+=" $(use_with coroutines pcl)"
+	use coroutines	&& myconf+=" --with-pcl=/usr/include"
 
 	econf ${myconf} || die "econf"
+}
+
+src_compile() {
 	emake || die "emake"
 }
 

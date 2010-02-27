@@ -39,7 +39,7 @@ pkg_setup() {
 	enewuser monetdb 61 -1 /dev/null monetdb || die "problem adding 'monetdb' user"
 }
 
-src_compile() {
+src_configure() {
 	local myconf=
 	if use debug; then
 		myconf+=" --enable-strict --disable-optimize --enable-debug --enable-assert"
@@ -53,10 +53,13 @@ src_compile() {
 	# Deal with auto-dependencies
 	use bzip2	&& myconf+=" $(use_with bzip2 bz2)"
 	use zlib	&& myconf+=" $(use_with zlib z)"
-	use coroutines	&& myconf+=" $(use_with coroutines pcl)"
+	use coroutines	&& myconf+=" --with-pcl=/usr/include"
 	use netcdf	&& myconf+=" $(use_with netcdf)"
 
 	econf ${myconf} || die "econf"
+}
+
+src_compile() {
 	emake || die "emake"
 }
 
