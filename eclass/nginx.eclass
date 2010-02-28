@@ -30,7 +30,7 @@ IUSE="debug fastcgi ipv6 perl ssl zlib libatomic"
 IUSE_NGINX_MODULES=(addition access auth_basic autoindex empty_gif \
 flv geo geoip imap limit_zone limit_req map memcached random-index perl redis \
 referer proxy securelink status sub rewrite upstream_ip_hash webdav \
-accept_language xss drizzle rds_json)
+accept_language xss drizzle rds_json gzip_static)
 
 # @VARIABLE: NGINX_DEFAULT_MODULES
 # @DESCRIPTION:
