@@ -11,13 +11,13 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="libraries and programs to communicate with the server(s) that are part of the MonetDB/SQL suite"
 HOMEPAGE="http://monetdb.cwi.nl/"
-SRC_URI="http://monetdb.cwi.nl/downloads/testing/sources/Feb2010/${MY_P}.tar.lzma"
+SRC_URI="http://monetdb.cwi.nl/downloads/sources/Feb2010/${MY_P}.tar.lzma"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
-KEYWORDS="~amd64 ~x86 ~arm"
-IUSE="debug python perl php ruby curl iconv bzip2 zlib coroutines odbc"
+KEYWORDS="amd64 x86 arm"
+IUSE="debug python perl php ruby curl iconv bzip2 zlib odbc"
 
 RDEPEND=">=dev-libs/libpcre-4.5
 	>=dev-libs/openssl-0.9.8
@@ -30,7 +30,6 @@ RDEPEND=">=dev-libs/libpcre-4.5
 	iconv? ( virtual/libiconv )
 	bzip2? ( || ( app-arch/bzip2 app-arch/pbzip2 ) )
 	zlib? ( sys-libs/zlib )
-	coroutines? ( dev-libs/pcl )
 	odbc? ( dev-db/unixODBC )
 	>=dev-db/monetdb-common-1.36.0
 	!!dev-db/monetdb"
@@ -59,7 +58,6 @@ src_configure() {
 	use iconv	&& myconf+=" $(use_with iconv)"
 	use bzip2	&& myconf+=" $(use_with bzip2 bz2)"
 	use zlib	&& myconf+=" $(use_with zlib z)"
-	use coroutines	&& myconf+=" --with-pcl=/usr/include"
 	use odbc	&& myconf+=" $(use_with odbc unixodbc)"
 
 	econf ${myconf} || die "econf"

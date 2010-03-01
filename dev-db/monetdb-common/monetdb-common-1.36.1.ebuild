@@ -11,13 +11,13 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="fundamental libraries used in the other parts of the MonetDB/SQL suite"
 HOMEPAGE="http://monetdb.cwi.nl/"
-SRC_URI="http://monetdb.cwi.nl/downloads/testing/sources/Feb2010/${MY_P}.tar.lzma"
+SRC_URI="http://monetdb.cwi.nl/downloads/sources/Feb2010/${MY_P}.tar.lzma"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
-KEYWORDS="~amd64 ~x86 ~arm"
-IUSE="debug curl python perl iconv bzip2 zlib coroutines"
+KEYWORDS="amd64 x86 arm"
+IUSE="debug curl python perl iconv bzip2 zlib"
 
 RDEPEND=">=dev-libs/libpcre-4.5
 	>=dev-libs/openssl-0.9.8
@@ -27,7 +27,6 @@ RDEPEND=">=dev-libs/libpcre-4.5
 	iconv? ( virtual/libiconv )
 	bzip2? ( || ( app-arch/bzip2 app-arch/pbzip2 ) )
 	zlib? ( sys-libs/zlib )
-	coroutines? ( dev-libs/pcl )
 	curl? ( net-misc/curl )
 	!!dev-db/monetdb"
 DEPEND="|| ( app-arch/xz-utils app-arch/lzma-utils )
@@ -52,7 +51,6 @@ src_configure() {
 	use iconv	&& myconf+=" $(use_with iconv)"
 	use bzip2	&& myconf+=" $(use_with bzip2 bz2)"
 	use zlib	&& myconf+=" $(use_with zlib z)"
-	use coroutines	&& myconf+=" --with-pcl=/usr/include"
 	use curl	&& myconf+=" $(use_with curl)"
 
 	econf ${myconf} || die "econf"

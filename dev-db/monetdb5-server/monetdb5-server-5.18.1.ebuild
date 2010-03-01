@@ -11,13 +11,13 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="MonetDB's MAL-based server. This can be used with and is recommended for SQL."
 HOMEPAGE="http://monetdb.cwi.nl/"
-SRC_URI="http://monetdb.cwi.nl/downloads/testing/sources/Feb2010/${MY_P}.tar.lzma"
+SRC_URI="http://monetdb.cwi.nl/downloads/sources/Feb2010/${MY_P}.tar.lzma"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
-KEYWORDS="~amd64 ~x86 ~arm"
-IUSE="debug curl iconv bzip2 zlib rdf xml coroutines"
+KEYWORDS="amd64 x86 ~arm"
+IUSE="debug curl iconv bzip2 zlib rdf xml"
 
 RDEPEND=">=dev-libs/libpcre-4.5
 	>=dev-libs/openssl-0.9.8
@@ -28,7 +28,6 @@ RDEPEND=">=dev-libs/libpcre-4.5
 	zlib? ( sys-libs/zlib )
 	rdf? ( >=media-libs/raptor-1.4.16 )
 	xml? ( dev-libs/libxml2 )
-	coroutines? ( dev-libs/pcl )
 	>=dev-db/monetdb-common-1.36.0
 	>=dev-db/monetdb-client-1.36.0
 	!!dev-db/monetdb"
@@ -60,7 +59,6 @@ src_configure() {
 	use zlib	&& myconf+=" $(use_with zlib z)"
 	use xml		&& myconf+=" $(use_with xml libxml2)"
 	use rdf		&& myconf+=" $(use_with rdf raptor)"
-	use coroutines	&& myconf+=" --with-pcl=/usr/include"
 
 	econf ${myconf} || die "econf"
 }

@@ -11,13 +11,13 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="SQL server built on top of (targeted on) MonetDB5"
 HOMEPAGE="http://monetdb.cwi.nl/"
-SRC_URI="http://monetdb.cwi.nl/downloads/testing/sources/Feb2010/${MY_P}.tar.lzma"
+SRC_URI="http://monetdb.cwi.nl/downloads/sources/Feb2010/${MY_P}.tar.lzma"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
-KEYWORDS="~amd64 ~x86 ~arm"
-IUSE="debug curl iconv bzip2 zlib rdf xml coroutines"
+KEYWORDS="amd64 x86 arm"
+IUSE="debug curl iconv bzip2 zlib rdf xml"
 
 RDEPEND=">=dev-libs/libpcre-4.5
 	>=dev-libs/openssl-0.9.8
@@ -28,7 +28,6 @@ RDEPEND=">=dev-libs/libpcre-4.5
 	zlib? ( sys-libs/zlib )
 	rdf? ( dev-db/monetdb5-server[rdf] )
 	xml? ( dev-db/monetdb5-server[xml] )
-	coroutines? ( dev-libs/pcl )
 	>=dev-db/monetdb-common-1.36.0
 	>=dev-db/monetdb-client-1.36.0
 	>=dev-db/monetdb5-server-5.18.0
@@ -59,7 +58,6 @@ src_configure() {
 	use iconv	&& myconf+=" $(use_with iconv)"
 	use bzip2	&& myconf+=" $(use_with bzip2 bz2)"
 	use zlib	&& myconf+=" $(use_with zlib z)"
-	use coroutines	&& myconf+=" --with-pcl=/usr/include"
 
 	econf ${myconf} || die "econf"
 }
@@ -78,11 +76,13 @@ src_install() {
 	einfo "You can start MonetDB/SQL servers by /etc/init.d/monetdb."
 	einfo
 
-	ewarn
-	ewarn "merovingian (the MonetDB manager) behaves quirky,"
-	ewarn "therefore the init script may yield an error despite"
-	ewarn "the process merovingian having been launched correctly."
-	ewarn
+	if use arm; then
+		ewarn
+		ewarn "merovingian (the MonetDB manager) behaves quirky,"
+		ewarn "therefore the init script may yield an error despite"
+		ewarn "the process merovingian having been launched correctly."
+		ewarn
+	fi
 
 	# prevent binaries from being installed in wrong paths (FHS 2.3)
 	rm "${D}"/usr/bin/monetdb-sql-config
