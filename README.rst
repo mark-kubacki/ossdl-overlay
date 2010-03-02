@@ -44,10 +44,6 @@ changing *USE flags* for the 10% where it matters - excellent. That is what the 
 
 Find pre-compiled Gentoo packages for your architecture [1]_ here:
 
-.. [1] The *architectures* correspond with GCC's ``--march`` flag (modern Xeon --> nocona; 
-   Phenom, Opteron (including Istanbul) --> amdfam10).
-   ARM9 is meant and tested on SheevaPlugs, but should work on Iphone, too.
-
 :ARM9 (32b): http://binhost.ossdl.de/armv5tel-softfloat-linux-gnueabi/
 :amdfam10 (64b): http://binhost.ossdl.de/x86_64-pc-linux-gnu/
 :nocona (64b): http://binhost.ossdl.de/x86_64-pc-linux-gnu-nocona/
@@ -58,3 +54,7 @@ Obviously you will have to point Gentoo's *Portage* to these overlays. Modify yo
     PORTAGE_BINHOST="http://binhost.ossdl.de/x86_64-pc-linux-gnu/"
 
 -- W-Mark Kubacki, 2010-03-02
+
+.. [1] The *architectures* correspond with GCC's ``--march`` flag (modern Xeon, Core iX --> nocona; 
+   Phenom, Opteron (including Istanbul) --> amdfam10).
+   ARM9 is meant for and tested on SheevaPlugs, but should work on Iphone, too.
