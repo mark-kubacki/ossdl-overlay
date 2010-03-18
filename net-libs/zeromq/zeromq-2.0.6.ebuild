@@ -22,7 +22,10 @@ DEPEND="${RDEPEND}
 
 src_configure() {
 	local myconf=
-	myconf+=" $(use_with pgm)"
+	use arm && use pgm	&& ewarn "PGM doesn't work on ARM. USE flag will be ignored."
+	if ! use arm; then
+		use pgm		&& myconf+=" $(use_with pgm)"
+	fi
 	myconf+=" $(use_with pic)"
 
 	econf ${myconf} || die "econf"
