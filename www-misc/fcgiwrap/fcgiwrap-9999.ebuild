@@ -3,8 +3,9 @@
 # $Header: $
 
 EAPI="2"
+WANT_AUTOCONF="latest"
 
-inherit eutils
+inherit autotools eutils
 
 DESCRIPTION="Simple FastCGI wrapper for CGI scripts"
 HOMEPAGE="http://github.com/gnosek/fcgiwrap/"
@@ -20,19 +21,26 @@ IUSE=""
 DEPEND="dev-libs/fcgi"
 RDEPEND="${DEPEND}"
 DEPEND="${DEPEND}
+	>=sys-devel/autoconf-2.63
 	dev-vcs/git"
 
 pkg_nofetch() {
 	cd "${WORKDIR}"
 	git clone "${EGIT_REPO_URI}" "${P}"
+	cd "${S}"
+
+	cp "${FILESDIR}"/configure.ac-1.00 configure.ac
+	mv Makefile Makefile.in
+	sed -i	-e 's:gcc:@CC@:g' \
+		-e 's:-std=gnu99 -Wall -Wextra -Werror -pedantic -O2 -g3:@AM_CFLAGS@:g' \
+		Makefile.in \
+	|| die "Sed failed!"
+
+	eautoconf
 }
 
 src_unpack() {
 	pkg_nofetch
-}
-
-src_configure() {
-	true
 }
 
 src_install() {
