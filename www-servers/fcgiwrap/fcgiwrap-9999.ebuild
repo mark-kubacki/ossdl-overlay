@@ -20,7 +20,7 @@ IUSE=""
 DEPEND="dev-libs/fcgi"
 RDEPEND="${DEPEND}"
 DEPEND="${DEPEND}
-	dev-util/git"
+	dev-vcs/git"
 
 pkg_nofetch() {
 	cd "${WORKDIR}"

@@ -15,7 +15,7 @@ IUSE=""
 RDEPEND="
 	sys-meta/sys-base
 	>=www-servers/nginx-0.8.33
-	dev-util/git
+	dev-vcs/git
 	>=dev-util/subversion-1.6.3
 	dev-db/redis
 	dev-db/tokyocabinet
