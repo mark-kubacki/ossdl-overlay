@@ -13,10 +13,12 @@ mail-filter
 media-sound
 media-video
 net-fs
+net-libs
 net-mail
 net-misc
 sci-libs
 sys-auth
 sys-meta
 www-apps
+www-misc
 www-servers
