@@ -8,9 +8,9 @@ WANT_AUTOCONF="latest"
 inherit autotools eutils
 
 DESCRIPTION="Simple FastCGI wrapper for CGI scripts"
-HOMEPAGE="http://github.com/gnosek/fcgiwrap/"
+HOMEPAGE="http://github.com/wmark/fcgiwrap/"
 SRC_URI=""
-EGIT_REPO_URI="http://github.com/gnosek/fcgiwrap.git"
+EGIT_REPO_URI="http://github.com/wmark/fcgiwrap.git"
 RESTRICT="fetch"
 
 LICENSE=""
@@ -29,14 +29,7 @@ pkg_nofetch() {
 	git clone "${EGIT_REPO_URI}" "${P}"
 	cd "${S}"
 
-	cp "${FILESDIR}"/configure.ac-1.00 configure.ac
-	mv Makefile Makefile.in
-	sed -i	-e 's:gcc:@CC@:g' \
-		-e 's:-std=gnu99 -Wall -Wextra -Werror -pedantic -O2 -g3:@AM_CFLAGS@:g' \
-		Makefile.in \
-	|| die "Sed failed!"
-
-	eautoconf
+	eautoreconf -i
 }
 
 src_unpack() {
@@ -45,4 +38,5 @@ src_unpack() {
 
 src_install() {
 	dosbin fcgiwrap
+	doman fcgiwrap.8
 }
