@@ -21,5 +21,5 @@ RDEPEND="
 	>=dev-python/mod_python-3.1.4
 	>=dev-lang/php-5.1*
 	net-ftp/vsftpd
-	=dev-util/subversion-1.2*
+	=dev-vcs/subversion-1.2*
 	"

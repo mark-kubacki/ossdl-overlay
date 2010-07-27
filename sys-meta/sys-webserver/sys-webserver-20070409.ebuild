@@ -23,5 +23,5 @@ RDEPEND="
 	dev-php5/pecl-fileinfo
 	dev-php5/pecl-idn
 	net-ftp/pure-ftpd
-	>=dev-util/subversion-1.4.0
+	>=dev-vcs/subversion-1.4.0
 	"

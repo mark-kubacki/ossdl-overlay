@@ -25,7 +25,7 @@ DEPEND="${DEPEND}
 	app-text/pytextile
 	>=dev-python/docutils-0.3.9
 	dev-libs/clearsilver
-	>=dev-util/subversion-1.3.2
+	>=dev-vcs/subversion-1.3.2
 	mysql? (
 		>=virtual/mysql-4.1
 		>=dev-python/mysql-python-1.2.1
@@ -44,12 +44,12 @@ DEPEND="${DEPEND}
 # in existing packages, and die.
 #
 # Usage: built_with_use_die <category/package> <functionality> [<USE flag>]
-#    ex: built_with_use_die dev-util/subversion python
+#    ex: built_with_use_die dev-vcs/subversion python
 #    or: built_with_use_die www-servers/apache LDAP ldap
 #
 # Typical usage:
-#	if ! built_with_use dev-util/subversion python ; then
-#        built_with_use_die dev-util/subversion python
+#	if ! built_with_use dev-vcs/subversion python ; then
+#        built_with_use_die dev-vcs/subversion python
 #   fi
 #
 # Note: when <USE flag> is not specified, <functionality> is used for the USE flag name.
@@ -87,8 +87,8 @@ pkg_setup () {
 		die "missing python sqlite support"
 	fi
 
-	if ! built_with_use dev-util/subversion python ; then
-		built_with_use_die dev-util/subversion python
+	if ! built_with_use dev-vcs/subversion python ; then
+		built_with_use_die dev-vcs/subversion python
 	fi
 
 	if ! built_with_use dev-libs/clearsilver python ; then

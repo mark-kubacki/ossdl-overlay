@@ -22,7 +22,7 @@ RDEPEND="
 	dev-php5/eaccelerator
 	dev-php5/pecl-fileinfo
 	dev-php5/pecl-idn
-	>=dev-util/subversion-1.6.3
+	>=dev-vcs/subversion-1.6.3
 	dev-db/redis
 	>=net-misc/spread-1.4.0
 	"
