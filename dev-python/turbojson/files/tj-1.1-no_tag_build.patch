@@ -1,8 +1,0 @@
-Index: setup.cfg
-===================================================================
---- setup.cfg	(revision 4773)
-+++ setup.cfg	(working copy)
-@@ -1,3 +1,2 @@
- [egg_info]
--tag_build = .dev
- tag_svn_revision = true
