@@ -11,7 +11,7 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="SQL server built on top of (targeted on) MonetDB5"
 HOMEPAGE="http://monetdb.cwi.nl/"
-SRC_URI="http://monetdb.cwi.nl/downloads/sources/Nov2009-SP2/${MY_P}.tar.lzma"
+SRC_URI="http://dev.monetdb.org/downloads/sources/Nov2009-SP2/${MY_P}.tar.lzma"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"

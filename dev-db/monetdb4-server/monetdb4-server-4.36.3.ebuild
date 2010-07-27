@@ -11,7 +11,7 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="MonetDB's MIL-based server. This is required if you want to use XML/XQuery (pathfinder)."
 HOMEPAGE="http://monetdb.cwi.nl/"
-SRC_URI="http://monetdb.cwi.nl/downloads/sources/Feb2010-SP1/${MY_P}.tar.lzma"
+SRC_URI="http://dev.monetdb.org/downloads/sources/Feb2010-SP1/${MY_P}.tar.lzma"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
