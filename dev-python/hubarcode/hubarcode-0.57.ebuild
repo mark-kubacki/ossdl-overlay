@@ -33,12 +33,15 @@ src_unpack() {
 	sed -i \
 		-e '/use_setuptools/d' \
 		-e '/install_requires=\[.*\],/d' \
+		-e 's:56p5:57:g' \
 		setup.py || die "sed failed"
 }
 
 src_install() {
         distutils_src_install
-        distutils_python_version
+	cp -r "${S}/qrcode/qrcode_data" "${D}$(python_get_sitedir)/qrcode/" || die "qrcode_date couldn't be copied"
+}
 
-	cp -r "${S}/qrcode/qrcode_data" "${D}/usr/$(get_libdir)/python${PYVER}/site-packages/${MY_PN}/qrcode/"
+pkg_postinst() {
+	python_mod_optimize $(python_get_sitedir)/qrcode
 }
