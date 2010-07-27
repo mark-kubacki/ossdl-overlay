@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: /var/cvsroot/gentoo-x86/dev-python/paste/paste-1.2.1.ebuild,v 1.1 2007/02/27 23:40:20 dev-zero Exp $
 
-NEED_PYTHON=2.4
+PYTHON_DEPEND="2:2.4"
 
 inherit distutils
 

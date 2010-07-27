@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: /var/cvsroot/gentoo-x86/dev-python/pastescript/pastescript-1.1.ebuild,v 1.3 2007/07/04 20:55:13 lucass Exp $
 
-NEED_PYTHON=2.4
+PYTHON_DEPEND="2"
 
 inherit distutils
 
