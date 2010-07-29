@@ -1,12 +1,12 @@
-# Copyright 2006 Ossdl.de, Hurrikane Systems
+# Copyright 2006-2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
 S=${WORKDIR}
 DESCRIPTION="Converter for german text to phonetics to use with mbrola and the script sag_was to make your computer speak"
-SRC_URI="http://www.ikp.uni-bonn.de/dt/forsch/phonetik/hadifix/txt2pho.zip"
-HOMEPAGE="http://www.ikp.uni-bonn.de/dt/forsch/phonetik/hadifix/HADIFIXforMBROLA.html"
-RESTRICT="nomirror"
+SRC_URI="http://storage.sk.uni-bonn.de/txt2pho/txt2pho.zip"
+HOMEPAGE="http://www.sk.uni-bonn.de/forschung/phonetik/sprachsynthese/txt2pho"
+RESTRICT="primaryuri"
 
 RDEPEND="
 	app-accessibility/mbrola-de
