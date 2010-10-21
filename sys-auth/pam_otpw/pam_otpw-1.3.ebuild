@@ -22,7 +22,7 @@ DEPEND="${RDEPEND}
 	"
 
 src_compile() {
-	sed -i	-e "s:-O -ggdb -W -Wall:${CFLAGS} -Wall:" \
+	sed -i	-e "s:-O -ggdb -W -Wall:${CFLAGS} -fPIC:" \
 		-e "s:gcc:$(tc-getCC):" \
 		-e "s:ld -:$(tc-getLD) -:" \
 		Makefile \
@@ -38,4 +38,14 @@ src_install() {
 	dodoc README
 	dohtml *.html
 	doman otpw-gen.1 pam_otpw.8
+}
+
+pkg_postinst() {
+	elog "Remember to activate pam_otpw by modifying /etc/pam.d/system-login:"
+	elog " auth		require		pam_otpw.so"
+	elog " #auth		include		system-auth"
+	elog " session		optional	pam_otpw.so"
+	elog "For OpenSSH you will need:"
+	elog " #PubkeyAuthentication yes"
+	elog " UsePAM yes"
 }
