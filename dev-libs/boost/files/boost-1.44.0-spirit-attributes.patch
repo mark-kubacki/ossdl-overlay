@@ -1,0 +1,19 @@
+--- boost/spirit/home/support/attributes.hpp	2010-08-20 11:57:12.000000000 +0200
++++ boost/spirit/home/support/attributes.hpp	2010-08-23 18:53:15.000000000 +0200
+@@ -15,6 +15,7 @@
+ #include <boost/spirit/home/support/unused.hpp>
+ #include <boost/spirit/home/support/has_semantic_action.hpp>
+ #include <boost/spirit/home/support/attributes_fwd.hpp>
++#include <boost/spirit/home/support/container.hpp>
+ #include <boost/spirit/home/support/detail/hold_any.hpp>
+ #include <boost/spirit/home/support/detail/as_variant.hpp>
+ #include <boost/optional/optional.hpp>
+@@ -900,7 +901,7 @@
+     template <typename Out, typename T>
+     struct print_attribute_debug<Out, boost::optional<T> >
+     {
+-        static void call(Out& out, T const& val)
++        static void call(Out& out, boost::optional<T> const& val)
+         {
+             if (val)
+                 print_attribute(out, *val);

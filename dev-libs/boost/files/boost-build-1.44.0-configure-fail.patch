@@ -1,0 +1,69 @@
+Index: tools/jam/src/builtins.c
+===================================================================
+--- tools/jam/src/builtins.c	(revision 63351)
++++ tools/jam/src/builtins.c	(working copy)
+@@ -190,7 +190,8 @@
+       {
+           char * args[] = { "targets", "*", 
+                             ":", "log", "?",
+-                            ":", "ignore-minus-n", "?", 0 };
++                            ":", "ignore-minus-n", "?", 
++                            ":", "ignore-minus-q", "?", 0 };
+           bind_builtin( "UPDATE_NOW",
+                         builtin_update_now, 0, args );
+       }
+@@ -1307,6 +1308,7 @@
+     LIST * targets = lol_get( frame->args, 0 );
+     LIST * log = lol_get( frame->args, 1 );
+     LIST * force = lol_get (frame->args, 2);
++    LIST * continue_ = lol_get(frame->args, 3);
+     int status = 0;
+     int original_stdout;
+     int original_stderr;
+@@ -1315,6 +1317,7 @@
+     const char** targets2;
+     int i;
+     int original_noexec;
++    int original_quitquick;
+ 	
+
+     if (log)
+@@ -1333,6 +1336,12 @@
+         globs.noexec = 0;
+     }
+
++    if (continue_)
++    {
++        original_quitquick = globs.quitquick;
++        globs.quitquick = 0;
++    }
++
+     targets_count = list_length( targets );
+     targets2 = (const char * *)BJAM_MALLOC( targets_count * sizeof( char * ) );    
+     for (i = 0 ; targets; targets = list_next( targets ) )
+@@ -1340,6 +1349,11 @@
+     status |= make( targets_count, targets2, anyhow);
+     free( targets );
+
++    if (continue_)
++    {
++        globs.quitquick = original_quitquick;
++    }
++
+     if (force)
+     {
+         globs.noexec = original_noexec;
+Index: tools/build/v2/build/configure.jam
+===================================================================
+--- tools/build/v2/build/configure.jam	(revision 63351)
++++ tools/build/v2/build/configure.jam	(working copy)
+@@ -133,7 +133,8 @@
+         else 
+         {           
+             local x = [ PAD "    - $(what)" : $(.width) ] ;            
+-            if [ UPDATE_NOW $(jam-targets) : $(.log-fd) : ignore-minus-n ] 
++            if [ UPDATE_NOW $(jam-targets) :
++                 $(.log-fd) : ignore-minus-n : ignore-minus-q ] 
+             {
+                 .$(what)-supported.$(ps) = yes ;
+                 result = true ;
