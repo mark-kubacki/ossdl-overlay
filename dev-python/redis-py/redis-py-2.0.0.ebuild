@@ -6,8 +6,9 @@ inherit distutils
 
 DESCRIPTION="Python client for Redis key-value store."
 HOMEPAGE="http://github.com/andymccurdy/redis-py"
-MY_P="redis-${PV}"
-SRC_URI="http://cloud.github.com/downloads/andymccurdy/redis-py/${MY_P}.tar.gz"
+#MY_P="redis-${PV}"
+#SRC_URI="http://cloud.github.com/downloads/andymccurdy/redis-py/${MY_P}.tar.gz"
+SRC_URI="http://binhost.ossdl.de/distfiles/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="MIT"
@@ -17,7 +18,7 @@ IUSE="doc test"
 
 DEPEND="dev-python/setuptools"
 RDEPEND=""
-S="${WORKDIR}/${MY_P}"
+S="${WORKDIR}/redis-${PV}"
 
 src_install() {
 	distutils_src_install
