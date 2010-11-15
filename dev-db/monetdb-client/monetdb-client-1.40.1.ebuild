@@ -4,7 +4,7 @@
 
 EAPI="2"
 
-inherit flag-o-matic
+inherit eutils flag-o-matic
 
 MY_PN="MonetDB-client"
 MY_P=${MY_PN}-${PV}
@@ -75,15 +75,15 @@ src_install() {
 	dosbin conf/monetdb-clients-config
 
 	# remove testing framework and compiled tests
-	rm -rf "${D}"/usr/lib/MonetDB/Tests "${D}"/usr/lib64/MonetDB/Tests || true
+	rm -rf "${D}"/usr/$(get_libdir)/MonetDB/Tests || true
 
 	# remove windows cruft
 	find "${D}" -name "*.bat" -exec rm "{}" \; || die "removing windows stuff"
 
 	# remove unwanted parts
 	use php		|| rm -rf "${D}"/usr/share/php || true
-	use perl	|| rm -rf "${D}"/usr/share/MonetDB/perl "${D}"/usr/lib/perl "${D}"/usr/lib64/perl5 || true
-	use python	|| rm -rf "${D}"/usr/lib64/python2.6 || true
+	use perl	|| rm -rf "${D}"/usr/share/MonetDB/perl "${D}"/usr/$(get_libdir)/perl* || true
+	use python	|| rm -rf "${D}"/usr/$(get_libdir)/python$(python_get_version) || true
 	use odbc	|| \
-	rm -rf "${D}"/usr/lib/libMonetODBC* "${D}"/usr/lib64/libMonetODBC* "${D}"/usr/include/MonetDB/odbc/ || true
+	rm -rf "${D}"/usr/$(get_libdir)/libMonetODBC* "${D}"/usr/include/MonetDB/odbc/ || true
 }
