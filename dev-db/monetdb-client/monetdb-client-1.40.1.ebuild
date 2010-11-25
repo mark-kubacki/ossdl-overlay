@@ -17,12 +17,11 @@ RESTRICT="primaryuri"
 LICENSE="MonetDBPL-1.1"
 SLOT="5"
 KEYWORDS="amd64 x86 arm"
-IUSE="debug python perl php ruby curl iconv bzip2 zlib odbc"
+IUSE="debug perl php ruby curl iconv bzip2 zlib odbc"
 
 RDEPEND=">=dev-libs/libpcre-4.5
 	>=dev-libs/openssl-0.9.8
 	sys-libs/readline
-	python? ( >=dev-lang/python-2.4 )
 	perl? ( dev-lang/perl )
 	php? ( dev-lang/php )
 	ruby? ( dev-lang/ruby )
@@ -50,7 +49,6 @@ src_configure() {
 		fi
 	fi
 	# Deal with auto-dependencies
-	use python 	&& myconf+=" $(use_with python)"
 	use perl	&& myconf+=" $(use_with perl)"
 	use php		&& myconf+=" $(use_with php)"
 	use ruby	&& myconf+=" $(use_with ruby)"
@@ -83,7 +81,9 @@ src_install() {
 	# remove unwanted parts
 	use php		|| rm -rf "${D}"/usr/share/php || true
 	use perl	|| rm -rf "${D}"/usr/share/MonetDB/perl "${D}"/usr/$(get_libdir)/perl* || true
-	use python	|| rm -rf "${D}"/usr/$(get_libdir)/python$(python_get_version) || true
 	use odbc	|| \
 	rm -rf "${D}"/usr/$(get_libdir)/libMonetODBC* "${D}"/usr/include/MonetDB/odbc/ || true
+
+	einfo "Monetdb-client doesn't ship with a Python client library anymore."
+	einfo "If you need one, install dev-python/python-monetdb"
 }
