@@ -1,4 +1,4 @@
-# Copyright 2009-2010 W-Mark Kubacki
+# Copyright 2010 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -7,7 +7,7 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="MonetDB JDBC driver"
 HOMEPAGE="http://monetdb.cwi.nl/"
-SRC_URI="http://dev.monetdb.org/downloads/sources/Nov2009-SP1/${MY_P}.tar.lzma"
+SRC_URI="http://dev.monetdb.org/downloads/sources/Oct2010/${MY_P}.tar.lzma"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
