@@ -85,5 +85,5 @@ src_install() {
 	rm -rf "${D}"/usr/$(get_libdir)/libMonetODBC* "${D}"/usr/include/MonetDB/odbc/ || true
 
 	einfo "Monetdb-client doesn't ship with a Python client library anymore."
-	einfo "If you need one, install dev-python/python-monetdb"
+	einfo "If you need one, install dev-python/monetdb"
 }
