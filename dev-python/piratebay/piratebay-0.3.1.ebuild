@@ -16,9 +16,10 @@ KEYWORDS="amd64 x86 arm ppc hpa sparc"
 IUSE=""
 SLOT="0"
 
-RDEPEND=""
+RDEPEND="dev-python/lxml
+	"
 DEPEND="dev-python/setuptools
-	${RDEPEND}"
+	"
 
 pkg_postinst() {
 	python_mod_optimize $(python_get_sitedir)/piratebay
