@@ -7,7 +7,7 @@ PYTHON_DEPEND="2:2.6"
 inherit distutils
 
 DESCRIPTION="A Python wrapper for Tokyo Cabinet database using ctypes"
-HOMEPAGE="A Python wrapper for Tokyo Cabinet database using ctypes"
+HOMEPAGE="http://code.google.com/p/py-tcdb/"
 SRC_URI="http://${PN}.googlecode.com/files/${PN}-${PV}.tar.gz"
 RESTRICT="primaryuri"
 
