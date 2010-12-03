@@ -6,7 +6,7 @@ EAPI="2"
 
 DESCRIPTION="ØMQ is a lightweight messaging implementation with a socket-like API"
 HOMEPAGE="http://www.zeromq.org/"
-SRC_URI="http://www.zeromq.org/local--files/area:download/${P}.tar.gz"
+SRC_URI="http://download.zeromq.org/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="LGPL"
