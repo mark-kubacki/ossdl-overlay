@@ -1,4 +1,4 @@
-# Copyright 2010 W-Mark Kubacki
+# Copyright 2010 W-Mark Kubacki, Mao Pu
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -7,7 +7,7 @@ WANT_AUTOCONF="latest"
 
 inherit autotools eutils flag-o-matic
 
-DESCRIPTION="A persistent key-value database with built-in net interface written in ANSI-C for Posix systems."
+DESCRIPTION="A persistent caching system, key-value and data structures database."
 HOMEPAGE="http://code.google.com/p/redis/"
 SRC_URI="http://redis.googlecode.com/files/${PN}-${PV/_/-}.tar.gz"
 RESTRICT="primaryuri"
