@@ -5,9 +5,9 @@
 EAPI="2"
 WANT_AUTOCONF="latest"
 
-inherit autotools eutils python flag-o-matic
+inherit autotools eutils flag-o-matic
 
-DESCRIPTION="Persistent distributed key-value data caching system."
+DESCRIPTION="A persistent key-value database with built-in net interface written in ANSI-C for Posix systems."
 HOMEPAGE="http://code.google.com/p/redis/"
 SRC_URI="http://redis.googlecode.com/files/${PN}-${PV/_/-}.tar.gz"
 RESTRICT="primaryuri"
@@ -28,10 +28,8 @@ pkg_setup() {
 	enewuser redis 75 -1 /var/lib/redis redis || die "problem adding 'redis' user"
 }
 
-src_unpack() {
-	unpack ${A}
+src_prepare() {
 	cd "${S}"
-
 	cp "${FILESDIR}"/configure.ac-2.0 configure.ac
 	mv Makefile Makefile.in
 	sed -i	-e 's:$(CC):@CC@:g' \
@@ -40,7 +38,6 @@ src_unpack() {
 		-e 's:ARCH:TARCH:g' \
 		Makefile.in \
 	|| die "Sed failed!"
-
 	eautoconf
 }
 
@@ -49,12 +46,7 @@ src_configure() {
 		replace-flags "-Os" "-O2"
 		filter-flags -fomit-frame-pointer "-march=*" "-mtune=*" "-mcpu=*"
 	fi
-
 	econf ${myconf} || die "econf"
-}
-
-src_compile() {
-	emake || die "emake"
 }
 
 src_install() {
@@ -76,7 +68,7 @@ src_install() {
 	einfo "Redis doesn't ship with Python client library anymore."
 	einfo "If you need one, install dev-python/redis-py."
 
-	dodoc 00-RELEASENOTES BETATESTING.txt BUGS COPYING Changelog README TODO
+	dodoc 00-RELEASENOTES BETATESTING.txt BUGS COPYING Changelog README
 	docinto html
 	dodoc doc/*
 
