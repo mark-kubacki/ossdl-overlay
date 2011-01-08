@@ -1,4 +1,4 @@
-# Copyright 2010 W-Mark Kubacki, Mao Pu
+# Copyright 2010-2011 W-Mark Kubacki, Mao Pu
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -14,10 +14,11 @@ RESTRICT="primaryuri"
 
 LICENSE="BSD"
 KEYWORDS="amd64 x86 arm ~sparc ~ppc"
-IUSE=""
+IUSE="tcmalloc"
 SLOT="0"
 
-RDEPEND=""
+RDEPEND="tcmalloc? ( dev-util/google-perftools )
+	"
 DEPEND=">=sys-devel/autoconf-2.63
 	${RDEPEND}"
 
@@ -26,6 +27,11 @@ S="${WORKDIR}/${PN}-${PV/_/-}"
 pkg_setup() {
 	enewgroup redis 75 || die "problem adding 'redis' group"
 	enewuser redis 75 -1 /var/lib/redis redis || die "problem adding 'redis' user"
+	# set tcmalloc-variable for the build as specified in
+	# https://github.com/antirez/redis/blob/2.2/README. If build system gets
+	# better integrated into autotools, replace with append-flags and
+	# append-ldflags in src_configure()
+	use tcmalloc && export EXTRA_EMAKE="${EXTRA_EMAKE} USE_TCMALLOC=yes"
 }
 
 src_prepare() {
