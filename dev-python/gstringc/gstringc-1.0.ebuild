@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-EAPI="2"
+PYTHON_DEPEND="2:2.7"
 
 inherit distutils
 
@@ -22,5 +22,7 @@ IUSE=""
 DEPEND=">=dev-lang/python-2.6
 	>=dev-libs/glib-2.20"
 RDEPEND="${DEPEND}"
+
+PYTHON_MODNAME="gstringc"
 
 S="${WORKDIR}/${MY_P}"

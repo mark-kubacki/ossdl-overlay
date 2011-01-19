@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-PYTHON_DEPEND="2:2.4:2.6"
+PYTHON_DEPEND="2:2.4:2.7"
 
 inherit distutils eutils
 
@@ -14,7 +14,7 @@ MY_P=${MY_PN}-${PV}
 DESCRIPTION="The rapid web development meta-framework you've been looking for."
 HOMEPAGE="http://www.turbogears.org/"
 SRC_URI="http://files.turbogears.org/eggs/${MY_P}.tar.gz"
-RESTRICT="nomirror"
+RESTRICT="primaryuri"
 LICENSE="MIT"
 SLOT="0"
 IUSE="test"
@@ -31,13 +31,12 @@ RDEPEND=">=dev-python/turbojson-1.1.4
 	>=dev-python/decoratortools-1.4
 	>=dev-python/configobj-4.3.2
 	|| ( =dev-lang/python-2.4*
-		( =dev-lang/python-2.6* >=dev-python/cheetah-2.0_rc7-r1 )
-		( =dev-lang/python-2.5* >=dev-python/cheetah-2.0_rc7-r1 ) )
-	|| ( =dev-lang/python-2.5* =dev-lang/python-2.6*
+	     >=dev-python/cheetah-2.0_rc7-r1 )
+	|| ( =dev-lang/python-2.5* =dev-lang/python-2.6* =dev-lang/python-2.7*
 		( =dev-lang/python-2.4* >=dev-python/celementtree-1.0.5 ) )
 	>=dev-python/sqlobject-0.7
 	test? ( >=dev-python/nose-0.9.1 >=dev-python/sqlalchemy-0.3.3
-		|| ( =dev-lang/python-2.5* =dev-lang/python-2.6*
+		|| ( =dev-lang/python-2.5* =dev-lang/python-2.6* =dev-lang/python-2.7*
 			( =dev-lang/python-2.4* dev-python/pysqlite ) ) )
 	>=dev-python/mako-0.1.1
 	>=dev-python/genshi-0.3.6"
@@ -66,4 +65,5 @@ pkg_postinst() {
 	elog " - dev-python/sqlalchemy (already installed when built with tests enabled)"
 	elog " - dev-python/tg-widgets-lightbox"
 	elog " - dev-python/tg-widgets-scriptaculous"
+	python_mod_optimize "$(python_get_sitedir)/${PN}"
 }
