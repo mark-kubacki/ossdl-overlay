@@ -1,6 +1,6 @@
-# Copyright 1999-2011 Gentoo Foundation
+# Copyright 2011 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/dev-lang/python/python-2.6.6-r1.ebuild,v 1.14 2011/01/06 19:11:25 ranger Exp $
+# $Header: $
 
 EAPI="2"
 
@@ -13,14 +13,16 @@ PATCHSET_REVISION="1"
 DESCRIPTION="Python is an interpreted, interactive, object-oriented programming language."
 HOMEPAGE="http://www.python.org/"
 SRC_URI="http://www.python.org/ftp/python/${PV}/${MY_P}.tar.bz2
-	mirror://gentoo/python-gentoo-patches-${PV}$([[ "${PATCHSET_REVISION}" != "0" ]] && echo "-r${PATCHSET_REVISION}").tar.bz2"
-#	http://dev.gentoo.org/~djc/python-gentoo-patches-${PV}$([[ "${PATCHSET_REVISION}" != "0" ]] && echo "-r${PATCHSET_REVISION}").tar.bz2"
+	mirror://gentoo/python-gentoo-patches-${PV}$([[ "${PATCHSET_REVISION}" != "0" ]] && echo "-r${PATCHSET_REVISION}").tar.bz2
+	stackless? (
+		http://binhost.ossdl.de/distfiles/python-${PV}-to-stackless.diff.lzma
+	)"
 
 LICENSE="PSF-2.2"
 SLOT="2.6"
 PYTHON_ABI="${SLOT}"
 KEYWORDS="alpha amd64 arm hppa ~ia64 ~m68k ~mips ppc ppc64 ~s390 ~sh ~sparc x86 ~sparc-fbsd ~x86-fbsd"
-IUSE="-berkdb build doc elibc_uclibc examples gdbm ipv6 +ncurses +readline sqlite +ssl +threads tk +wide-unicode wininst +xml"
+IUSE="-berkdb build doc elibc_uclibc examples gdbm ipv6 +ncurses +readline sqlite +ssl stackless +threads tk +wide-unicode wininst +xml"
 
 RDEPEND="!!<sys-apps/portage-2.1.9
 		>=app-admin/eselect-python-20091230
@@ -68,13 +70,17 @@ pkg_setup() {
 }
 
 src_prepare() {
+	# Stackless
+	use stackless && epatch "${WORKDIR}/python-${PV}-to-stackless.diff"
+
 	# Ensure that internal copies of expat, libffi and zlib are not used.
 	rm -fr Modules/expat
 	rm -fr Modules/_ctypes/libffi*
 	rm -fr Modules/zlib
 
 	if ! tc-is-cross-compiler; then
-		rm "${WORKDIR}/${PV}"/*_all_crosscompile.patch
+		test -e "${WORKDIR}/${PV}"/*_all_crosscompile.patch \
+		&& rm "${WORKDIR}/${PV}"/*_all_crosscompile.patch
 	fi
 
 	EPATCH_SUFFIX="patch" epatch "${WORKDIR}/${PV}"
@@ -179,6 +185,7 @@ src_configure() {
 		$(use_enable ipv6) \
 		$(use_with threads) \
 		$(use wide-unicode && echo "--enable-unicode=ucs4" || echo "--enable-unicode=ucs2") \
+		$(use stackless && echo "--enable-stacklessfewerregisters") \
 		--infodir='${prefix}/share/info' \
 		--mandir='${prefix}/share/man' \
 		--with-libc="" \
