@@ -8,7 +8,7 @@ EAPI="2"
 
 DESCRIPTION="Python bindings for 0MQ"
 HOMEPAGE="http://github.com/zeromq/pyzmq"
-SRC_URI="https://download.github.com/zeromq-pyzmq-v2.0.10-0-gf73cb51.zip"
+SRC_URI="https://github.com/downloads/zeromq/${PN}/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="LGPL GPL-3"
@@ -16,10 +16,9 @@ SLOT="0"
 KEYWORDS="~alpha amd64 arm ~hppa ~ia64 ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc x86"
 IUSE=""
 
-RDEPEND="|| ( =net-libs/zeromq-2.0* =net-libs/zeromq-2.1* )"
+RDEPEND="|| ( ( >=net-libs/zeromq-2.0.10 <=net-libs/zeromq-2.0.999 ) =net-libs/zeromq-2.1* )"
 DEPEND="${RDEPEND}
 	"
-S="${WORKDIR}/zeromq-pyzmq-2e22b58"
 
 src_prepare() {
 	mv setup.cfg.template setup.cfg
