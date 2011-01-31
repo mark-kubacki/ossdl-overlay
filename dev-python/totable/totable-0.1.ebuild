@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-PYTHON_DEPEND="2:2.7"
+PYTHON_DEPEND="2::2.7"
 
 inherit distutils
 

@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-PYTHON_DEPEND="2:2.7"
+PYTHON_DEPEND="2:2.5:2.7"
 
 inherit distutils
 
@@ -19,8 +19,7 @@ SLOT="0"
 KEYWORDS="amd64 x86 arm ~ppc ~hpa ~sparc"
 IUSE=""
 
-DEPEND=">=dev-lang/python-2.6
-	>=dev-libs/glib-2.20"
+DEPEND=">=dev-libs/glib-2.20"
 RDEPEND="${DEPEND}"
 
 PYTHON_MODNAME="gstringc"
