@@ -9,13 +9,12 @@ inherit autotools eutils
 
 DESCRIPTION="Simple FastCGI wrapper for CGI scripts"
 HOMEPAGE="http://github.com/wmark/fcgiwrap/"
-SRC_URI=""
-EGIT_REPO_URI="http://github.com/wmark/fcgiwrap.git"
-RESTRICT="fetch"
+SRC_URI="https://download.github.com/gnosek-fcgiwrap-v1.0.1-0-g9db989a.tar.gz"
+RESTRICT="primaryuri"
 
 LICENSE=""
 SLOT="0"
-KEYWORDS="~amd64 ~x86 ~arm ~ppc ~hpa ~sparc"
+KEYWORDS="amd64 x86 arm ~ppc ~hpa ~sparc"
 IUSE=""
 
 DEPEND="dev-libs/fcgi"
@@ -24,16 +23,10 @@ DEPEND="${DEPEND}
 	>=sys-devel/autoconf-2.63
 	dev-vcs/git"
 
-pkg_nofetch() {
-	cd "${WORKDIR}"
-	git clone "${EGIT_REPO_URI}" "${P}"
-	cd "${S}"
+S="${WORKDIR}/gnosek-fcgiwrap-f56c85c"
 
+src_prepare() {
 	eautoreconf -i
-}
-
-src_unpack() {
-	pkg_nofetch
 }
 
 src_install() {
