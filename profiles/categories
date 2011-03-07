@@ -2,6 +2,7 @@ app-accessibility
 app-cdr
 app-forensics
 app-text
+dev-cpp
 dev-db
 dev-java
 dev-lang
@@ -11,7 +12,6 @@ dev-python
 dev-util
 mail-filter
 media-sound
-media-video
 net-fs
 net-libs
 net-mail
