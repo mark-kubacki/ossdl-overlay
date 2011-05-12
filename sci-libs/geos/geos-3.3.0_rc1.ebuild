@@ -7,12 +7,12 @@ inherit eutils
 
 DESCRIPTION="Geometry engine library for Geographic Information Systems"
 HOMEPAGE="http://geos.refractions.net"
-SRC_URI="http://download.osgeo.org/geos/${P}.tar.bz2"
+SRC_URI="http://download.osgeo.org/geos/${PN}-${PV/_/}.tar.bz2"
 RESTRICT="primaryuri"
 
 LICENSE="LGPL-2.1"
 SLOT="0"
-KEYWORDS="amd64 ppc ppc64 sparc x86 arm"
+KEYWORDS="amd64 ~ppc ~ppc64 ~sparc x86 arm"
 IUSE="doc python ruby"
 
 RDEPEND="ruby? ( virtual/ruby )
@@ -21,6 +21,8 @@ DEPEND="${RDEPEND}
 	doc? ( app-doc/doxygen )
 	ruby?  ( dev-lang/swig )
 	python? ( dev-lang/swig )"
+
+S="${WORKDIR}/${PN}-${PV/_/}"
 
 src_prepare() {
 	sed -i \
