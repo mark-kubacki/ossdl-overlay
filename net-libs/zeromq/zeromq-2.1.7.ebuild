@@ -1,4 +1,4 @@
-# Copyright 2010 W-Mark Kubacki
+# Copyright 2010-2011 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -11,11 +11,12 @@ RESTRICT="primaryuri"
 
 LICENSE="LGPL"
 SLOT="2"
-KEYWORDS="~alpha amd64 arm ~hppa ~ia64 ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc x86"
+KEYWORDS="amd64 arm x86"
 IUSE="+pgm +pic"
 
 RDEPEND="dev-libs/glib
 	sys-apps/util-linux
+	arm? ( pgm? ( net-libs/openpgm ) )
 	"
 DEPEND="${RDEPEND}
 	"
@@ -23,7 +24,7 @@ DEPEND="${RDEPEND}
 src_configure() {
 	local myconf=
 	if use arm; then
-		use pgm		&& ewarn "PGM doesn't work on ARM. USE flag will be ignored."
+		use pgm		&& myconf+=" $(use_with system-pgm)"
 	else
 		use pgm		&& myconf+=" $(use_with pgm)"
 	fi
