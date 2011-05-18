@@ -23,7 +23,7 @@ HTTP_HEADERS_MORE_MODULE_SHA1="2cbbc15"
 
 # http_passenger (http://www.modrails.com/, MIT license)
 # TODO: currently builds some stuff in src_configure
-PASSENGER_PV="3.0.6"
+PASSENGER_PV="3.0.7"
 USE_RUBY="ruby18"
 RUBY_OPTIONAL="yes"
 
@@ -31,7 +31,7 @@ RUBY_OPTIONAL="yes"
 HTTP_PUSH_MODULE_P="nginx_http_push_module-0.692"
 
 # http_cache_purge (http://labs.frickle.com/nginx_ngx_cache_purge/, BSD-2 license)
-HTTP_CACHE_PURGE_MODULE_P="ngx_cache_purge-1.2"
+HTTP_CACHE_PURGE_MODULE_P="ngx_cache_purge-1.3"
 
 # http_redis (http://wiki.nginx.org/HttpRedis)
 HTTP_REDIS_MODULE_P="ngx_http_redis-0.3.2"
@@ -157,8 +157,7 @@ src_prepare() {
 		cd "${WORKDIR}"/passenger-${PASSENGER_PV}
 		epatch \
 			"${FILESDIR}/passenger-3.0.1-cflags.patch" \
-			"${FILESDIR}/passenger-3.0.1-missing-include.patch" \
-			"${FILESDIR}/passenger-3.0.1-missing-auto-feature.patch"
+			"${FILESDIR}/passenger-3.0.1-missing-include.patch"
 
 		sed -i \
 			-e 's|/usr/lib/phusion-passenger/agents|/usr/libexec/passenger/agents|' \
