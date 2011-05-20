@@ -1,0 +1,19 @@
+#!/sbin/runscript
+# Copyright 1999-2004 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+
+depend() {
+	use net
+}
+
+start() {
+	ebegin "Starting ActiveMQ $1"
+	start-stop-daemon --start --background --make-pidfile --pidfile ${PIDFILE} --chuid ${ACTIVEMQ_USER} --exec ${JAVA_HOME}/bin/java -- ${JAVA_OPTS} start >> ${OUTFILE}  2>&1
+	eend $?
+}
+
+stop()  {
+	ebegin "Stopping ActiveMQ $1"
+	start-stop-daemon --stop --pidfile ${PIDFILE} --exec ${JAVA_HOME}/bin/java -- ${JAVA_OPTS} stop
+	eend $?
+}

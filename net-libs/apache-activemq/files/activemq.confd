@@ -1,0 +1,15 @@
+JAVA_HOME=`java-config --jre-home`
+ACTIVEMQ_USER="activemq"
+ACTIVEMQ_HOME="/opt/apache-activemq"
+ACTIVEMQ_BASE="/opt/apache-activemq"
+ACTIVEMQ_CLASSPATH="${ACTIVEMQ_BASE}/conf;"$ACTIVEMQ_CLASSPATH
+ACTIVEMQ_OPTS="-Xmx512M -Dorg.apache.activemq.UseDedicatedTaskRunner=true"
+PIDFILE="/var/run/activemq.pid"
+OUTFILE="/var/log/activemq.out"
+# Uncomment to enable remote debugging
+#ACTIVEMQ_DEBUG_OPTS="-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"
+
+JAVA_OPTS="$ACTIVEMQ_DEBUG_OPTS $ACTIVEMQ_OPTS
+-Dactivemq.classpath=${ACTIVEMQ_CLASSPATH}
+-Dactivemq.home=${ACTIVEMQ_HOME} -Dactivemq.base=${ACTIVEMQ_BASE}
+-jar ${ACTIVEMQ_HOME}/bin/run.jar"
