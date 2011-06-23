@@ -24,12 +24,12 @@ RDEPEND="
 	webserver? (
 		sys-meta/sys-webserver
 		dev-php/adodb
-		dev-php5/adodb-ext
+		dev-php/adodb-ext
 		app-text/dos2unix
 		www-apps/trac
 	)
 	turbogears? (
-		=dev-python/beautifulsoup-3.1.0.1
+		=dev-python/beautifulsoup-3*
 		dev-python/dnspython
 		dev-python/feedparser
 		dev-python/imaging

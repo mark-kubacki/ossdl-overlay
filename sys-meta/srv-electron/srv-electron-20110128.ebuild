@@ -2,13 +2,15 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header:  $
 
+EAPI=3
+
 DESCRIPTION="SheevaPlug server."
 HOMEPAGE="http://www.ossdl.de/"
 
 LICENSE="GPL-2 Apache-2.0 BSD"
 SLOT="0"
 KEYWORDS="amd64 ~sparc x86 arm"
-IUSE="pyzhon webserver multimedia"
+IUSE="python webserver multimedia"
 
 RDEPEND="
 	app-arch/cfv
