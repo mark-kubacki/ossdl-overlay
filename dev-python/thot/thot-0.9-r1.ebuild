@@ -2,10 +2,10 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-PYTHON_DEPEND="2:2.4:2.7"
+PYTHON_DEPEND="2:2.6:2.7"
 EAPI=3
 
-inherit distutils
+inherit distutils eutils
 
 DESCRIPTION="A Python-Powered Static Site Generator"
 HOMEPAGE="http://mark.ossdl.de/tags/thot"
@@ -31,6 +31,18 @@ RDEPEND="dev-python/markdown
 DEPEND="${DEPEND}
 	dev-python/setuptools
 	"
+
+src_prepare() {
+	cd "${S}"
+	epatch "${FILESDIR}/thot-0.9-mako.patch"
+	sed -i -e 's:data_files:dontinstall:g' setup.py
+}
+
+src_install() {
+	distutils_src_install
+	insinto "$(python_get_sitedir)"
+	doins -r src/quickstart || die
+}
 
 pkg_postinst() {
 	python_mod_optimize thot
