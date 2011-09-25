@@ -1,5 +1,5 @@
 # Copyright 2011 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
+# Distributed under the terms of the OSI Reciprocal Public License
 # $Header: $
 
 EAPI="2"
@@ -34,7 +34,7 @@ HTTP_PUSH_MODULE_P="nginx_http_push_module-0.692"
 HTTP_CACHE_PURGE_MODULE_P="ngx_cache_purge-1.3"
 
 # http_redis (http://wiki.nginx.org/HttpRedis)
-HTTP_REDIS_MODULE_P="ngx_http_redis-0.3.3"
+HTTP_REDIS_MODULE_P="ngx_http_redis-0.3.5"
 
 inherit eutils ssl-cert toolchain-funcs perl-module ruby-ng flag-o-matic
 
