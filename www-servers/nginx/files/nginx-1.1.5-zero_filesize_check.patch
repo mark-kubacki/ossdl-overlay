@@ -1,0 +1,81 @@
+diff --git a/src/http/modules/ngx_http_rewrite_module.c b/src/http/modules/ngx_http_rewrite_module.c
+index 5164734..6daf4b7 100644
+--- a/src/http/modules/ngx_http_rewrite_module.c
++++ b/src/http/modules/ngx_http_rewrite_module.c
+@@ -813,6 +813,11 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
+             return NGX_CONF_OK;
+         }
+ 
++        if (p[1] == 'z') {
++            fop->op = ngx_http_script_file_empty;
++            return NGX_CONF_OK;
++        }
++
+         if (p[0] == '!') {
+             if (p[2] == 'f') {
+                 fop->op = ngx_http_script_file_not_plain;
+@@ -833,6 +838,11 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
+                 fop->op = ngx_http_script_file_not_exec;
+                 return NGX_CONF_OK;
+             }
++
++            if (p[2] == 'z') {
++                fop->op = ngx_http_script_file_not_empty;
++                return NGX_CONF_OK;
++            }
+         }
+ 
+         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+diff --git a/src/http/ngx_http_script.c b/src/http/ngx_http_script.c
+index a703f08..4a82b6d 100644
+--- a/src/http/ngx_http_script.c
++++ b/src/http/ngx_http_script.c
+@@ -1520,12 +1520,14 @@ ngx_http_script_file_code(ngx_http_script_engine_t *e)
+         case ngx_http_script_file_dir:
+         case ngx_http_script_file_exists:
+         case ngx_http_script_file_exec:
++        case ngx_http_script_file_not_empty:
+              goto false_value;
+ 
+         case ngx_http_script_file_not_plain:
+         case ngx_http_script_file_not_dir:
+         case ngx_http_script_file_not_exists:
+         case ngx_http_script_file_not_exec:
++        case ngx_http_script_file_empty:
+              goto true_value;
+         }
+ 
+@@ -1580,6 +1582,18 @@ ngx_http_script_file_code(ngx_http_script_engine_t *e)
+             goto false_value;
+         }
+         goto true_value;
++
++    case ngx_http_script_file_empty:
++        if (of.size == 0) {
++             goto true_value;
++        }
++        goto false_value;
++
++    case ngx_http_script_file_not_empty:
++        if (of.size > 0) {
++            goto false_value;
++        }
++        goto true_value;
+     }
+ 
+ false_value:
+diff --git a/src/http/ngx_http_script.h b/src/http/ngx_http_script.h
+index c5b1e40..7790b53 100644
+--- a/src/http/ngx_http_script.h
++++ b/src/http/ngx_http_script.h
+@@ -171,7 +171,9 @@ typedef enum {
+     ngx_http_script_file_exists,
+     ngx_http_script_file_not_exists,
+     ngx_http_script_file_exec,
+-    ngx_http_script_file_not_exec
++    ngx_http_script_file_not_exec,
++    ngx_http_script_file_empty,
++    ngx_http_script_file_not_empty
+ } ngx_http_script_file_op_e;
+ 
+ 
