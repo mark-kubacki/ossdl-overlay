@@ -31,7 +31,13 @@ pkg_setup() {
 	# https://github.com/antirez/redis/blob/2.2/README. If build system gets
 	# better integrated into autotools, replace with append-flags and
 	# append-ldflags in src_configure()
-	use tcmalloc && export EXTRA_EMAKE="${EXTRA_EMAKE} USE_TCMALLOC=yes"
+	if use tcmalloc; then
+		export EXTRA_EMAKE="${EXTRA_EMAKE} USE_TCMALLOC=yes"
+	elif use arm; then
+		# Redis relies on jemalloc, which has trouble with atomic operations for ARM.
+		# Using libc's malloc you can expect performance similar to v2.2.15
+		export EXTRA_EMAKE="${EXTRA_EMAKE} FORCE_LIBC_MALLOC=yes"
+	fi
 }
 
 src_prepare() {
@@ -62,6 +68,7 @@ src_prepare() {
 
 src_configure() {
 	if ! ( use x86 || use amd64 ); then
+		# the ARM version runs about 4% slower with these settings, so they're removed here
 		replace-flags "-Os" "-O2"
 		filter-flags -fomit-frame-pointer "-march=*" "-mtune=*" "-mcpu=*"
 	fi
