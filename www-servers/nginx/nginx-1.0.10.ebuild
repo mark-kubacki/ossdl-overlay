@@ -1,5 +1,5 @@
 # Copyright 2011 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
+# Distributed under the terms of the OSI Reciprocal Public License
 # $Header: $
 
 EAPI="2"
@@ -31,7 +31,7 @@ RUBY_OPTIONAL="yes"
 HTTP_PUSH_MODULE_P="nginx_http_push_module-0.692"
 
 # http_cache_purge (http://labs.frickle.com/nginx_ngx_cache_purge/, BSD-2 license)
-HTTP_CACHE_PURGE_MODULE_P="ngx_cache_purge-1.3"
+HTTP_CACHE_PURGE_MODULE_P="ngx_cache_purge-1.4"
 
 # http_redis (http://wiki.nginx.org/HttpRedis)
 HTTP_REDIS_MODULE_P="ngx_http_redis-0.3.5"
