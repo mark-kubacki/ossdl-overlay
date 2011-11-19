@@ -1,0 +1,186 @@
+diff --git a/README.rst b/README.rst
+index a9bce48..56789b6 100644
+--- a/README.rst
++++ b/README.rst
+@@ -10,15 +10,14 @@ About
+ Key differences to vanilla Tornado
+ ----------------------------------
+ 
+-- Supports `non-regex handlers`, which are plain strings in a dictionary, what reduces the overhead for requests compared to matching regular expressions.
++- Supports `non-regex handlers`, which are plain strings in a dictionary. Greatly reduces the overhead for requests.
+ - Localization is based upon the standard `Gettext <http://www.gnu.org/software/gettext/>`_ instead of the CSV implementation in the original Tornado. Moreover, it supports pluralization exactly like Tornado does. By `Alexandre Fiori <fiorix@gmail.com>`_.
+-- Templating is done by `Mako <http://www.makotemplates.org/>`_, which features everything that the original templating module could (including compiling into native Python modules) and which has mature error reporting functions.
++- Templating is done by `Mako <http://www.makotemplates.org/>`_, which features everything the original templating module could (including compiling into native Python modules) and which has mature error reporting functions.
+ - Validation by `FormEncode <http://formencode.org/>`_ with decorators similar to TurboGears'.
+ - If ``dev-python/murmur`` is installed, static files will be hashed by `Murmurhash2 <http://murmurhash.googlepages.com/>`_ and not SHA1 or MD5.
+ - Sessions support from `Milan Cermak <http://github.com/milancermak/tornado/>`_. You can store session data in files, MySQL, Redis, Memcached and MongoDB.
+-- Runs under Windows, changes by `Mark Guagenti <http://github.com/mgenti/tornado>`_.
+ - Has `Location` and `Path` decorators, courtesy of Jeremy Kelley, Peter Bengtsson et al.
+-- IPv6
++- Supports the way faster `ultrajson <https://github.com/esnme/ultrajson>`_ (aka ujson) and `python-cjson <http://pypi.python.org/pypi/python-cjson>`_ (aka cjson). ``ujson`` is faster and thus preferred over ``cjson``.
+ 
+ Example
+ ========
+diff --git a/anzu/escape.py b/anzu/escape.py
+index 4010b1c..bc3bf5c 100644
+--- a/anzu/escape.py
++++ b/anzu/escape.py
+@@ -34,30 +34,66 @@ try:
+ except ImportError:
+     from cgi import parse_qs
+ 
+-# json module is in the standard library as of python 2.6; fall back to
+-# simplejson if present for older versions.
++# Select the fastest JSON library available according to benchmark:
++# https://gist.github.com/1379050
++# Loading (decoding):
++#   ujson: 3.33
++#   cjson: 4.37
++#   json: 16.62
++#   simplejson: 9.71
++#   cPickle: 7.70
++# Dumping (encoding):
++#   ujson: 2.27
++#   cjson: 6.57
++#   json: 11.86
++#   simplejson: 14.98
++#   cPickle: 30.98
++# +- 0.5 seconds
+ try:
+-    import json
+-    assert hasattr(json, "loads") and hasattr(json, "dumps")
+-    _json_decode = json.loads
+-    _json_encode = json.dumps
+-except Exception:
++    import ujson
++    _json_decode = ujson.decode
++    _json_encode = ujson.encode
++except ImportError:
+     try:
+-        import simplejson
+-        _json_decode = lambda s: simplejson.loads(_unicode(s))
+-        _json_encode = lambda v: simplejson.dumps(v)
+-    except ImportError:
++        import cjson
++        # You can find the patch for cjson here: http://vazor.com/media/python-cjson-1.0.5.diff
++        # An unpatched version (1.0.5 is the latest as of writing)
++        # won't decode that correctly and thus trigger an AssertionError here:
++        assert '/' == cjson.decode('"\/"')
++        _json_decode = cjson.decode
++        _json_encode = cjson.encode
++    except (AssertionError, ImportError):
++        try:
++            # But - json ist slower? We will overwrite that later by simplejson. ;-)
++            import json
++            assert hasattr(json, "loads") and hasattr(json, "dumps")
++            _json_decode = json.loads
++            _json_encode = json.dumps
++            has_python_json = True
++        except (AssertionError, ImportError):
++            has_python_json = False
++
+         try:
+-            # For Google AppEngine
+-            from django.utils import simplejson
++            import simplejson
+             _json_decode = lambda s: simplejson.loads(_unicode(s))
+-            _json_encode = lambda v: simplejson.dumps(v)
++            if not has_python_json:
++                _json_encode = lambda v: simplejson.dumps(v)
+         except ImportError:
+-            def _json_decode(s):
+-                raise NotImplementedError(
+-                    "A JSON parser is required, e.g., simplejson at "
+-                    "http://pypi.python.org/pypi/simplejson/")
+-            _json_encode = _json_decode
++            try:
++                # For Google AppEngine
++                from django.utils import simplejson
++                _json_decode = lambda s: simplejson.loads(_unicode(s))
++                if not has_python_json:
++                    _json_encode = lambda v: simplejson.dumps(v)
++            except ImportError:
++                if not has_python_json:
++                    def _json_decode(s):
++                        raise NotImplementedError(
++                            "A JSON parser is required, e.g., simplejson at "
++                            "http://pypi.python.org/pypi/simplejson/")
++                    _json_encode = _json_decode
++                else:
++                    pass
+ 
+ 
+ _XHTML_ESCAPE_RE = re.compile('[&<>"]')
+@@ -73,6 +109,7 @@ def xhtml_unescape(value):
+     return re.sub(r"&(#?)(\w+?);", _convert_entity, _unicode(value))
+ 
+ 
++jsonlib_escapes_forward_slashes = '"<\\/"' == _json_encode('</')
+ def json_encode(value):
+     """JSON-encodes the given Python object."""
+     # JSON permits but does not require forward slashes to be escaped.
+@@ -81,7 +118,12 @@ def json_encode(value):
+     # the javscript.  Some json libraries do this escaping by default,
+     # although python's standard library does not, so we do it here.
+     # http://stackoverflow.com/questions/1580647/json-why-are-forward-slashes-escaped
+-    return _json_encode(recursive_unicode(value)).replace("</", "<\\/")
++    # (Will add about 1.0 seconds to the aforementioned benchmark results;
++    #  except for cjson and patched ujson, which do not need this.)
++    if not jsonlib_escapes_forward_slashes:
++        return _json_encode(recursive_unicode(value)).replace("</", "<\\/")
++    else:
++        return _json_encode(recursive_unicode(value))
+ 
+ 
+ def json_decode(value):
+@@ -146,7 +188,7 @@ else:
+         for k,v in result.iteritems():
+             encoded[k] = [i.encode('latin1') for i in v]
+         return encoded
+-        
++
+ 
+ 
+ _UTF8_TYPES = (bytes, type(None))
+@@ -215,7 +257,7 @@ def recursive_unicode(obj):
+     else:
+         return obj
+ 
+-# I originally used the regex from 
++# I originally used the regex from
+ # http://daringfireball.net/2010/07/improved_regex_for_matching_urls
+ # but it gets all exponential on certain patterns (such as too many trailing
+ # dots), causing the regex matcher to never return.
+diff --git a/anzu/session.py b/anzu/session.py
+index e688778..5d380bb 100644
+--- a/anzu/session.py
++++ b/anzu/session.py
+@@ -386,6 +386,7 @@ try:
+             if not kwargs.has_key('session_id'):
+                 self.save()
+ 
++        @staticmethod
+         def _parse_connection_details(details):
+             # redis://[auth@][host[:port]][/db]
+             match = re.match('redis://(?:(\S+)@)?([^\s:/]+)?(?::(\d+))?(?:/(\d+))?$', details)
+@@ -588,6 +589,7 @@ try:
+             """Delete the session from storage."""
+             self.connection.delete(self.session_id)
+ 
++        @staticmethod
+         def delete_expired(connection):
+             """With Memcached as session storage, this function does
+             not make sense as all keys are saved with expiry time
+diff --git a/anzu/web.py b/anzu/web.py
+index 1612c12..67647a5 100644
+--- a/anzu/web.py
++++ b/anzu/web.py
+@@ -381,7 +381,7 @@ class RequestHandler(object):
+ 
+     def get_cookie(self, name, default=None):
+         """Gets the value of the cookie with the given name, else default."""
+-        if name in self.request.cookies:
++        if self.request.cookies is not None and name in self.request.cookies:
+             return self.request.cookies[name].value
+         return default
+ 
