@@ -2,7 +2,10 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-PYTHON_DEPEND="2:2.4:2.7"
+EAPI=3
+PYTHON_DEPEND="2:2.6"
+SUPPORT_PYTHON_ABIS="1"
+RESTRICT_PYTHON_ABIS="3.*"
 
 inherit distutils
 
@@ -18,7 +21,6 @@ IUSE=""
 
 RDEPEND=">=dev-python/formencode-1.2.2
 	>=dev-python/mako-0.2.5
-	dev-python/simplejson
 	>=dev-python/pycurl-7.19.0
 	dev-python/murmur"
 DEPEND="${DEPEND}
