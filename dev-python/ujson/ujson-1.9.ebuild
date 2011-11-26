@@ -21,6 +21,7 @@ IUSE=""
 SLOT="0"
 
 DEPEND="dev-python/setuptools
+	app-arch/unzip
 	"
 
 src_prepare() {
