@@ -19,7 +19,9 @@ SLOT="0"
 KEYWORDS="amd64 x86 arm ~ppc ~hpa ~sparc"
 IUSE=""
 
-DEPEND=">=dev-lang/python-2.5"
+DEPEND=">=dev-lang/python-2.5
+	|| ( <sys-libs/zlib-1.2.5.1 >=sys-libs/zlib-1.2.5.2 )
+	"
 RDEPEND="${DEPEND}"
 
 S="${WORKDIR}/${MY_P}"
