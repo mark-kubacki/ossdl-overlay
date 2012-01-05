@@ -1,0 +1,25 @@
+#!/sbin/runscript
+# Copyright 2011 W-Mark Kubacki; Distributed under the OSI Reciprocal Public License
+# $Header: $
+
+depend() {
+	use net
+}
+
+start() {
+	ebegin "Starting MonetDB"
+	start-stop-daemon --start \
+		--user=${MDB_USER} --group=${MDB_GROUP} \
+		--pidfile /var/run/monetdb/merovingian.pid \
+		--exec /usr/bin/monetdbd start "${MDB_FARM}"
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping MonetDB"
+	start-stop-daemon --stop \
+		--user=${MDB_USER} --group=${MDB_GROUP} \
+		--pidfile /var/run/monetdb/merovingian.pid \
+		--exec /usr/bin/monetdbd stop "${MDB_FARM}"
+	eend $?
+}
