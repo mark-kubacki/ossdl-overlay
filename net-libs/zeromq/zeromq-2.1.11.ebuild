@@ -21,7 +21,7 @@ RDEPEND="pgm? (
 		dev-util/pkgconfig
 		>=net-libs/openpgm-5.1.118
 	)
-	sys-apps/util-linu"
+	sys-apps/util-linux"
 
 src_prepare() {
 	if use pgm; then
