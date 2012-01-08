@@ -5,7 +5,7 @@
 EAPI="3"
 SUPPORT_PYTHON_ABIS="1"
 
-inherit distutils
+inherit distutils eutils
 
 DESCRIPTION="Native MonetDB client Python API"
 HOMEPAGE="http://www.monetdb.org/"
@@ -20,3 +20,7 @@ IUSE=""
 DEPEND="dev-python/setuptools"
 RDEPEND=""
 PYTHON_MODNAME="monetdb"
+
+src_prepare() {
+	epatch "${FILESDIR}"/python-monetdb-11.5.9-hashlib_usage.1.patch
+}
