@@ -11,7 +11,7 @@ SRC_URI="http://download.zeromq.org/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="LGPL"
-SLOT="2"
+SLOT="0"
 KEYWORDS="amd64 arm x86"
 IUSE="+pgm +pic"
 

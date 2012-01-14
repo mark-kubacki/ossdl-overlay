@@ -10,7 +10,7 @@ SRC_URI="http://download.zeromq.org/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="LGPL"
-SLOT="2"
+SLOT="0"
 KEYWORDS="~alpha amd64 arm ~hppa ~ia64 ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc x86"
 IUSE="+pgm +pic"
 
