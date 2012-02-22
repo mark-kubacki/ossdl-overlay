@@ -126,4 +126,15 @@ pkg_postinst() {
 		einfo "Copying default ${f##*/} from /usr/$(get_libdir)/nfs to /var/lib/nfs"
 		cp -pPR "${f}" "${ROOT}"/var/lib/nfs/
 	done
+
+	einfo "Double-check that command 'dnsdomainname' returns a result "
+	einfo "and 'resolveip <ip>' has a FQDN as first result."
+	einfo "(In /etc/hosts FQDN per IP go first ;-)"
+	einfo "Modify /etc/idmapd.conf accordingly."
+
+	if use nfsv41; then
+		einfo ""
+		einfo "/etc/request-key.conf should contain before any 'negate':"
+		einfo "create  id_resolver     *       *               /usr/sbin/nfsidmap %k %d 600"
+	fi
 }
