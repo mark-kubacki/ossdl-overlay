@@ -1,0 +1,14 @@
+--- setup.py.orig	2012-03-08 19:29:23.737975001 +0100
++++ setup.py	2012-03-08 19:29:54.030975000 +0100
+@@ -6,9 +6,9 @@
+ import sys
+ from distutils.core import setup, Extension
+ 
+-extra_compile_args = ['-Wall', '-pedantic', '-I./leveldb/include/',
++extra_compile_args = ['-Wall', '-pedantic',
+ '-shared', '-std=gnu99', '-fPIC', '-g', '-D_GNU_SOURCE']
+-extra_link_args = ['-L./leveldb', '-static', '-lleveldb', '-lsnappy', '-lpthread']
++extra_link_args = ['-lleveldb', '-lsnappy', '-lpthread']
+ 
+ setup(
+ 	name = 'leveldb',

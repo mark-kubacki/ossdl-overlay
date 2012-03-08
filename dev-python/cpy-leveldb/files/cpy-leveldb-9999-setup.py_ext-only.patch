@@ -1,0 +1,12 @@
+--- setup.py.orig2	2012-03-08 20:23:31.139975001 +0100
++++ setup.py	2012-03-08 20:23:48.666975002 +0100
+@@ -36,9 +36,6 @@
+ 	description = 'Python bindings for leveldb database library using c api',
+ 	# long_description = 
+ 
+-	packages = ['leveldb'],
+-	package_dir = {'leveldb': ''},
+-
+ 	ext_modules = [
+ 		Extension('leveldb',
+ 			sources = [
