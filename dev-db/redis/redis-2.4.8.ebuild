@@ -113,7 +113,7 @@ src_install() {
 	fperms 0644 /etc/redis.conf
 
 	newconfd "${FILESDIR}/redis.confd" redis
-	newinitd "${FILESDIR}/redis.initd" redis
+	newinitd "${FILESDIR}/redis.initd-v2" redis
 
 	nonfatal dodoc 00-RELEASENOTES BUGS CONTRIBUTING COPYING README TODO
 
