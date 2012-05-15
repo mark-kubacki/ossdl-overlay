@@ -1,0 +1,17 @@
+--- setup.py.orig	2012-05-15 12:33:50.717130001 +0200
++++ setup.py	2012-05-15 12:34:40.138130000 +0200
+@@ -33,11 +33,11 @@
+         ext_modules = [ Extension( "mcdb",
+                                    ["src/mcdbpy.c"],
+                                    # compile,link with local, static libmcdb.a
+-                                   include_dirs=["../../.."],
+-                                   extra_link_args=["../../libmcdb.a",
++                                   #include_dirs=["../../.."],
++                                   extra_link_args=[
+                                      "-Wl,--version-script,src/pythonext.map"],
+                                    # compile,link with system libmcdb.so
+-                                   #libraries=['mcdb']
++                                   libraries=['mcdb']
+                                  )
+                       ],
+       )
