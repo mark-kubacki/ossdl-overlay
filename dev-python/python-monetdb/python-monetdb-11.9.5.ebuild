@@ -9,7 +9,7 @@ inherit distutils eutils
 
 DESCRIPTION="Native MonetDB client Python API"
 HOMEPAGE="http://www.monetdb.org/"
-SRC_URI="http://dev.monetdb.org/downloads/sources/Apr2012/${P}.tar.bz2"
+SRC_URI="http://dev.monetdb.org/downloads/sources/Apr2012-SP1/${P}.tar.bz2"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
