@@ -24,7 +24,7 @@ SLOT="0"
 RDEPEND=""
 DEPEND=">=sys-devel/autoconf-2.63
 	tcmalloc? ( dev-util/google-perftools )
-	jemalloc? ( dev-libs/jemalloc )
+	jemalloc? ( =dev-libs/jemalloc-2* )
 	test? ( dev-lang/tcl )
 	${RDEPEND}"
 REQUIRED_USE="tcmalloc? ( !jemalloc )
