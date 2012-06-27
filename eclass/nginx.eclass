@@ -68,7 +68,7 @@ DEPEND="${RDEPEND}
 NUM_MODULES=${#IUSE_NGINX_MODULES[@]}
 index=0
 while [ "${index}" -lt "${NUM_MODULES}" ] ; do
-	if hasq ${IUSE_NGINX_MODULES[${index}]} ${NGINX_DEFAULT_MODULES} ; then
+	if has ${IUSE_NGINX_MODULES[${index}]} ${NGINX_DEFAULT_MODULES} ; then
 		IUSE+=" +nginx_modules_${IUSE_NGINX_MODULES[${index}]}"
 	else
 		IUSE+=" nginx_modules_${IUSE_NGINX_MODULES[${index}]}"
@@ -108,11 +108,11 @@ nginx_create_user() {
 use_module() {
 	[[ -z "${1}" ]] && die "usage: \$(use_module name) or \$(use_module name alias)"
 	if useq "nginx_modules_${1}" ; then
-		if ! hasq ${1} ${NGINX_DEFAULT_MODULES} ; then
+		if ! has ${1} ${NGINX_DEFAULT_MODULES} ; then
 			echo " --with-http_${2:-${1}}_module"
 		fi
 	else
-		if hasq ${1} ${NGINX_DEFAULT_MODULES} ; then
+		if has ${1} ${NGINX_DEFAULT_MODULES} ; then
 			echo " --without-http_${2:-${1}}_module"
 		fi
 	fi
@@ -148,7 +148,7 @@ nginx_src_configure() {
 	SPECIAL_TREATMENT="accept_language addition drizzle imap random-index rds_json redis rewrite securelink status webdav xss zlib"
 	index=0
 	while [ "${index}" -lt "${NUM_MODULES}" ] ; do
-		if ! hasq ${IUSE_NGINX_MODULES[${index}]} ${SPECIAL_TREATMENT} ; then
+		if ! has ${IUSE_NGINX_MODULES[${index}]} ${SPECIAL_TREATMENT} ; then
 			myconf+="$(use_module ${IUSE_NGINX_MODULES[${index}]})"
 		fi
 		let "index = ${index} + 1"
