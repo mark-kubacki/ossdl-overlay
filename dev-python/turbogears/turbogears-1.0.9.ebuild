@@ -1,8 +1,9 @@
-# Copyright 2008-2010 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
-# $Header: $
+# Copyright 2008-2012 W-Mark Kubacki
+# Distributed under the terms of the OSI Reciprocal Public License
 
+EAPI="3"
 PYTHON_DEPEND="2:2.4:2.7"
+SUPPORT_PYTHON_ABIS="1"
 
 inherit distutils eutils
 

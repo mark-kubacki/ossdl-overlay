@@ -1,8 +1,10 @@
-# Copyright 2008-2010 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
+# Copyright 2008-2012 W-Mark Kubacki
+# Distributed under the terms of the OSI Reciprocal Public License
 # $Header: $
 
+EAPI="3"
 PYTHON_DEPEND="2:2.4:2.5"
+SUPPORT_PYTHON_ABIS="1"
 
 inherit distutils eutils
 
@@ -14,7 +16,7 @@ MY_P=${MY_PN}-${PV}
 DESCRIPTION="The rapid web development meta-framework you've been looking for."
 HOMEPAGE="http://www.turbogears.org/"
 SRC_URI="http://files.turbogears.org/eggs/${MY_P}.tar.gz"
-RESTRICT="nomirror"
+RESTRICT="primaryuri"
 LICENSE="MIT"
 SLOT="0"
 IUSE="test"

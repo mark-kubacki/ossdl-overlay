@@ -1,8 +1,10 @@
-# Copyright 2010 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
-# $Header: $
+# Copyright 2010-2012 W-Mark Kubacki
+# Distributed under the terms of the OSI Reciprocal Public License
 
-EAPI="2"
+EAPI="3"
+PYTHON_DEPEND="2:2.5"
+SUPPORT_PYTHON_ABIS="1"
+RESTRICT_PYTHON_ABIS="2.5 3.* 2.7-pypy-* *-jython"
 
 inherit distutils eutils
 
@@ -16,11 +18,10 @@ SLOT="0"
 KEYWORDS="amd64 x86 arm ~ppc ~hpa ~sparc"
 IUSE="+mark_extras"
 
-DEPEND=">=dev-lang/python-2.5"
-RDEPEND="${DEPEND}
-	dev-python/simplejson
+DEPEND="dev-python/simplejson
 	>=dev-python/pycurl-7.19.0
-	mark_extras? ( dev-python/murmur )
+	mark_extras? ( dev-python/murmur )"
+RDEPEND="${DEPEND}
 	!!www-servers/tornado"
 DEPEND="${DEPEND}
 	|| ( app-arch/xz-utils app-arch/lzma-utils )"

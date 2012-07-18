@@ -1,8 +1,10 @@
-# Copyright 2010 W-Mark Kubacki
+# Copyright 2010-2012 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
-# $Header: $
 
+EAPI="3"
 PYTHON_DEPEND="2:2.6:2.7"
+SUPPORT_PYTHON_ABIS="1"
+RESTRICT_PYTHON_ABIS="2.5 3.* 2.7-pypy-* *-jython"
 
 inherit distutils
 

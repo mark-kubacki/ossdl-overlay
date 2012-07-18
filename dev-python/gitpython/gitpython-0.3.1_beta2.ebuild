@@ -1,9 +1,10 @@
-# Copyright 2011 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
-# $Header: $
+# Copyright 2011-2012 W-Mark Kubacki
+# Distributed under the terms of the OSI Reciprocal Public License
 
-EAPI="2"
+EAPI="3"
 PYTHON_DEPEND="2:2.4:2.7"
+SUPPORT_PYTHON_ABIS="1"
+RESTRICT_PYTHON_ABIS="2.3 3.*"
 
 inherit distutils
 
@@ -13,8 +14,7 @@ PYTHON_MODNAME="git"
 
 DESCRIPTION="A python library used to interact with Git repositories."
 HOMEPAGE="http://gitorious.org/projects/git-python/ http://packages.python.org/GitPython"
-SRC_URI="http://pypi.python.org/packages/source/${MY_PN:0:1}/${MY_PN}/${MY_P}.tar.gz"
-RESTRICT="primaryuri"
+SRC_URI="mirror://pypi/${MY_PN:0:1}/${MY_PN}/${MY_P}.tar.gz"
 
 LICENSE="BSD"
 KEYWORDS="amd64 x86 arm ~ppc ~hpa ~sparc"

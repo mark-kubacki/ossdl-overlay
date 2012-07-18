@@ -1,5 +1,5 @@
-# Copyright 2010-2011 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
+# Copyright 2010-2012 W-Mark Kubacki
+# Distributed under the terms of the OSI Reciprocal Public License
 # $Header: $
 
 EAPI=3

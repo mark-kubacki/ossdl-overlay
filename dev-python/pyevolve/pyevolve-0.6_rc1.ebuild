@@ -1,10 +1,10 @@
-# Copyright 2010 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
-# $Header: $
-
-PYTHON_DEPEND="2:2.5:2.7"
+# Copyright 2010-2012 W-Mark Kubacki
+# Distributed under the terms of the OSI Reciprocal Public License
 
 EAPI="3"
+PYTHON_DEPEND="2:2.5:2.7"
+SUPPORT_PYTHON_ABIS="1"
+RESTRICT_PYTHON_ABIS="2.4 3.*"
 
 inherit distutils
 
@@ -25,6 +25,6 @@ IUSE=""
 RDEPEND=">=dev-python/matplotlib-0.98.4
 	>=media-gfx/pydot-1.0.2
 	"
-DEPEND=""
+DEPEND="dev-python/setuptools"
 
 S="${WORKDIR}/${MY_P}"

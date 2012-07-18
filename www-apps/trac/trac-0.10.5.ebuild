@@ -1,6 +1,11 @@
-# Copyright 1999-2008 Gentoo Foundation, 2010 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
-# $Header: $
+# Copyright 1999-2008 Gentoo Foundation
+# Copyirght 2010-2012 W-Mark Kubacki
+# Distributed under the terms of the OSI Reciprocal Public License, or GPL (your choice)
+
+EAPI="3"
+PYTHON_DEPEND="2:2.4:2.7"
+SUPPORT_PYTHON_ABIS="1"
+RESTRICT_PYTHON_ABIS="3.*"
 
 inherit distutils webapp eutils
 
@@ -21,7 +26,6 @@ WEBAPP_MANUAL_SLOT="yes"
 # we need to depend on virtual/httpd-python to pull mod_python/whatever in when USE python (python
 # is rather confusing here, as dev-lang/python is a required dependency, but httpd-python isn't)
 DEPEND="${DEPEND}
-	>=dev-lang/python-2.3
 	app-text/pytextile
 	>=dev-python/docutils-0.3.9
 	dev-libs/clearsilver

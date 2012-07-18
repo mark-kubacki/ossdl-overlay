@@ -1,13 +1,18 @@
 # Copyright 2010 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
-# $Header:  $
+# Distributed under the terms of the OSI Reciprocal Public License
+
+EAPI="3"
+PYTHON_DEPEND="2:2.4"
+SUPPORT_PYTHON_ABIS="1"
+RESTRICT_PYTHON_ABIS="2.7-pypy-* *-jython"
+DISTUTILS_SRC_TEST="setup.py"
 
 inherit distutils flag-o-matic eutils
 
 DESCRIPTION="Lightweight in-process concurrent programming."
 HOMEPAGE="http://pypi.python.org/pypi/greenlet"
 SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
-RESTRICT="nomirror"
+RESTRICT="primaryuri"
 
 LICENSE="MIT"
 SLOT="0"

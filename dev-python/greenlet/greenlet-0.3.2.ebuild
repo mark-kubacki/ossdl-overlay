@@ -1,10 +1,11 @@
 # Copyright 1999-2011 Gentoo Foundation
+# Copyright 2012 W-Mark Kubacki
 # Distributed under the terms of the OSI Reciprocal Public License
-# $Header:  $
 
 EAPI="3"
+PYTHON_DEPEND="2:2.4"
 SUPPORT_PYTHON_ABIS="1"
-RESTRICT_PYTHON_ABIS="*-jython"
+RESTRICT_PYTHON_ABIS="2.7-pypy-* *-jython"
 DISTUTILS_SRC_TEST="setup.py"
 
 inherit distutils eutils

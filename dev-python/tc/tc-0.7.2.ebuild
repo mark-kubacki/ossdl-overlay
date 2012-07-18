@@ -1,8 +1,10 @@
-# Copyright 2010 W-Mark Kubacki
-# Distributed under the terms of the GNU General Public License v2
-# $Header: $
+# Copyright 2010-2012 W-Mark Kubacki
+# Distributed under the terms of the OSI Reciprocal Public License
 
+EAPI="3"
 PYTHON_DEPEND="2:2.4"
+SUPPORT_PYTHON_ABIS="1"
+RESTRICT_PYTHON_ABIS="2.3 3.* 2.7-pypy-* *-jython"
 
 inherit distutils
 
@@ -17,7 +19,8 @@ SLOT="0"
 KEYWORDS="amd64 x86 arm ~ppc ~hpa ~sparc"
 IUSE=""
 
-DEPEND=">=dev-db/tokyocabinet-1.3.19"
+DEPEND=">=dev-db/tokyocabinet-1.3.19
+	dev-python/setuptools"
 RDEPEND="${DEPEND}"
 
 pkg_postinst() {
