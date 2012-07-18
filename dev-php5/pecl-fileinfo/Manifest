@@ -1,8 +1,0 @@
-DIST Fileinfo-1.0.4.tgz 5835 RMD160 fedf7f72b1b2dca30f138ef31f507084d1392dbe SHA1 60a146cf58357ab59f42061d35c0aa4bff8fb170 SHA256 df35ee00fce6483c58b2f37dbded33831ba84fdae92829dbe03f7331bec0aa3f
-EBUILD pecl-fileinfo-1.0.4.ebuild 523 RMD160 b3289130f574897f9e39fab0a30ed73c176b1bc6 SHA1 b17612d12af4bc01aeb7c1261a7fff67e8f9a797 SHA256 8a634b5fdfefcb750a06e334e4c6cf1d97f6ef872f23892744a2d21d6384522c
-MD5 02842bbe1209a86d21bdeb3d1c275bd8 pecl-fileinfo-1.0.4.ebuild 523
-RMD160 b3289130f574897f9e39fab0a30ed73c176b1bc6 pecl-fileinfo-1.0.4.ebuild 523
-SHA256 8a634b5fdfefcb750a06e334e4c6cf1d97f6ef872f23892744a2d21d6384522c pecl-fileinfo-1.0.4.ebuild 523
-MD5 59e8bce9a2cac02b771e1bc370f550df files/digest-pecl-fileinfo-1.0.4 229
-RMD160 61c60bb6121e602a7ea2ccc085ca204b24dc9748 files/digest-pecl-fileinfo-1.0.4 229
-SHA256 dd1f241f1831eba5956dd64521661722fc5582c5851edaefafbe9581b6413b63 files/digest-pecl-fileinfo-1.0.4 229
