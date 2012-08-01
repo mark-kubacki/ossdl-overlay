@@ -1,0 +1,13 @@
+Index: http/ngx_http_core_module.c
+===================================================================
+--- src/http/ngx_http_core_module.c	(revision 4777)
++++ src/http/ngx_http_core_module.c	(working copy)
+@@ -3730,7 +3730,7 @@
+     ngx_conf_merge_uint_value(conf->satisfy, prev->satisfy,
+                               NGX_HTTP_SATISFY_ALL);
+     ngx_conf_merge_uint_value(conf->if_modified_since, prev->if_modified_since,
+-                              NGX_HTTP_IMS_EXACT);
++                              NGX_HTTP_IMS_BEFORE);
+     ngx_conf_merge_uint_value(conf->max_ranges, prev->max_ranges,
+                               NGX_MAX_INT32_VALUE);
+     ngx_conf_merge_uint_value(conf->client_body_in_file_only,
