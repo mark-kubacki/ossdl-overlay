@@ -18,6 +18,7 @@ net-libs
 net-mail
 net-misc
 sci-libs
+sys-apps
 sys-auth
 sys-meta
 www-apps

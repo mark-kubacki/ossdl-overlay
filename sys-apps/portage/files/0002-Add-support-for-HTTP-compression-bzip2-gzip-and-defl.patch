@@ -1,0 +1,67 @@
+From 88a289b07642cb200b83b98f03d508dcbfd2ce64 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Wed, 1 Aug 2012 20:36:31 +0200
+Subject: [PATCH 2/3] Add support for HTTP compression (bzip2, gzip and
+ deflate).
+
+---
+ pym/portage/util/_urlopen.py |   32 +++++++++++++++++++++++++++++++-
+ 1 files changed, 31 insertions(+), 1 deletions(-)
+
+diff --git a/pym/portage/util/_urlopen.py b/pym/portage/util/_urlopen.py
+index a5db411..70535c5 100644
+--- a/pym/portage/util/_urlopen.py
++++ b/pym/portage/util/_urlopen.py
+@@ -5,6 +5,7 @@ import sys
+ from datetime import datetime
+ from time import mktime
+ from email.utils import formatdate, parsedate
++from StringIO import StringIO
+ 
+ try:
+ 	from urllib.request import urlopen as _urlopen
+@@ -27,7 +28,7 @@ def urlopen(url, if_modified_since=None):
+ 		request.add_header('User-Agent', 'Gentoo Portage')
+ 		if if_modified_since:
+ 			request.add_header('If-Modified-Since', _timestamp_to_http(if_modified_since))
+-		opener = urllib_request.build_opener()
++		opener = urllib_request.build_opener(CompressedResponseProcessor)
+ 		hdl = opener.open(request)
+ 		if hdl.headers.get('last-modified', ''):
+ 			hdl.headers.addheader('timestamp', _http_to_timestamp(hdl.headers.get('last-modified')))
+@@ -67,3 +68,32 @@ def _http_to_timestamp(http_datetime_string):
+ 	tuple = parsedate(http_datetime_string)
+ 	timestamp = mktime(tuple)
+ 	return str(long(timestamp))
++
++class CompressedResponseProcessor(urllib_request.BaseHandler):
++	# Handler for compressed responses.
++
++	def http_request(self, req):
++		req.add_header('Accept-Encoding', 'bzip2,gzip,deflate')
++		return req
++	https_request = http_request
++
++	def http_response(self, req, response):
++		decompressed = None
++		if response.headers.get('content-encoding') == 'bzip2':
++			import bz2
++			decompressed = StringIO.StringIO(bz2.decompress(response.read()))
++		elif response.headers.get('content-encoding') == 'gzip':
++			from gzip import GzipFile
++			decompressed = GzipFile(fileobj=StringIO(response.read()), mode='r')
++		elif response.headers.get('content-encoding') == 'deflate':
++			import zlib
++			try:
++				decompressed = StringIO.StringIO(zlib.decompress(response.read()))
++			except zlib.error: # they ignored RFC1950
++				decompressed = StringIO.StringIO(zlib.decompress(response.read(), -zlib.MAX_WBITS))
++		if decompressed:
++			old_response = response
++			response = urllib_request.addinfourl(decompressed, old_response.headers, old_response.url, old_response.code)
++			response.msg = old_response.msg
++		return response
++	https_response = http_response
+-- 
+1.7.8.6
+
