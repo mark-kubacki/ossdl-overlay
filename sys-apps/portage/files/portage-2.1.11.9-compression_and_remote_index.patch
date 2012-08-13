@@ -1,0 +1,303 @@
+From c549f2f1b1c742a37a9bbb5f877fc3cb9e01aef4 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Mon, 13 Aug 2012 16:01:48 +0200
+Subject: [PATCH] HTTP compression, gzipped index and If-Modified-Since header
+ usage
+
+---
+ bin/emaint                   |    8 +---
+ man/make.conf.5              |    7 +++
+ pym/portage/const.py         |    2 +-
+ pym/portage/dbapi/bintree.py |   56 ++++++++++++++++++++----
+ pym/portage/util/_urlopen.py |   99 +++++++++++++++++++++++++++++++-----------
+ 5 files changed, 131 insertions(+), 41 deletions(-)
+
+diff --git a/bin/emaint b/bin/emaint
+index 2160451..5a06eb1 100755
+--- a/bin/emaint
++++ b/bin/emaint
+@@ -243,12 +243,8 @@ class BinhostHandler(object):
+ 
+ 				del pkgindex.packages[:]
+ 				pkgindex.packages.extend(metadata.values())
+-				from portage.util import atomic_ofstream
+-				f = atomic_ofstream(self._pkgindex_file)
+-				try:
+-					self._pkgindex.write(f)
+-				finally:
+-					f.close()
++				bintree._pkgindex_write(self._pkgindex)
++
+ 			finally:
+ 				locks.unlockfile(pkgindex_lock)
+ 
+diff --git a/man/make.conf.5 b/man/make.conf.5
+index bb9c424..9b1704e 100644
+--- a/man/make.conf.5
++++ b/man/make.conf.5
+@@ -268,6 +268,13 @@ space.  Make sure you have built both binutils and gdb with USE=zlib
+ support for this to work.  See \fBsplitdebug\fR for general split debug
+ information (upon which this feature depends).
+ .TP
++.B compress\-index
++If set then a compressed copy of 'Packages' index file will be written.
++This feature is intended for Gentoo binhosts using certain webservers
++(such as, but not limited to, Nginx with gzip_static module) to avoid
++redundant on\-the\-fly compression.  The resulting file will be called
++'Packages.gz' and its modification time will match that of 'Packages'.
++.TP
+ .B config\-protect\-if\-modified
+ This causes the \fBCONFIG_PROTECT\fR behavior to be skipped for files
+ that have not been modified since they were installed. This feature is
+diff --git a/pym/portage/const.py b/pym/portage/const.py
+index c7fc7df..444428f 100644
+--- a/pym/portage/const.py
++++ b/pym/portage/const.py
+@@ -89,7 +89,7 @@ SUPPORTED_FEATURES       = frozenset([
+                            "assume-digests", "binpkg-logs", "buildpkg", "buildsyspkg", "candy",
+                            "ccache", "chflags", "clean-logs",
+                            "collision-protect", "compress-build-logs", "compressdebug",
+-                           "config-protect-if-modified",
++                           "compress-index", "config-protect-if-modified",
+                            "digest", "distcc", "distcc-pump", "distlocks",
+                            "downgrade-backup", "ebuild-locks", "fakeroot",
+                            "fail-clean", "force-mirror", "force-prefix", "getbinpkg",
+diff --git a/pym/portage/dbapi/bintree.py b/pym/portage/dbapi/bintree.py
+index 9527b07..6c01867 100644
+--- a/pym/portage/dbapi/bintree.py
++++ b/pym/portage/dbapi/bintree.py
+@@ -41,6 +41,7 @@ import sys
+ import tempfile
+ import textwrap
+ import warnings
++from gzip import GzipFile
+ from itertools import chain
+ try:
+ 	from urllib.parse import urlparse
+@@ -54,6 +55,11 @@ if sys.hexversion >= 0x3000000:
+ else:
+ 	_unicode = unicode
+ 
++class UseCachedCopyOfRemoteIndex(Exception):
++	# If the local copy is recent enough
++	# then fetching the remote index can be skipped.
++	pass
++
+ class bindbapi(fakedbapi):
+ 	_known_keys = frozenset(list(fakedbapi._known_keys) + \
+ 		["CHOST", "repository", "USE"])
+@@ -807,9 +813,7 @@ class binarytree(object):
+ 				del pkgindex.packages[:]
+ 				pkgindex.packages.extend(iter(metadata.values()))
+ 				self._update_pkgindex_header(pkgindex.header)
+-				f = atomic_ofstream(self._pkgindex_file)
+-				pkgindex.write(f)
+-				f.close()
++				self._pkgindex_write(pkgindex)
+ 
+ 		if getbinpkgs and not self.settings["PORTAGE_BINHOST"]:
+ 			writemsg(_("!!! PORTAGE_BINHOST unset, but use is requested.\n"),
+@@ -852,6 +856,7 @@ class binarytree(object):
+ 				if e.errno != errno.ENOENT:
+ 					raise
+ 			local_timestamp = pkgindex.header.get("TIMESTAMP", None)
++			remote_timestamp = None
+ 			rmt_idx = self._new_pkgindex()
+ 			proc = None
+ 			tmp_filename = None
+@@ -861,8 +866,13 @@ class binarytree(object):
+ 				# slash, so join manually...
+ 				url = base_url.rstrip("/") + "/Packages"
+ 				try:
+-					f = _urlopen(url)
+-				except IOError:
++					f = _urlopen(url, if_modified_since=local_timestamp)
++					if hasattr(f, 'headers') and f.headers.get('timestamp', ''):
++						remote_timestamp = f.headers.get('timestamp')
++				except IOError as err:
++					if hasattr(err, 'code') and err.code == 304: # not modified (since local_timestamp)
++						raise UseCachedCopyOfRemoteIndex()
++
+ 					path = parsed_url.path.rstrip("/") + "/Packages"
+ 
+ 					if parsed_url.scheme == 'sftp':
+@@ -903,7 +913,8 @@ class binarytree(object):
+ 					_encodings['repo.content'], errors='replace')
+ 				try:
+ 					rmt_idx.readHeader(f_dec)
+-					remote_timestamp = rmt_idx.header.get("TIMESTAMP", None)
++					if not remote_timestamp: # in case it had not been read from HTTP header
++						remote_timestamp = rmt_idx.header.get("TIMESTAMP", None)
+ 					if not remote_timestamp:
+ 						# no timestamp in the header, something's wrong
+ 						pkgindex = None
+@@ -931,6 +942,12 @@ class binarytree(object):
+ 						writemsg("\n\n!!! %s\n" % \
+ 							_("Timed out while closing connection to binhost"),
+ 							noiselevel=-1)
++			except UseCachedCopyOfRemoteIndex:
++				writemsg_stdout("\n")
++				writemsg_stdout(
++					colorize("GOOD", _("Local copy of remote index is up-to-date and will be used.")) + \
++					"\n")
++				rmt_idx = pkgindex
+ 			except EnvironmentError as e:
+ 				writemsg(_("\n\n!!! Error fetching binhost package" \
+ 					" info from '%s'\n") % _hide_url_passwd(base_url))
+@@ -1168,13 +1185,34 @@ class binarytree(object):
+ 			pkgindex.packages.append(d)
+ 
+ 			self._update_pkgindex_header(pkgindex.header)
+-			f = atomic_ofstream(os.path.join(self.pkgdir, "Packages"))
+-			pkgindex.write(f)
+-			f.close()
++			self._pkgindex_write(pkgindex)
++
+ 		finally:
+ 			if pkgindex_lock:
+ 				unlockfile(pkgindex_lock)
+ 
++	def _pkgindex_write(self, pkgindex):
++		contents = codecs.getwriter(_encodings['repo.content'])(io.BytesIO())
++		pkgindex.write(contents)
++		contents = contents.getvalue()
++		atime = mtime = long(pkgindex.header["TIMESTAMP"])
++		output_files = [(atomic_ofstream(self._pkgindex_file, mode="wb"),
++			self._pkgindex_file, None)]
++
++		if "compress-index" in self.settings.features:
++			gz_fname = self._pkgindex_file + ".gz"
++			fileobj = atomic_ofstream(gz_fname, mode="wb")
++			output_files.append((GzipFile(filename='', mode="wb",
++				fileobj=fileobj, mtime=mtime), gz_fname, fileobj))
++
++		for f, fname, f_close in output_files:
++			f.write(contents)
++			f.close()
++			if f_close is not None:
++				f_close.close()
++			# some seconds might have elapsed since TIMESTAMP
++			os.utime(fname, (atime, mtime))
++
+ 	def _pkgindex_entry(self, cpv):
+ 		"""
+ 		Performs checksums and evaluates USE flag conditionals.
+diff --git a/pym/portage/util/_urlopen.py b/pym/portage/util/_urlopen.py
+index 307624b..768ccb8 100644
+--- a/pym/portage/util/_urlopen.py
++++ b/pym/portage/util/_urlopen.py
+@@ -1,7 +1,11 @@
+ # Copyright 2012 Gentoo Foundation
+ # Distributed under the terms of the GNU General Public License v2
+ 
++import io
+ import sys
++from datetime import datetime
++from time import mktime
++from email.utils import formatdate, parsedate
+ 
+ try:
+ 	from urllib.request import urlopen as _urlopen
+@@ -14,29 +18,74 @@ except ImportError:
+ 	import urllib2 as urllib_request
+ 	from urllib import splituser as urllib_parse_splituser
+ 
+-def urlopen(url):
+-	try:
+-		return _urlopen(url)
+-	except SystemExit:
+-		raise
+-	except Exception:
+-		if sys.hexversion < 0x3000000:
+-			raise
+-		parse_result = urllib_parse.urlparse(url)
+-		if parse_result.scheme not in ("http", "https") or \
+-			not parse_result.username:
+-			raise
+-
+-	return _new_urlopen(url)
+-
+-def _new_urlopen(url):
+-	# This is experimental code for bug #413983.
++if sys.hexversion >= 0x3000000:
++	long = int
++
++# to account for the difference between TIMESTAMP of the index' contents
++#  and the file-'mtime'
++TIMESTAMP_TOLERANCE=5
++
++def urlopen(url, if_modified_since=None):
+ 	parse_result = urllib_parse.urlparse(url)
+-	netloc = urllib_parse_splituser(parse_result.netloc)[1]
+-	url = urllib_parse.urlunparse((parse_result.scheme, netloc, parse_result.path, parse_result.params, parse_result.query, parse_result.fragment))
+-	password_manager = urllib_request.HTTPPasswordMgrWithDefaultRealm()
+-	if parse_result.username is not None:
+-		password_manager.add_password(None, url, parse_result.username, parse_result.password)
+-	auth_handler = urllib_request.HTTPBasicAuthHandler(password_manager)
+-	opener = urllib_request.build_opener(auth_handler)
+-	return opener.open(url)
++	if parse_result.scheme not in ("http", "https"):
++		return _urlopen(url)
++	else:
++		netloc = urllib_parse_splituser(parse_result.netloc)[1]
++		url = urllib_parse.urlunparse((parse_result.scheme, netloc, parse_result.path, parse_result.params, parse_result.query, parse_result.fragment))
++		password_manager = urllib_request.HTTPPasswordMgrWithDefaultRealm()
++		request = urllib_request.Request(url)
++		request.add_header('User-Agent', 'Gentoo Portage')
++		if if_modified_since:
++			request.add_header('If-Modified-Since', _timestamp_to_http(if_modified_since))
++		if parse_result.username is not None:
++			password_manager.add_password(None, url, parse_result.username, parse_result.password)
++		auth_handler = CompressedResponseProcessor(password_manager)
++		opener = urllib_request.build_opener(auth_handler)
++		hdl = opener.open(request)
++		if hdl.headers.get('last-modified', ''):
++			try:
++				add_header = hdl.headers.add_header
++			except AttributeError:
++				# Python 2
++				add_header = hdl.headers.addheader
++			add_header('timestamp', _http_to_timestamp(hdl.headers.get('last-modified')))
++		return hdl
++
++def _timestamp_to_http(timestamp):
++	dt = datetime.fromtimestamp(float(long(timestamp)+TIMESTAMP_TOLERANCE))
++	stamp = mktime(dt.timetuple())
++	return formatdate(timeval=stamp, localtime=False, usegmt=True)
++
++def _http_to_timestamp(http_datetime_string):
++	tuple = parsedate(http_datetime_string)
++	timestamp = mktime(tuple)
++	return str(long(timestamp))
++
++class CompressedResponseProcessor(urllib_request.HTTPBasicAuthHandler):
++	# Handler for compressed responses.
++
++	def http_request(self, req):
++		req.add_header('Accept-Encoding', 'bzip2,gzip,deflate')
++		return req
++	https_request = http_request
++
++	def http_response(self, req, response):
++		decompressed = None
++		if response.headers.get('content-encoding') == 'bzip2':
++			import bz2
++			decompressed = io.BytesIO(bz2.decompress(response.read()))
++		elif response.headers.get('content-encoding') == 'gzip':
++			from gzip import GzipFile
++			decompressed = GzipFile(fileobj=io.BytesIO(response.read()), mode='r')
++		elif response.headers.get('content-encoding') == 'deflate':
++			import zlib
++			try:
++				decompressed = io.BytesIO(zlib.decompress(response.read()))
++			except zlib.error: # they ignored RFC1950
++				decompressed = io.BytesIO(zlib.decompress(response.read(), -zlib.MAX_WBITS))
++		if decompressed:
++			old_response = response
++			response = urllib_request.addinfourl(decompressed, old_response.headers, old_response.url, old_response.code)
++			response.msg = old_response.msg
++		return response
++	https_response = http_response
+-- 
+1.7.8.6
+

@@ -203,9 +203,7 @@ src_prepare() {
 
 	# patches for more efficient binhost usage
 	cd "${S}"
-	epatch "${FILESDIR}"/0001-Use-If-Modified-Since-HTTP-header-and-avoid-download.patch
-	epatch "${FILESDIR}"/0002-Add-support-for-HTTP-compression-bzip2-gzip-and-defl.patch
-	epatch "${FILESDIR}"/0003-Fix-index-file-s-mtime-which-can-differ-from-TIMESTA.patch
+	epatch "${FILESDIR}"/${PN}-2.1.11.9-compression_and_remote_index.patch
 }
 
 src_compile() {
