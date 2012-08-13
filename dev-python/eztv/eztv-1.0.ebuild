@@ -9,7 +9,7 @@ inherit distutils
 
 DESCRIPTION="A python interface to eztv dot it"
 HOMEPAGE="http://hg.sobber.org/eztv"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="MIT"

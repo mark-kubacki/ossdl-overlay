@@ -3,8 +3,7 @@
 # $Header: $
 
 EAPI="3"
-WANT_AUTOCONF="latest"
-inherit autotools flag-o-matic
+inherit flag-o-matic
 
 DESCRIPTION="Data serialization and communication toolwork"
 HOMEPAGE="http://thrift.apache.org/about/"

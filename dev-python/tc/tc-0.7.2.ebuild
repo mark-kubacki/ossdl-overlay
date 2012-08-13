@@ -11,7 +11,7 @@ inherit distutils
 DESCRIPTION="Python bindings to the Tokyo Cabinet database library; clone of dev-db/pytc"
 HOMEPAGE="http://blog.hunch.se/2009/03/02-tokyo-cabinet-python-bindings
 	http://github.com/rsms/tc"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="BSD"

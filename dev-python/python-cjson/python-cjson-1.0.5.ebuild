@@ -12,7 +12,7 @@ inherit distutils eutils
 DESCRIPTION="Very fast JSON encoder/decoder for Python"
 HOMEPAGE="http://pypi.python.org/pypi/python-cjson/
 	http://ag-projects.com/"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="LGPL-2"

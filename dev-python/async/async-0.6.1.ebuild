@@ -22,8 +22,8 @@ DEPEND="dev-python/setuptools
 	${RDEPEND}"
 
 src_prepare() {
-        distutils_src_prepare
-        epatch "${FILESDIR}/${P}_libz_link.patch"
+	distutils_src_prepare
+	epatch "${FILESDIR}/${P}_libz_link.patch"
 }
 
 pkg_postinst() {

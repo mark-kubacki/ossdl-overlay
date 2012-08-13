@@ -3,16 +3,13 @@
 # $Header: $
 
 MY_EXTRAS_VER="20090504-1700Z"
-SERVER_URI="http://ftp.gwdg.de/pub/misc/mysql/Downloads/MySQL-${PV%.*}/mysql-${PV//_/-}.tar.gz"
+SERVER_URI="mirror://mysql/Downloads/MySQL-${PV%.*}/mysql-${PV//_/-}.tar.gz"
 PBXT_VERSION="1.5.02-beta"
 SPHINX_VERSION="2.0.1-beta"
 
 # REMEMBER: also update eclass/mysql*.eclass before committing!
 KEYWORDS="~alpha amd64 arm ~hppa ~ia64 ~ppc ~ppc64 ~s390 ~sh ~sparc ~sparc-fbsd x86 ~x86-fbsd"
 RESTRICT="primaryuri"
-
-WANT_AUTOCONF="latest"
-WANT_AUTOMAKE="latest"
 
 inherit eutils flag-o-matic gnuconfig autotools mysql_fx
 
@@ -538,7 +535,7 @@ src_install() {
 	fi
 
 	# Docs
-	dodoc README COPYING ChangeLog EXCEPTIONS-CLIENT INSTALL-SOURCE
+	dodoc README ChangeLog EXCEPTIONS-CLIENT INSTALL-SOURCE
 
 	# Minimal builds don't have the MySQL server
 	if ! use minimal ; then
@@ -746,12 +743,12 @@ src_test() {
 		local testopts="--force"
 
 		# sandbox make ndbd zombie
-		hasq "sandbox" ${FEATURES} && testopts="${testopts} --skip-ndb"
+		has "sandbox" ${FEATURES} && testopts="${testopts} --skip-ndb"
 
 		addpredict /this-dir-does-not-exist/t9.MYI
 
 		# mysqladmin start before dir creation
-		mkdir ${S}/mysql-test/var{,/log}
+		mkdir "${S}"/mysql-test/var{,/log}
 
 		if [[ ${UID} -eq 0 ]] ; then
 			mysql_disable_test  "im_cmd_line"          "fail as root"

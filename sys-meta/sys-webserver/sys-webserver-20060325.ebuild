@@ -19,7 +19,7 @@ RDEPEND="
 	net-www/mod_auth_mysql
 	=net-www/apache-2.0*
 	>=dev-python/mod_python-3.1.4
-	>=dev-lang/php-5.1*
+	>=dev-lang/php-5.1.0
 	net-ftp/vsftpd
 	=dev-vcs/subversion-1.2*
 	"

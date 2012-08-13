@@ -9,7 +9,7 @@ inherit distutils
 
 DESCRIPTION="A Python wrapper for Tokyo Cabinet database by Andy Mikhaylenko"
 HOMEPAGE="http://code.google.com/p/tokyo-python/"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="GPL"

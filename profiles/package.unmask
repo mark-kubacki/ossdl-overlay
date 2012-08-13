@@ -1,1 +1,2 @@
-=media-sound/teamspeak-server-bin-3.0.0
+=media-sound/teamspeak-server-bin-3.0*
+=www-servers/nginx-1.3*

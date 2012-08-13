@@ -2,8 +2,6 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-WANT_AUTOCONF="latest"
-
 inherit autotools eutils python flag-o-matic
 
 DESCRIPTION="Persistent distributed key-value data caching system."

@@ -11,7 +11,7 @@ inherit distutils eutils
 
 DESCRIPTION="Python bindings for the Apache Thrift RPC system"
 HOMEPAGE="http://thrift.apache.org/"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz -> python-${P}.tar.gz"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz -> python-${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="BSD"

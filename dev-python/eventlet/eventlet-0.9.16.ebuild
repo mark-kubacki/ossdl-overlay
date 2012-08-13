@@ -12,8 +12,7 @@ inherit distutils
 
 DESCRIPTION="Eventlet is a networking library featuring non-blocking io and using coroutines."
 HOMEPAGE="http://eventlet.net/"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
-RESTRICT="nomirror"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
 
 LICENSE="MIT"
 SLOT="0"

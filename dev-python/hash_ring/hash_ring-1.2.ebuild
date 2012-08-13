@@ -10,7 +10,7 @@ inherit distutils eutils
 
 DESCRIPTION="Implements consistent hashing in Python (using md5 as hashing function)."
 HOMEPAGE="http://pypi.python.org/pypi/hash_ring"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="BSD"

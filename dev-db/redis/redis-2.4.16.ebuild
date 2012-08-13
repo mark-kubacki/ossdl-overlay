@@ -1,13 +1,10 @@
 # Copyright 2010-2012 W-Mark Kubacki, Mao Pu
 # Distributed under the terms of the OSI Reciprocal Public License
-# $Header: $
 
+EAPI="4"
 # Dear Gentoo developer, you are not allowed to remove my copyright notice.
 # Please add it till Feb 2012 or I hereby forbid using my autoconf (etc.)
 # modifications in the ebuilds found in 'main tree'.
-
-EAPI="4"
-WANT_AUTOCONF="latest"
 
 inherit autotools eutils flag-o-matic
 
@@ -24,7 +21,7 @@ SLOT="0"
 RDEPEND=""
 DEPEND=">=sys-devel/autoconf-2.63
 	tcmalloc? ( dev-util/google-perftools )
-	jemalloc? ( =dev-libs/jemalloc-2* )
+	jemalloc? ( >=dev-libs/jemalloc-3.0.0 )
 	test? ( dev-lang/tcl )
 	${RDEPEND}"
 REQUIRED_USE="tcmalloc? ( !jemalloc )
@@ -55,8 +52,12 @@ pkg_setup() {
 src_prepare() {
 	epatch "${FILESDIR}/redis-2.4.3-shared.patch"
 	epatch "${FILESDIR}/redis-2.4.4-tcmalloc.patch"
+
+	# Someone at Gentoo's decided to change jemalloc's prefixes. Therefore:
 	if use jemalloc ; then
-		sed -i -e "s/je_/j/" src/zmalloc.c
+		local JEMALLOC_PREFIX=$(sed -n 's:^#define JEMALLOC_PREFIX "\(.*\)"$:\1:p' /usr/include/jemalloc/jemalloc_defs.h)
+		sed -i -e "s/je_/${JEMALLOC_PREFIX}/" src/zmalloc.c
+		sed -i -e "s/je_/${JEMALLOC_PREFIX}/" src/zmalloc.h
 	fi
 	# Unfortunately, redis-py does use the name "Redis" for its tarballs, too.
 	# Therefore, before wasting time on configuring, we have to rule out here
@@ -108,14 +109,14 @@ src_install() {
 		-e "/^logfile\>/s:stdout:${REDIS_LOGFILE}:" \
 		<redis.conf \
 		>redis.conf.gentoo
-        newins redis.conf.gentoo redis.conf
-        use prefix || fowners redis:redis /etc/redis.conf
+	newins redis.conf.gentoo redis.conf
+	use prefix || fowners redis:redis /etc/redis.conf
 	fperms 0644 /etc/redis.conf
 
 	newconfd "${FILESDIR}/redis.confd" redis
 	newinitd "${FILESDIR}/redis.initd-v2" redis
 
-	nonfatal dodoc 00-RELEASENOTES BUGS CONTRIBUTING COPYING README TODO
+	nonfatal dodoc 00-RELEASENOTES BUGS CONTRIBUTING COPYING README
 
 	dobin src/redis-cli
 	dosbin src/redis-benchmark src/redis-server src/redis-check-aof src/redis-check-dump

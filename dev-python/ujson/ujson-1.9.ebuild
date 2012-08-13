@@ -12,8 +12,7 @@ inherit distutils eutils
 DESCRIPTION="Very fast JSON encoder/decoder for Python"
 HOMEPAGE="https://github.com/esnme/ultrajson
 	http://www.esn.me/"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.zip"
-RESTRICT="primaryuri"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.zip"
 
 LICENSE="BSD"
 KEYWORDS="amd64 x86 arm"

@@ -3,7 +3,6 @@
 # $Header: $
 
 EAPI="2"
-WANT_AUTOCONF="latest"
 
 inherit autotools eutils flag-o-matic
 

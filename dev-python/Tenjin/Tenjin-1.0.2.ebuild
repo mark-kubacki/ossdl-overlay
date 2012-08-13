@@ -8,7 +8,7 @@ inherit distutils
 
 DESCRIPTION="A template engine based on embedded Python."
 HOMEPAGE="http://www.kuwata-lab.com/tenjin/"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="MIT"

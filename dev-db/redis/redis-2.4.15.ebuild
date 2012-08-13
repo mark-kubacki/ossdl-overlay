@@ -6,8 +6,6 @@ EAPI="4"
 # Please add it till Feb 2012 or I hereby forbid using my autoconf (etc.)
 # modifications in the ebuilds found in 'main tree'.
 
-WANT_AUTOCONF="latest"
-
 inherit autotools eutils flag-o-matic
 
 DESCRIPTION="A persistent caching system, key-value and data structures database."
@@ -111,8 +109,8 @@ src_install() {
 		-e "/^logfile\>/s:stdout:${REDIS_LOGFILE}:" \
 		<redis.conf \
 		>redis.conf.gentoo
-        newins redis.conf.gentoo redis.conf
-        use prefix || fowners redis:redis /etc/redis.conf
+	newins redis.conf.gentoo redis.conf
+	use prefix || fowners redis:redis /etc/redis.conf
 	fperms 0644 /etc/redis.conf
 
 	newconfd "${FILESDIR}/redis.confd" redis

@@ -7,7 +7,6 @@
 # modifications in the ebuilds found in 'main tree'.
 
 EAPI="4"
-WANT_AUTOCONF="latest"
 
 inherit autotools eutils flag-o-matic
 
@@ -113,8 +112,8 @@ src_install() {
 		-e "/^logfile\>/s:stdout:${REDIS_LOGFILE}:" \
 		<redis.conf \
 		>redis.conf.gentoo
-        newins redis.conf.gentoo redis.conf
-        use prefix || fowners redis:redis /etc/redis.conf
+	newins redis.conf.gentoo redis.conf
+	use prefix || fowners redis:redis /etc/redis.conf
 	fperms 0644 /etc/redis.conf
 
 	newconfd "${FILESDIR}/redis.confd" redis

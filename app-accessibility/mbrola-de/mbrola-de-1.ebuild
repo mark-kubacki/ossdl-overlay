@@ -2,24 +2,22 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-IUSE=""
+EAPI="2"
 
 VOICENO=6
-
-S=${WORKDIR}
-
 URL="http://tcts.fpms.ac.be/synthesis/mbrola"
 
 DESCRIPTION="de1 to de${VOICENO} mbrola voice libraries for Festival TTS"
-SRC_URI="${URL}/dba/de1/de1-980227.zip
-	 ${URL}/dba/de2/de2-990106.zip
-	 ${URL}/dba/de3/de3-000307.zip
-	 ${URL}/dba/de4/de4.zip
-	 ${URL}/dba/de5/de5.zip
-	 ${URL}/dba/de6/de6.zip
-	 ${URL}/dba/de7/de7.zip
-	 ${URL}/dba/de8/de8.zip"
-RESTRICT="nomirror"
+SRC_URI="${URL}/dba/de1/de1-980227.zip -> ${PN%-*}-de1-980227.zip
+	 ${URL}/dba/de2/de2-990106.zip -> ${PN%-*}-de2-990106.zip
+	 ${URL}/dba/de3/de3-000307.zip -> ${PN%-*}-de3-000307.zip
+	 ${URL}/dba/de4/de4.zip -> ${PN%-*}-de4.zip
+	 ${URL}/dba/de5/de5.zip -> ${PN%-*}-de5.zip
+	 ${URL}/dba/de6/de6.zip -> ${PN%-*}-de6.zip
+	 ${URL}/dba/de7/de7.zip -> ${PN%-*}-de7.zip
+	 ${URL}/dba/de8/de8.zip -> ${PN%-*}-de8.zip"
+RESTRICT="primaryuri"
+IUSE=""
 
 DEPEND=">=app-accessibility/festival-1.4.2
 	>=app-accessibility/mbrola-3
@@ -28,7 +26,8 @@ DEPEND=">=app-accessibility/festival-1.4.2
 
 SLOT="0"
 LICENSE="MBROLA"
-KEYWORDS="~x86"
+KEYWORDS="~x86 ~amd64 ~arm"
+S=${WORKDIR}
 
 src_compile() {
 	einfo "Only installing voices."

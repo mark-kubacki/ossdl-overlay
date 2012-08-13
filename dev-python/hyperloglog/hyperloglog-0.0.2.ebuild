@@ -12,7 +12,7 @@ inherit distutils eutils
 DESCRIPTION="Implementation of the Hyper LogLog cardinality counter algorithm"
 HOMEPAGE="http://pypi.python.org/pypi/hyperloglog
 	http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.76.4286"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="LGPL"

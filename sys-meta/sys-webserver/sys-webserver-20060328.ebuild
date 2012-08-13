@@ -15,7 +15,7 @@ RDEPEND="
 	>=virtual/mysql-5.0.18
 	>=net-www/apache-2.2.0
 	>=dev-python/mod_python-3.2.8
-	>=dev-lang/php-5.1*
+	>=dev-lang/php-5.1.0
 	net-ftp/vsftpd
 	>=dev-vcs/subversion-1.2.3
 	"

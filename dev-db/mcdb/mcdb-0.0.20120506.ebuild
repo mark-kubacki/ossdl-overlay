@@ -15,15 +15,13 @@ SLOT="0"
 KEYWORDS="~amd64 ~x86 ~arm"
 IUSE=""
 
-DEPEND="
-        "
-RDEPEND="${DEPEND}
-	"
+DEPEND=""
+RDEPEND="${DEPEND}"
 
 S="${WORKDIR}/${PN}"
 
 src_compile() {
-	emake PREFIX=${D} PREFIX_USR=${D}/usr/
+	emake PREFIX="${D}" PREFIX_USR="${D}"/usr/
 }
 
 src_test() {
@@ -31,5 +29,5 @@ src_test() {
 }
 
 src_install() {
-	emake install PREFIX=${D}/usr/ PREFIX_USR=${D}/usr/
+	emake install PREFIX="${D}"/usr/ PREFIX_USR="${D}"/usr/
 }

@@ -1,4 +1,4 @@
-# Copyright 2007 Ossdl.de, Hurrikane Systems
+# Copyright 2007-2012 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -6,7 +6,7 @@ inherit eutils webapp
 
 DESCRIPTION="Administration interface for mailservers based on Cyrus and any MTA."
 SRC_URI="http://static.ossdl.de/openmailadmin/downloads/${PN}-${PV}.tbz2"
-HOMEPAGE="http://openmailadmin.ossdl.de/"
+HOMEPAGE="http://github.com/wmark/openmailadmin"
 RESTRICT="nomirror"
 
 LICENSE="GPL-2"
@@ -17,7 +17,7 @@ DEPEND="
         pam? ( || (
                 mysql?          ( >=sys-auth/pam_mysql-0.7_rc1 )
                 mysqli?         ( >=sys-auth/pam_mysql-0.7_rc1 )
-        ))
+        ) )
         "
 RDEPEND="${DEPEND}
 	virtual/httpd-php

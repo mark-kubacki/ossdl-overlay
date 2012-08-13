@@ -11,8 +11,7 @@ inherit distutils eutils
 DESCRIPTION="Cross-platform colored terminal text library"
 HOMEPAGE="http://code.google.com/p/colorama
 	http://pypi.python.org/pypi/colorama"
-SRC_URI="http://pypi.python.org/packages/source/${PN:0:1}/${PN}/${P}.tar.gz"
-RESTRICT="primaryuri"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
 
 LICENSE="BSD"
 KEYWORDS="amd64 x86 arm sparc"
