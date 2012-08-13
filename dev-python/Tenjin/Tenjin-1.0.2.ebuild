@@ -1,9 +1,8 @@
 # Copyright 2010-2011 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
-# $Header:  $
 
-PYTHON_DEPEND="*:2.4:3.2"
 EAPI="3"
+PYTHON_DEPEND="*:2.4:3.2"
 
 inherit distutils
 

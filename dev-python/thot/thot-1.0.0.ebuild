@@ -1,9 +1,8 @@
 # Copyright 2010-2012 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
-# $Header: $
 
+EAPI="3"
 PYTHON_DEPEND="2:2.6:2.7"
-EAPI=3
 
 inherit distutils eutils
 
