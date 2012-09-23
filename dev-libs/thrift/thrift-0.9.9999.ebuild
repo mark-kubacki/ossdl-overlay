@@ -1,4 +1,4 @@
-# Copyright 2012 Vitaly Repin 
+# Copyright 2012 W-Mark Kubacki, Vitaly Repin
 # Distributed under the terms of the OSI Reciprocal Public License
 # $Header: $
 
@@ -11,7 +11,7 @@ ESVN_REPO_URI="http://svn.apache.org/repos/asf/thrift/trunk/"
 
 LICENSE="Apache-2.0"
 SLOT="0"
-KEYWORDS="amd64 ~arm x86"
+KEYWORDS="~amd64 ~arm ~x86"
 IUSE="+pic cpp c_glib csharp java erlang python perl php php_extension ruby haskell go"
 
 RDEPEND=">=dev-libs/boost-1.34.0
@@ -66,6 +66,7 @@ src_configure() {
 	# This flags either result in compilation errors
 	# or byzantine runtime behaviour.
 	filter-flags -fwhole-program -fwhopr
+
 	econf \
 		${myconf}
 }
@@ -82,4 +83,3 @@ src_compile() {
 src_install() {
 	emake DESTDIR="${D}" install || die "emake install failed"
 }
-
