@@ -11,7 +11,6 @@ EAPI="4"
 #   * alive upstream
 #   * sane packaging
 #   * builds cleanly
-# - TODO: test the google-perftools module (included in vanilla tarball)
 
 # prevent perl-module from adding automagic perl DEPENDs
 GENTOO_DEPEND_ON_PERL="no"
@@ -32,7 +31,7 @@ HTTP_HEADERS_MORE_MODULE_URI="http://github.com/agentzh/headers-more-nginx-modul
 # TODO: currently builds some stuff in src_configure
 # Please report runtime and compilation errors to Mark <wmark@hurrikane.de>
 PASSENGER_PV="3.0.17"
-USE_RUBY="ruby18 ree18 ruby19 jruby"
+USE_RUBY="ruby18 ree18 ruby19"
 RUBY_OPTIONAL="yes"
 
 # http_redis (http://wiki.nginx.org/HttpRedis)
@@ -365,7 +364,7 @@ src_install() {
 	doins conf/*
 
 	doman man/nginx.8
-	dodoc CHANGES* README
+	nonfatal dodoc CHANGES* README
 
 	# logrotate
 	insinto /etc/logrotate.d
@@ -379,22 +378,22 @@ src_install() {
 
 	if use nginx_modules_http_push; then
 		docinto ${HTTP_PUSH_MODULE_P}
-		dodoc "${WORKDIR}"/${HTTP_PUSH_MODULE_P}/{changelog.txt,protocol.txt,README}
+		nonfatal dodoc "${WORKDIR}"/${HTTP_PUSH_MODULE_P}/{changelog.txt,protocol.txt,README}
 	fi
 
 	if use nginx_modules_http_cache_purge; then
 		docinto ${HTTP_CACHE_PURGE_MODULE_P}
-		dodoc "${WORKDIR}"/${HTTP_CACHE_PURGE_MODULE_P}/{CHANGES,README}
+		nonfatal dodoc "${WORKDIR}"/${HTTP_CACHE_PURGE_MODULE_P}/{CHANGES,README.md}
 	fi
 
 	if use nginx_modules_http_upload; then
 		docinto ${HTTP_UPLOAD_MODULE_P}
-		dodoc "${WORKDIR}"/${HTTP_UPLOAD_MODULE_P}/{Changelog,README}
+		nonfatal dodoc "${WORKDIR}"/${HTTP_UPLOAD_MODULE_P}/{Changelog,README}
 	fi
 
 	if use nginx_modules_http_slowfs_cache; then
 		docinto ${HTTP_SLOWFS_CACHE_MODULE_P}
-		dodoc "${WORKDIR}"/${HTTP_SLOWFS_CACHE_MODULE_P}/{CHANGES,README}
+		nonfatal dodoc "${WORKDIR}"/${HTTP_SLOWFS_CACHE_MODULE_P}/{CHANGES,README}
 	fi
 
 	if use nginx_modules_http_passenger; then
@@ -402,12 +401,15 @@ src_install() {
 		# manually
 		cd "${WORKDIR}"/passenger-${PASSENGER_PV}
 
-		export RUBY="ruby18"
+		for RUBY in $(ruby_get_use_implementations); do
+			# odd: on some machines the above variable-assignment isn't sufficient
+			export RUBY="${RUBY}"
 
-		insinto $(${RUBY} -rrbconfig -e 'print Config::CONFIG["archdir"]')
-		insopts -m 0755
-		doins ext/ruby/*/passenger_native_support.so
-		doruby -r lib/phusion_passenger lib/phusion_passenger.rb
+			insinto $(${RUBY} -rrbconfig -e 'print Config::CONFIG["archdir"]')
+			insopts -m 0755
+			doins ext/ruby/*/passenger_native_support.so
+			doruby -r lib/phusion_passenger lib/phusion_passenger.rb
+		done
 
 		exeinto /usr/bin
 		doexe bin/passenger-memory-stats bin/passenger-status
