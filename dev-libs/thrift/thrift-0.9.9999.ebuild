@@ -3,7 +3,7 @@
 # $Header: $
 
 EAPI="3"
-inherit autotools eutils subversion flag-o-matic
+inherit autotools eutils subversion flag-o-matic autotools
 
 DESCRIPTION="Data serialization and communication toolwork"
 HOMEPAGE="http://thrift.apache.org/about/"
@@ -14,7 +14,7 @@ SLOT="0"
 KEYWORDS="~amd64 ~arm ~x86"
 IUSE="+pic cpp c_glib csharp java erlang python perl php php_extension ruby haskell go"
 
-RDEPEND=">=dev-libs/boost-1.34.0
+RDEPEND=">=dev-libs/boost-1.40.0
 	virtual/yacc
 	sys-devel/flex
 	dev-libs/openssl
@@ -32,7 +32,7 @@ RDEPEND=">=dev-libs/boost-1.34.0
 	)
 	erlang? ( >=dev-lang/erlang-12.0.0 )
 	python? (
-		>=dev-lang/python-2.4.0
+		>=dev-lang/python-2.6.0
 		!dev-python/thrift
 	)
 	perl? (
@@ -47,14 +47,17 @@ RDEPEND=">=dev-libs/boost-1.34.0
 	go? ( sys-devel/gcc[go] )
 	"
 DEPEND="${RDEPEND}
-	>=sys-devel/gcc-3.3.5
+	>=sys-devel/gcc-4.2.0
 	c_glib? ( dev-libs/glib )
+	=sys-devel/libtool-1.5.24*
 	"
 
 S="${WORKDIR}/${P/_beta[0-9]/}"
 
 src_prepare() {
-    ./bootstrap.sh
+	sh bootstrap.sh || die "bootstrap failed"
+	eautoreconf
+	elibtoolize
 }
 
 src_configure() {
@@ -68,6 +71,7 @@ src_configure() {
 	filter-flags -fwhole-program -fwhopr
 
 	econf \
+		--enable-libtool-lock \
 		${myconf}
 }
 
