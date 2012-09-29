@@ -354,14 +354,25 @@ src_install() {
 	keepdir /var/www/localhost/htdocs
 
 	dosbin objs/nginx
-	newinitd "${FILESDIR}"/nginx.init-r2 nginx
+	newinitd "${FILESDIR}"/nginx.init-r3 nginx
 
-	cp "${FILESDIR}"/nginx.conf-r4 conf/nginx.conf
+	cp "${FILESDIR}"/nginx.conf-r5 conf/nginx.conf
 	rm conf/win-utf conf/koi-win conf/koi-utf
 
 	dodir /etc/${PN}
 	insinto /etc/${PN}
 	doins conf/*
+
+	dodir /etc/${PN}/vhosts.d
+	insinto /etc/${PN}/vhosts.d
+	doins "${FILESDIR}"/99_localhost.conf
+
+	dodir /etc/${PN}/modules.d
+	insinto /etc/${PN}/modules.d
+	use http_gzip		&& doins "${FILESDIR}"/01_gzip.conf
+	use http_geoip		&& doins "${FILESDIR}"/05_geoip.conf
+	use http_proxy		&& doins "${FILESDIR}"/05_proxy.conf
+	use http_browser	&& doins "${FILESDIR}"/07_browser.conf
 
 	doman man/nginx.8
 	nonfatal dodoc CHANGES* README
