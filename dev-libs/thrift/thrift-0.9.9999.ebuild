@@ -5,13 +5,16 @@
 EAPI="3"
 inherit autotools eutils subversion flag-o-matic autotools
 
+LIBTOOL_PV="2.4"
+
 DESCRIPTION="Data serialization and communication toolwork"
 HOMEPAGE="http://thrift.apache.org/about/"
 ESVN_REPO_URI="http://svn.apache.org/repos/asf/thrift/trunk/"
+SRC_URI="mirror://gnu/libtool/libtool-${LIBTOOL_PV}.tar.xz"
 
 LICENSE="Apache-2.0"
 SLOT="0"
-KEYWORDS="~amd64 ~arm ~x86"
+KEYWORDS=""
 IUSE="+pic cpp c_glib csharp java erlang python perl php php_extension ruby haskell go"
 
 RDEPEND=">=dev-libs/boost-1.40.0
@@ -49,15 +52,34 @@ RDEPEND=">=dev-libs/boost-1.40.0
 DEPEND="${RDEPEND}
 	>=sys-devel/gcc-4.2.0
 	c_glib? ( dev-libs/glib )
-	=sys-devel/libtool-1.5.24*
 	"
 
 S="${WORKDIR}/${P/_beta[0-9]/}"
+S_LIBTOOL="${WORKDIR}/libtool-${LIBTOOL_PV}"
+LIBTOOL_D="${WORKDIR}/local/usr"
+
+src_unpack() {
+	subversion_src_unpack
+	unpack ${A}
+}
 
 src_prepare() {
-	sh bootstrap.sh || die "bootstrap failed"
-	eautoreconf
-	elibtoolize
+	# this is for the specific libtool version which thrift relies on
+	cd "$S_LIBTOOL"
+	econf --disable-static --prefix="$LIBTOOL_D"
+	emake
+	emake DESTDIR="$LIBTOOL_D" install
+	LIBTOOL_REAL_D=$(dirname $(find "$LIBTOOL_D" -name 'libtoolize' | head -n 1))
+	mv "${LIBTOOL_REAL_D}"/../include "${LIBTOOL_REAL_D}"/../lib* "${LIBTOOL_REAL_D}" "${LIBTOOL_D}/"
+	mv "${LIBTOOL_D}"/usr/* "${LIBTOOL_D}"/
+	rm -r "${LIBTOOL_D}"/usr "${LIBTOOL_D}"/tmp
+	sed -i	-e "s:/usr/share:${LIBTOOL_D}/share:g" "${LIBTOOL_D}"/bin/libtoolize
+
+	# now comes thrift
+	cd "$S"
+	PATH="${LIBTOOL_D}/bin:${PATH}" sh bootstrap.sh || die "bootstrap failed"
+#	PATH="${LIBTOOL_D}/bin:${PATH}" eautoreconf
+	PATH="${LIBTOOL_D}/bin:${PATH}" elibtoolize
 }
 
 src_configure() {
@@ -70,7 +92,7 @@ src_configure() {
 	# or byzantine runtime behaviour.
 	filter-flags -fwhole-program -fwhopr
 
-	econf \
+	PATH="${LIBTOOL_D}/bin:${PATH}" econf \
 		--enable-libtool-lock \
 		${myconf}
 }
@@ -78,9 +100,9 @@ src_configure() {
 src_compile() {
 	if use cpp; then
 		# -jx fails for x > 1 with use cpp
-		emake -j1 || die "emake install failed"
+		PATH="${LIBTOOL_D}/bin:${PATH}" emake -j1 || die "emake install failed"
 	else
-		emake || die "emake install failed"
+		PATH="${LIBTOOL_D}/bin:${PATH}" emake || die "emake install failed"
 	fi
 }
 
