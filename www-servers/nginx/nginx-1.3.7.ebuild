@@ -1,7 +1,6 @@
 # Copyright 1999-2011 Gentoo Foundation
 # Copyright 2011-2012 W-Mark Kubacki
 # Distributed under the terms of the OSI Reciprocal Public License
-# $Header: $
 
 EAPI="4"
 
@@ -12,7 +11,6 @@ EAPI="4"
 #   * alive upstream
 #   * sane packaging
 #   * builds cleanly
-# - TODO: test the google-perftools module (included in vanilla tarball)
 
 # prevent perl-module from adding automagic perl DEPENDs
 GENTOO_DEPEND_ON_PERL="no"
@@ -24,16 +22,16 @@ HTTP_UPLOAD_PROGRESS_MODULE_SHA1="a788dea"
 HTTP_UPLOAD_PROGRESS_MODULE_URI="http://github.com/masterzen/nginx-upload-progress-module/tarball/v${HTTP_UPLOAD_PROGRESS_MODULE_PV}"
 
 # http_headers_more (http://github.com/agentzh/headers-more-nginx-module, BSD license)
-HTTP_HEADERS_MORE_MODULE_PV="0.16"
+HTTP_HEADERS_MORE_MODULE_PV="0.18"
 HTTP_HEADERS_MORE_MODULE_P="ngx-http-headers-more-${HTTP_HEADERS_MORE_MODULE_PV}"
-HTTP_HEADERS_MORE_MODULE_SHA1="de77fd2"
+HTTP_HEADERS_MORE_MODULE_SHA1="6586984"
 HTTP_HEADERS_MORE_MODULE_URI="http://github.com/agentzh/headers-more-nginx-module/tarball/v${HTTP_HEADERS_MORE_MODULE_PV}"
 
 # http_passenger (http://www.modrails.com/, MIT license)
 # TODO: currently builds some stuff in src_configure
 # Please report runtime and compilation errors to Mark <wmark@hurrikane.de>
-PASSENGER_PV="3.0.12"
-USE_RUBY="ruby18 ree18 ruby19 jruby"
+PASSENGER_PV="3.0.17"
+USE_RUBY="ruby18 ree18 ruby19"
 RUBY_OPTIONAL="yes"
 
 # http_redis (http://wiki.nginx.org/HttpRedis)
@@ -45,7 +43,7 @@ HTTP_PUSH_MODULE_P="nginx_http_push_module-${HTTP_PUSH_MODULE_PV}"
 HTTP_PUSH_MODULE_URI="http://pushmodule.slact.net/downloads/${HTTP_PUSH_MODULE_P}.tar.gz"
 
 # http_cache_purge (http://labs.frickle.com/nginx_ngx_cache_purge/, BSD-2 license)
-HTTP_CACHE_PURGE_MODULE_PV="1.5"
+HTTP_CACHE_PURGE_MODULE_PV="1.6"
 HTTP_CACHE_PURGE_MODULE_P="ngx_cache_purge-${HTTP_CACHE_PURGE_MODULE_PV}"
 HTTP_CACHE_PURGE_MODULE_URI="http://labs.frickle.com/files/${HTTP_CACHE_PURGE_MODULE_P}.tar.gz"
 
@@ -56,7 +54,7 @@ HTTP_UPLOAD_MODULE_P="nginx_upload_module-${HTTP_UPLOAD_MODULE_PV}"
 HTTP_UPLOAD_MODULE_URI="http://www.grid.net.ru/nginx/download/${HTTP_UPLOAD_MODULE_P}.tar.gz"
 
 # http_slowfs_cache (http://labs.frickle.com/nginx_ngx_slowfs_cache/, BSD-2 license)
-HTTP_SLOWFS_CACHE_MODULE_PV="1.8"
+HTTP_SLOWFS_CACHE_MODULE_PV="1.9"
 HTTP_SLOWFS_CACHE_MODULE_P="ngx_slowfs_cache-${HTTP_SLOWFS_CACHE_MODULE_PV}"
 HTTP_SLOWFS_CACHE_MODULE_URI="http://labs.frickle.com/files/${HTTP_SLOWFS_CACHE_MODULE_P}.tar.gz"
 
@@ -65,12 +63,8 @@ HTTP_CONCAT_MODULE_PV="1.2.2"
 HTTP_CONCAT_MODULE_P="nginx-http-concat-${HTTP_CONCAT_MODULE_PV}"
 HTTP_CONCAT_MODULE_URI="http://binhost.ossdl.de/distfiles/${HTTP_CONCAT_MODULE_P}.tbz2"
 
-# http_gunzip (http://mdounin.ru/hg/ngx_http_gunzip_filter_module/)
-HTTP_GUNZIP_MODULE_PV="0.4"
-HTTP_GUNZIP_MODULE_P="ngx_http_gunzip_filter_module-${HTTP_GUNZIP_MODULE_PV}"
-HTTP_GUNZIP_MODULE_HASH="93115aab4c92"
-HTTP_GUNZIP_MODULE_S="ngx_http_gunzip_filter_module-${HTTP_GUNZIP_MODULE_HASH}"
-HTTP_GUNZIP_MODULE_URI="http://mdounin.ru/hg/ngx_http_gunzip_filter_module/archive/${HTTP_GUNZIP_MODULE_HASH}.tar.gz"
+# experimental SPDY support
+SPDY_PATCH_VER="52"
 
 inherit eutils ssl-cert toolchain-funcs perl-module ruby-ng flag-o-matic
 
@@ -86,7 +80,7 @@ SRC_URI="http://nginx.org/download/${P}.tar.gz
 	nginx_modules_http_upload? ( ${HTTP_UPLOAD_MODULE_URI} )
 	nginx_modules_http_slowfs_cache? ( ${HTTP_SLOWFS_CACHE_MODULE_URI} )
 	nginx_modules_http_concat? ( ${HTTP_CONCAT_MODULE_URI} )
-	nginx_modules_http_gunzip? ( ${HTTP_GUNZIP_MODULE_URI} -> ${HTTP_GUNZIP_MODULE_P}.tar.gz )
+	nginx_modules_http_spdy? ( http://nginx.org/patches/spdy/patch.spdy-${SPDY_PATCH_VER}.txt )
 	"
 RESTRICT="primaryuri"
 
@@ -97,12 +91,11 @@ KEYWORDS="amd64 ~ppc ~sparc x86 arm ~x86-fbsd"
 NGINX_MODULES_STD="access auth_basic autoindex browser charset empty_gif fastcgi
 geo gzip limit_req limit_zone map memcached proxy referer rewrite scgi ssi
 split_clients upstream_ip_hash userid uwsgi"
-NGINX_MODULES_OPT="addition dav degradation flv geoip gzip_static image_filter
+NGINX_MODULES_OPT="addition dav degradation flv geoip gunzip gzip_static image_filter
 mp4 perl random_index realip secure_link stub_status sub xslt"
 NGINX_MODULES_MAIL="imap pop3 smtp"
 NGINX_MODULES_3RD="
 	http_concat
-	http_gunzip
 	http_upload_progress
 	http_headers_more
 	http_passenger
@@ -111,6 +104,7 @@ NGINX_MODULES_3RD="
 	http_cache_purge
 	http_upload
 	http_slowfs_cache
+	http_spdy
 	"
 
 IUSE="aio debug +http +http-cache ipv6 libatomic +pcre ssl vim-syntax"
@@ -150,7 +144,8 @@ CDEPEND="
 		>=dev-ruby/fastthread-1.0.1
 		>=dev-ruby/rack-1.0.0
 		dev-libs/libev
-	)"
+	)
+	nginx_modules_http_spdy? ( >=dev-libs/openssl-1.0.1 )"
 RDEPEND="${CDEPEND}"
 DEPEND="${CDEPEND}
 	arm? ( dev-libs/libatomic_ops )
@@ -158,6 +153,8 @@ DEPEND="${CDEPEND}
 	libatomic? ( dev-libs/libatomic_ops )"
 PDEPEND="vim-syntax? ( app-vim/nginx-syntax )"
 S="${WORKDIR}/${P}"
+
+REQUIRED_USE="nginx_modules_http_spdy? ( ssl http )"
 
 pkg_setup() {
 	ebegin "Creating nginx user and group"
@@ -195,7 +192,12 @@ src_unpack() {
 }
 
 src_prepare() {
+	epatch "${FILESDIR}/nginx-1.3.4-if_modified_since.patch"
 	epatch "${FILESDIR}/nginx-1.1.5-zero_filesize_check.patch"
+	if use nginx_modules_http_spdy; then
+		epatch "${DISTDIR}/patch.spdy-${SPDY_PATCH_VER}.txt"
+		ewarn "SPDY support is not mature, yet. Use with caution."
+	fi
 
 	sed -i 's/ make/ \\$(MAKE)/' "${S}"/auto/lib/perl/make
 	sed -i 's/1001011/1001012/' "${S}"/src/core/nginx.h
@@ -288,11 +290,6 @@ src_configure() {
 		myconf+=" --add-module=${WORKDIR}/${HTTP_CONCAT_MODULE_P}"
 	fi
 
-	if use nginx_modules_http_gunzip; then
-		http_enabled=1
-		myconf+=" --add-module=${WORKDIR}/${HTTP_GUNZIP_MODULE_S}"
-	fi
-
 	if use http || use http-cache; then
 		http_enabled=1
 	fi
@@ -357,17 +354,28 @@ src_install() {
 	keepdir /var/www/localhost/htdocs
 
 	dosbin objs/nginx
-	newinitd "${FILESDIR}"/nginx.init-r2 nginx
+	newinitd "${FILESDIR}"/nginx.init-r3 nginx
 
-	cp "${FILESDIR}"/nginx.conf-r4 conf/nginx.conf
+	cp "${FILESDIR}"/nginx.conf-r5 conf/nginx.conf
 	rm conf/win-utf conf/koi-win conf/koi-utf
 
 	dodir /etc/${PN}
 	insinto /etc/${PN}
 	doins conf/*
 
+	dodir /etc/${PN}/vhosts.d
+	insinto /etc/${PN}/vhosts.d
+	doins "${FILESDIR}"/99_localhost.conf
+
+	dodir /etc/${PN}/modules.d
+	insinto /etc/${PN}/modules.d
+	use nginx_modules_http_gzip	&& doins "${FILESDIR}"/01_gzip.conf
+	use nginx_modules_http_geoip	&& doins "${FILESDIR}"/05_geoip.conf
+	use nginx_modules_http_proxy	&& doins "${FILESDIR}"/05_proxy.conf
+	use nginx_modules_http_browser	&& doins "${FILESDIR}"/07_browser.conf
+
 	doman man/nginx.8
-	dodoc CHANGES* README
+	nonfatal dodoc CHANGES* README
 
 	# logrotate
 	insinto /etc/logrotate.d
@@ -381,22 +389,22 @@ src_install() {
 
 	if use nginx_modules_http_push; then
 		docinto ${HTTP_PUSH_MODULE_P}
-		dodoc "${WORKDIR}"/${HTTP_PUSH_MODULE_P}/{changelog.txt,protocol.txt,README}
+		nonfatal dodoc "${WORKDIR}"/${HTTP_PUSH_MODULE_P}/{changelog.txt,protocol.txt,README}
 	fi
 
 	if use nginx_modules_http_cache_purge; then
 		docinto ${HTTP_CACHE_PURGE_MODULE_P}
-		dodoc "${WORKDIR}"/${HTTP_CACHE_PURGE_MODULE_P}/{CHANGES,README}
+		nonfatal dodoc "${WORKDIR}"/${HTTP_CACHE_PURGE_MODULE_P}/{CHANGES,README.md}
 	fi
 
 	if use nginx_modules_http_upload; then
 		docinto ${HTTP_UPLOAD_MODULE_P}
-		dodoc "${WORKDIR}"/${HTTP_UPLOAD_MODULE_P}/{Changelog,README}
+		nonfatal dodoc "${WORKDIR}"/${HTTP_UPLOAD_MODULE_P}/{Changelog,README}
 	fi
 
 	if use nginx_modules_http_slowfs_cache; then
 		docinto ${HTTP_SLOWFS_CACHE_MODULE_P}
-		dodoc "${WORKDIR}"/${HTTP_SLOWFS_CACHE_MODULE_P}/{CHANGES,README}
+		nonfatal dodoc "${WORKDIR}"/${HTTP_SLOWFS_CACHE_MODULE_P}/{CHANGES,README}
 	fi
 
 	if use nginx_modules_http_passenger; then
@@ -404,12 +412,15 @@ src_install() {
 		# manually
 		cd "${WORKDIR}"/passenger-${PASSENGER_PV}
 
-		export RUBY="ruby18"
+		for RUBY in $(ruby_get_use_implementations); do
+			# odd: on some machines the above variable-assignment isn't sufficient
+			export RUBY="${RUBY}"
 
-		insinto $(${RUBY} -rrbconfig -e 'print Config::CONFIG["archdir"]')
-		insopts -m 0755
-		doins ext/ruby/*/passenger_native_support.so
-		doruby -r lib/phusion_passenger lib/phusion_passenger.rb
+			insinto $(${RUBY} -rrbconfig -e 'print Config::CONFIG["archdir"]')
+			insopts -m 0755
+			doins ext/ruby/*/passenger_native_support.so
+			doruby -r lib/phusion_passenger lib/phusion_passenger.rb
+		done
 
 		exeinto /usr/bin
 		doexe bin/passenger-memory-stats bin/passenger-status
