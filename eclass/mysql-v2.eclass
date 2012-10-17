@@ -602,7 +602,11 @@ mysql-v2_pkg_config() {
 	help_tables="${TMPDIR}/fill_help_tables.sql"
 
 	pushd "${TMPDIR}" &>/dev/null
-	"${EROOT}/usr/bin/mysql_install_db" "--basedir=${EPREFIX}/usr" >"${TMPDIR}"/mysql_install_db.log 2>&1
+	if [ -x "${EROOT}/usr/bin/mysql_install_db" ]; then
+		"${EROOT}/usr/bin/mysql_install_db" "--basedir=${EPREFIX}/usr" >"${TMPDIR}"/mysql_install_db.log 2>&1
+	else
+		"${EROOT}/usr/share/mysql/scripts/mysql_install_db" "--basedir=${EPREFIX}/usr" >"${TMPDIR}"/mysql_install_db.log 2>&1
+	fi
 	if [ $? -ne 0 ]; then
 		grep -B5 -A999 -i "ERROR" "${TMPDIR}"/mysql_install_db.log 1>&2
 		die "Failed to run mysql_install_db. Please review ${EPREFIX}/var/log/mysql/mysqld.err AND ${TMPDIR}/mysql_install_db.log"
