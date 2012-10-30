@@ -20,6 +20,7 @@ sci-libs
 sys-apps
 sys-auth
 sys-meta
+www-apache
 www-apps
 www-misc
 www-servers
