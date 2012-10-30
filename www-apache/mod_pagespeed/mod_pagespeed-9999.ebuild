@@ -1,8 +1,8 @@
 # Copyright 1999-2010 Gentoo Foundation
+# Copyright 2012 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
-# $Header: $
 
-EAPI="2"
+EAPI="4"
 
 inherit apache-module eutils subversion
 
@@ -14,17 +14,20 @@ EGCLIENT_REPO_URI="http://src.chromium.org/svn/trunk/tools/depot_tools"
 
 LICENSE="Apache-2.0"
 SLOT="0"
-KEYWORDS="~amd64"
+KEYWORDS="~amd64 ~x86 ~arm"
 IUSE=""
 
-DEPEND="dev-vcs/subversion"
-RDEPEND="www-servers/apache"
+DEPEND="dev-vcs/subversion
+	>=sys-devel/gcc-4.1.0[cxx]
+	>=dev-lang/python-2.6.0[threads]
+	dev-util/gperf"
+RDEPEND=">=www-servers/apache-2.2.0"
 
 APACHE2_MOD_FILE="${S}/out/Release/${PN}.so"
 APACHE2_MOD_CONF="80_${PN//-/_}"
 APACHE2_MOD_DEFINE="PAGESPEED"
 
-need_apache2_2
+need_apache2
 
 src_unpack() {
 	# all the dirty job in WORKDIR
