@@ -1,0 +1,87 @@
+diff -uNr rtorrent-0.9.2.orig/src/command_dynamic.cc rtorrent-0.9.2/src/command_dynamic.cc
+--- rtorrent-0.9.2.orig/src/command_dynamic.cc	2012-03-20 17:25:05.000000000 +0100
++++ rtorrent-0.9.2/src/command_dynamic.cc	2012-10-24 13:46:38.683880926 +0200
+@@ -147,8 +147,7 @@
+ 
+   if (!(flags & rpc::object_storage::flag_static))
+     cmd_flags |= rpc::CommandMap::flag_modifiable;
+-  if (!(flags & rpc::object_storage::flag_private))
+-    cmd_flags |= rpc::CommandMap::flag_public_xmlrpc;
++  cmd_flags |= rpc::CommandMap::flag_public_xmlrpc;
+ 
+   control->object_storage()->insert_str(rawKey, value, flags);
+ 
+@@ -245,8 +244,7 @@
+ 
+   const std::string& options = itrArgs->as_string();
+ 
+-  if (options.find("private") != std::string::npos)
+-    flags &= ~rpc::CommandMap::flag_public_xmlrpc;
++  flags &= ~rpc::CommandMap::flag_public_xmlrpc;
+   if (options.find("const") != std::string::npos)
+     flags &= ~rpc::CommandMap::flag_modifiable;
+ 
+@@ -259,8 +257,6 @@
+ 
+     if (options.find("static") != std::string::npos)
+       new_flags |= rpc::object_storage::flag_static;
+-    if (options.find("private") != std::string::npos)
+-      new_flags |= rpc::object_storage::flag_private;
+     if (options.find("const") != std::string::npos)
+       new_flags |= rpc::object_storage::flag_constant;
+     if (options.find("rlookup") != std::string::npos)
+@@ -277,8 +273,6 @@
+ 
+     if (options.find("static") != std::string::npos)
+       new_flags |= rpc::object_storage::flag_static;
+-    if (options.find("private") != std::string::npos)
+-      new_flags |= rpc::object_storage::flag_private;
+     if (options.find("const") != std::string::npos)
+       new_flags |= rpc::object_storage::flag_constant;
+ 
+@@ -312,8 +306,6 @@
+ 
+     if (options.find("static") != std::string::npos)
+       new_flags |= rpc::object_storage::flag_static;
+-    if (options.find("private") != std::string::npos)
+-      new_flags |= rpc::object_storage::flag_private;
+     if (options.find("const") != std::string::npos)
+       new_flags |= rpc::object_storage::flag_constant;
+ 
+diff -uNr rtorrent-0.9.2.orig/src/core/dht_manager.cc rtorrent-0.9.2/src/core/dht_manager.cc
+--- rtorrent-0.9.2.orig/src/core/dht_manager.cc	2012-03-13 13:10:49.000000000 +0100
++++ rtorrent-0.9.2/src/core/dht_manager.cc	2012-10-24 13:42:19.813881004 +0200
+@@ -193,7 +193,7 @@
+     DownloadList::const_iterator itr, end;
+ 
+     for (itr = control->core()->download_list()->begin(), end = control->core()->download_list()->end(); itr != end; ++itr)
+-      if ((*itr)->download()->info()->is_active() && !(*itr)->download()->info()->is_private())
++      if ((*itr)->download()->info()->is_active())
+         break;
+       
+     if (itr == end) {
+diff -uNr rtorrent-0.9.2.orig/src/core/download_list.cc rtorrent-0.9.2/src/core/download_list.cc
+--- rtorrent-0.9.2.orig/src/core/download_list.cc	2012-02-22 08:50:48.000000000 +0100
++++ rtorrent-0.9.2/src/core/download_list.cc	2012-10-24 13:41:05.693880995 +0200
+@@ -408,8 +408,7 @@
+     }
+ 
+     // If the DHT server is set to auto, start it now.
+-    if (!download->download()->info()->is_private())
+-      control->dht_manager()->auto_start();
++    control->dht_manager()->auto_start();
+ 
+     // Update the priority to ensure it has the correct
+     // seeding/unfinished modifiers.
+diff -uNr rtorrent-0.9.2.orig/src/ui/download.cc rtorrent-0.9.2/src/ui/download.cc
+--- rtorrent-0.9.2.orig/src/ui/download.cc	2012-01-19 11:18:01.000000000 +0100
++++ rtorrent-0.9.2/src/ui/download.cc	2012-10-24 13:43:35.613881287 +0200
+@@ -164,7 +164,7 @@
+   element->push_column("Chunks:",           te_command("cat=(d.completed_chunks),\" / \",(d.size_chunks),\" * \",(d.chunk_size),\" (\",(d.wanted_chunks),\")\""));
+   element->push_column("Priority:",         te_command("d.priority="));
+   element->push_column("Peer exchange:",    te_command("cat=$if=$d.peer_exchange=\\,enabled\\,disabled,\\ ,"
+-                                                       "$if=$d.is_pex_active=\\,active\\,$d.is_private=\\,private\\,inactive,"
++                                                       "$if=$d.is_pex_active=\\,active\\,inactive,"
+                                                        "\\ (,$d.size_pex=,/,$d.max_size_pex=,)"));
+ 
+   element->push_column("State changed:",    te_command("convert.elapsed_time=$d.state_changed="));
