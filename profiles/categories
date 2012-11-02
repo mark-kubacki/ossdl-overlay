@@ -12,6 +12,7 @@ dev-tex
 dev-util
 mail-filter
 media-sound
+net-dns
 net-fs
 net-libs
 net-mail
