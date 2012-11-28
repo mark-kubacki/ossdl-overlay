@@ -6,8 +6,7 @@ inherit versionator java-vm-2 eutils pax-utils
 
 DESCRIPTION="Open Source Messaging"
 HOMEPAGE="http://activemq.apache.org"
-SRC_URI="http://archive.apache.org/dist/activemq/apache-activemq/${PV}/${P}-bin.tar.gz"
-RESTRICT="primaryuri"
+SRC_URI="mirror://apache/activemq/apache-activemq/${PV}/${P}-bin.tar.gz"
 
 SLOT="0"
 LICENSE="apache-2"
