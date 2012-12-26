@@ -9,7 +9,7 @@ inherit apache-module eutils subversion
 DESCRIPTION="Apache module for rewriting web pages to reduce latency and bandwidth"
 HOMEPAGE="http://code.google.com/p/modpagespeed"
 
-ESVN_REPO_URI="http://modpagespeed.googlecode.com/svn/trunk/src"
+ESVN_REPO_URI="http://modpagespeed.googlecode.com/svn/tags/${PV}/src/"
 
 LICENSE="Apache-2.0"
 SLOT="0"
