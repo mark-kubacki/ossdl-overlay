@@ -55,7 +55,7 @@ src_unpack() {
 }
 
 src_compile() {
-	emake BUILDTYPE=Release V=1 || die "emake failed"
+	GYP_CFLAGS="-Duse_system_apache_dev=1 -Dsystem_include_path_httpd" GYP_CXXFLAGS="-Duse_system_apache_dev=1 -Dsystem_include_path_httpd" emake BUILDTYPE=Release V=1 || die "emake failed"
 }
 
 src_install() {
@@ -64,5 +64,5 @@ src_install() {
 
 	keepdir /var/cache/mod_pagespeed /var/cache/mod_pagespeed/files /var/cache/mod_pagespeed/cache
 	fowners apache:apache /var/cache/mod_pagespeed /var/cache/mod_pagespeed/files /var/cache/mod_pagespeed/cache
-	fperms 0770 /var/cache/mod_pagespeed /var/cache/mod_pagespeed/files	/var/cache/mod_pagespeed/cache
+	fperms 0770 /var/cache/mod_pagespeed /var/cache/mod_pagespeed/files /var/cache/mod_pagespeed/cache
 }
