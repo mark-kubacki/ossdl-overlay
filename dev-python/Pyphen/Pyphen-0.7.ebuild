@@ -4,7 +4,7 @@
 EAPI="3"
 SUPPORT_PYTHON_ABIS="1"
 
-inherit distutils
+inherit distutils eutils
 
 DESCRIPTION="Pure Python module to hyphenate text"
 HOMEPAGE="https://pypi.python.org/pypi/Pyphen"
@@ -20,5 +20,9 @@ PYTHON_MODNAME="pyphen"
 RDEPEND=""
 DEPEND="${RDEPEND}
 	dev-python/setuptools"
+
+src_prepare() {
+	epatch "${FILESDIR}/${PN}-0.7-dicts.patch"
+}
 
 DOCS="README"

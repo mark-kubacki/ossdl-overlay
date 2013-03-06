@@ -1,0 +1,31 @@
+diff --git a/pyphen/__init__.py b/pyphen/__init__.py
+index f1386df..1b7b41f 100755
+--- a/pyphen/__init__.py
++++ b/pyphen/__init__.py
+@@ -101,10 +101,15 @@ class HyphDict(object):
+         self.patterns = {}
+ 
+         with open(filename, 'rb') as stream:
++            # see "man 4 hunspell", iscii-devanagari is not supported by python
+             charset = stream.readline().strip().decode('ascii')
++            if charset.lower() == 'microsoft-cp1251':
++                charset = 'cp1251'
+             for pattern in stream:
+                 pattern = pattern.decode(charset).strip()
+-                if not pattern or pattern[0] == '%':
++                if (not pattern or
++                        pattern.startswith('%') or
++                        pattern.startswith('#')):
+                     continue
+ 
+                 # replace ^^hh with the real character
+diff --git a/pyphen/dictionaries/hyph_zu_ZA.dic b/pyphen/dictionaries/hyph_zu_ZA.dic
+index 40d1f99..437d4a4 100644
+--- a/pyphen/dictionaries/hyph_zu_ZA.dic
++++ b/pyphen/dictionaries/hyph_zu_ZA.dic
+@@ -1,4 +1,4 @@
+-ISO08859-1
++ISO8859-1
+ %  Ukwahlukanisela ngekhonco isiZulu: Ukulandisa kwokusebenza ne-OpenOffice.org
+ %  Hyphenation for Zulu: Version for OpenOffice.org
+ %  Copyright (C) 2005, 2007 Friedel Wolff
