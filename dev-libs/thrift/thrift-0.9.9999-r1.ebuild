@@ -1,15 +1,14 @@
-# Copyright 2012 W-Mark Kubacki, Vitaly Repin
+# Copyright 2012-2013 W-Mark Kubacki, Vitaly Repin
 # Distributed under the terms of the OSI Reciprocal Public License
-# $Header: $
 
 EAPI="3"
-inherit autotools eutils subversion flag-o-matic autotools
+inherit autotools eutils git-2 flag-o-matic autotools
 
 LIBTOOL_PV="2.4"
 
 DESCRIPTION="Data serialization and communication toolwork"
 HOMEPAGE="http://thrift.apache.org/about/"
-ESVN_REPO_URI="http://svn.apache.org/repos/asf/thrift/trunk/"
+EGIT_REPO_URI="http://git-wip-us.apache.org/repos/asf/thrift.git"
 SRC_URI="mirror://gnu/libtool/libtool-${LIBTOOL_PV}.tar.xz"
 
 LICENSE="Apache-2.0"
@@ -50,7 +49,7 @@ RDEPEND=">=dev-libs/boost-1.40.0
 	go? ( sys-devel/gcc[go] )
 	"
 DEPEND="${RDEPEND}
-	>=sys-devel/gcc-4.2.0
+	>=sys-devel/gcc-4.2[cxx]
 	c_glib? ( dev-libs/glib )
 	"
 
@@ -59,7 +58,7 @@ S_LIBTOOL="${WORKDIR}/libtool-${LIBTOOL_PV}"
 LIBTOOL_D="${WORKDIR}/local/usr"
 
 src_unpack() {
-	subversion_src_unpack
+	git-2_src_unpack
 	unpack ${A}
 }
 
