@@ -1,0 +1,323 @@
+Patch author: Forest Bond
+https://github.com/rackspace/python-cloudfiles/pull/88
+--- cloudfiles/authentication.py
++++ cloudfiles/authentication.py
+@@ -8,11 +8,10 @@
+ See COPYING for license information.
+ """
+ 
+-from httplib  import HTTPSConnection, HTTPConnection
+-from utils    import parse_url, THTTPConnection, THTTPSConnection
++from utils    import parse_url
++from http     import CFHTTPConnection, CFHTTPSConnection
+ from errors   import ResponseError, AuthenticationError, AuthenticationFailed
+ from consts   import user_agent, us_authurl, uk_authurl
+-from sys      import version_info
+ 
+ 
+ class BaseAuthentication(object):
+@@ -20,19 +19,16 @@ class BaseAuthentication(object):
+     The base authentication class from which all others inherit.
+     """
+     def __init__(self, username, api_key, authurl=us_authurl, timeout=15,
+-                 useragent=user_agent):
++                 keepalive=None, useragent=user_agent):
+         self.authurl = authurl
+         self.headers = dict()
+         self.headers['x-auth-user'] = username
+         self.headers['x-auth-key'] = api_key
+         self.headers['User-Agent'] = useragent
+         self.timeout = timeout
++        self.keepalive = keepalive
+         (self.host, self.port, self.uri, self.is_ssl) = parse_url(self.authurl)
+-        if version_info[0] <= 2 and version_info[1] < 6:
+-            self.conn_class = self.is_ssl and THTTPSConnection or \
+-                THTTPConnection
+-        else:
+-            self.conn_class = self.is_ssl and HTTPSConnection or HTTPConnection
++        self.conn_class = self.is_ssl and CFHTTPSConnection or CFHTTPConnection
+ 
+     def authenticate(self):
+         """
+@@ -62,7 +58,8 @@ def authenticate(self):
+         Initiates authentication with the remote service and returns a
+         two-tuple containing the storage system URL and session token.
+         """
+-        conn = self.conn_class(self.host, self.port, timeout=self.timeout)
++        conn = self.conn_class(self.host, self.port, timeout=self.timeout,
++                               keepalive=self.keepalive)
+         #conn = self.conn_class(self.host, self.port)
+         conn.request('GET', '/' + self.uri, headers=self.headers)
+         response = conn.getresponse()
+--- cloudfiles/connection.py
++++ cloudfiles/connection.py
+@@ -11,9 +11,10 @@
+ import  socket
+ import  os
+ from    urllib    import urlencode
+-from    httplib   import HTTPSConnection, HTTPConnection, HTTPException
++from    httplib   import HTTPException
+ from    container import Container, ContainerResults
+-from    utils     import unicode_quote, parse_url, THTTPConnection, THTTPSConnection
++from    utils     import unicode_quote, parse_url
++from    http      import CFHTTPConnection, CFHTTPSConnection
+ from    errors    import ResponseError, NoSuchContainer, ContainerNotEmpty, \
+                          InvalidContainerName, CDNNotEnabled, ContainerExists
+ from    Queue     import Queue, Empty, Full
+@@ -21,7 +22,6 @@
+ import  consts
+ from    authentication import Authentication
+ from    fjson     import json_loads
+-from    sys       import version_info
+ # Because HTTPResponse objects *have* to have read() called on them
+ # before they can be used again ...
+ # pylint: disable-msg=W0612
+@@ -39,7 +39,8 @@ class Connection(object):
+     @undocumented: _check_container_name
+     """
+ 
+-    def __init__(self, username=None, api_key=None, timeout=15, **kwargs):
++    def __init__(self, username=None, api_key=None, timeout=15,
++                 keepalive=None, **kwargs):
+         """
+         Accepts keyword arguments for Mosso username and api key.
+         Optionally, you can omit these keywords and supply an
+@@ -66,6 +67,7 @@ def __init__(self, username=None, api_key=None, timeout=15, **kwargs):
+         self.servicenet = kwargs.get('servicenet', False)
+         self.user_agent = kwargs.get('useragent', consts.user_agent)
+         self.timeout = timeout
++        self.keepalive = keepalive
+ 
+         # if the environement variable RACKSPACE_SERVICENET is set (to
+         # anything) it will automatically set servicenet=True
+@@ -79,7 +81,8 @@ def __init__(self, username=None, api_key=None, timeout=15, **kwargs):
+             authurl = kwargs.get('authurl', consts.us_authurl)
+             if username and api_key and authurl:
+                 self.auth = Authentication(username, api_key, authurl=authurl,
+-                            useragent=self.user_agent, timeout=self.timeout)
++                            useragent=self.user_agent, timeout=self.timeout,
++                            keepalive=self.keepalive)
+             else:
+                 raise TypeError("Incorrect or invalid arguments supplied")
+         self._authenticate()
+@@ -90,13 +93,8 @@ def _authenticate(self):
+         (url, self.cdn_url, self.token) = self.auth.authenticate()
+         url = self._set_storage_url(url)
+         self.connection_args = parse_url(url)
+-
+-        if version_info[0] <= 2 and version_info[1] < 6:
+-            self.conn_class = self.connection_args[3] and THTTPSConnection or \
+-                                                              THTTPConnection
+-        else:
+-            self.conn_class = self.connection_args[3] and HTTPSConnection or \
+-                                                              HTTPConnection
++        self.conn_class = self.connection_args[3] and CFHTTPSConnection or \
++                                                              CFHTTPConnection
+         self.http_connect()
+         if self.cdn_url:
+             self.cdn_connect()
+@@ -111,7 +109,8 @@ def cdn_connect(self):
+         Setup the http connection instance for the CDN service.
+         """
+         (host, port, cdn_uri, is_ssl) = parse_url(self.cdn_url)
+-        self.cdn_connection = self.conn_class(host, port, timeout=self.timeout)
++        self.cdn_connection = self.conn_class(host, port, timeout=self.timeout,
++                                              keepalive=self.keepalive)
+         self.cdn_enabled = True
+ 
+     def http_connect(self):
+@@ -119,8 +118,9 @@ def http_connect(self):
+         Setup the http connection instance.
+         """
+         (host, port, self.uri, is_ssl) = self.connection_args
+-        self.connection = self.conn_class(host, port=port, \
+-                                              timeout=self.timeout)
++        self.connection = self.conn_class(host, port=port,
++                                          timeout=self.timeout,
++                                          keepalive=self.keepalive)
+         self.connection.set_debuglevel(self.debuglevel)
+ 
+     def cdn_request(self, method, path=[], data='', hdrs=None):
+--- cloudfiles/http.py
++++ cloudfiles/http.py
+@@ -0,0 +1,102 @@
++""" See COPYING for license information. """
++
++from httplib   import HTTPConnection, HTTPSConnection
++from sys       import version_info
++import socket
++
++
++if version_info >= (2, 6):
++    THTTPConnection = HTTPConnection
++    THTTPSConnection = HTTPSConnection
++
++else:
++    class THTTPConnection(HTTPConnection):
++        def __init__(self, host, port, timeout):
++            HTTPConnection.__init__(self, host, port)
++            self.timeout = timeout
++
++        def connect(self):
++            HTTPConnection.connect(self)
++            self.sock.settimeout(self.timeout)
++
++
++    class THTTPSConnection(HTTPSConnection):
++        def __init__(self, host, port, timeout):
++            HTTPSConnection.__init__(self, host, port)
++            self.timeout = timeout
++
++        def connect(self):
++            HTTPSConnection.connect(self)
++            self.sock.settimeout(self.timeout)
++
++
++def check_keepalive(keepalive):
++    if not keepalive or keepalive is True:
++        return keepalive
++
++    keepalive = tuple(keepalive)
++    if not 2 <= len(keepalive) <= 3:
++        raise ValueError('keepalive must be 2- or 3-tuple')
++
++    return keepalive
++
++
++def set_keepalive(sock, keepalive):
++    if not keepalive:
++        return
++
++    supported = False
++
++    if keepalive is True:
++        if hasattr(socket, 'SO_KEEPALIVE'):
++            # System defaults will be used.
++            sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
++            supported = True
++
++    else:
++        if len(keepalive) == 2:
++            idle, interval = keepalive
++            probes = None
++        else:
++            idle, interval, probes = keepalive
++
++        if hasattr(socket, 'SIO_KEEPALIVE_VALS'):
++            # Windows
++            if probes is None:
++                sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, idle, interval))
++                supported = True
++
++        elif hasattr(socket, 'SO_KEEPALIVE') and \
++                hasattr(socket, 'TCP_KEEPIDLE') and \
++                hasattr(socket, 'TCP_KEEPINTVL') and \
++                hasattr(socket, 'TCP_KEEPCNT'):
++            # Linux, maybe others?
++            sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, idle)
++            sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, interval)
++            if probes is not None:
++                sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, probes)
++            sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
++            supported = True
++
++    if not supported:
++        raise ValueError('Requested keepalive options unsupported')
++
++
++class CFHTTPConnection(THTTPConnection):
++    def __init__(self, host, port, timeout, keepalive = None):
++        THTTPConnection.__init__(self, host, port=port, timeout=timeout)
++        self.keepalive = check_keepalive(keepalive)
++
++    def connect(self):
++        THTTPConnection.connect(self)
++        set_keepalive(self.sock, self.keepalive)
++
++
++class CFHTTPSConnection(THTTPSConnection):
++    def __init__(self, host, port, timeout, keepalive = None):
++        THTTPSConnection.__init__(self, host, port=port, timeout=timeout)
++        self.keepalive = check_keepalive(keepalive)
++
++    def connect(self):
++        THTTPSConnection.connect(self)
++        set_keepalive(self.sock, self.keepalive)
+--- cloudfiles/utils.py
++++ cloudfiles/utils.py
+@@ -4,7 +4,6 @@
+ from urllib    import quote
+ from urlparse  import urlparse
+ from errors    import InvalidUrl
+-from httplib   import HTTPConnection, HTTPSConnection, HTTP
+ 
+ 
+ def parse_url(url):
+@@ -63,37 +62,3 @@ def unicode_quote(s):
+         return quote(s.encode("utf-8"))
+     else:
+         return quote(str(s))
+-
+-
+-class THTTPConnection(HTTPConnection):
+-    def __init__(self, host, port, timeout):
+-        HTTPConnection.__init__(self, host, port)
+-        self.timeout = timeout
+-
+-    def connect(self):
+-        HTTPConnection.connect(self)
+-        self.sock.settimeout(self.timeout)
+-
+-
+-class THTTP(HTTP):
+-    _connection_class = THTTPConnection
+-
+-    def set_timeout(self, timeout):
+-        self._conn.timeout = timeout
+-
+-
+-class THTTPSConnection(HTTPSConnection):
+-    def __init__(self, host, port, timeout):
+-        HTTPSConnection.__init__(self, host, port)
+-        self.timeout = timeout
+-
+-    def connect(self):
+-        HTTPSConnection.connect(self)
+-        self.sock.settimeout(self.timeout)
+-
+-
+-class THTTPS(HTTP):
+-    _connection_class = THTTPSConnection
+-
+-    def set_timeout(self, timeout):
+-        self._conn.timeout = timeout
+--- tests/fakehttp.py
++++ tests/fakehttp.py
+@@ -14,10 +14,7 @@
+ """
+ 
+ from sys import version_info
+-if version_info[0] <= 2 and version_info[1] < 6:
+-    from cloudfiles.utils import THTTPConnection as connbase
+-else:
+-    from httplib import HTTPConnection as connbase
++from cloudfiles.http import CFHTTPConnection
+ 
+ import StringIO
+ 
+@@ -264,13 +261,13 @@ def makefile(self, mode, flags):
+         self._wbuffer.seek(0)
+         return self._wbuffer
+ 
+-class CustomHTTPConnection(connbase):
++class CustomHTTPConnection(CFHTTPConnection):
+     def connect(self):
+         self.sock = TrackerSocket()
+ 
+     def send(self, data):
+         self._wbuffer = data
+-        connbase.send(self, data)
++        CFHTTPConnection.send(self, data)
+ 
+ if __name__ == '__main__':
+     conn = CustomHTTPConnection('localhost', 8000)

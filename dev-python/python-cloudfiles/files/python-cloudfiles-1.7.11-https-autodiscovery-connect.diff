@@ -1,0 +1,82 @@
+Patch author: Davide Setti
+https://github.com/rackspace/python-cloudfiles/pull/69
+--- cloudfiles/authentication.py
++++ cloudfiles/authentication.py
+@@ -9,13 +9,14 @@
+ """
+ 
+ from httplib  import HTTPSConnection, HTTPConnection
+-from utils    import parse_url, THTTPConnection, THTTPSConnection
++from utils    import parse_url, THTTPConnection, THTTPSConnection, \
++    PatchedConnectionClass
+ from errors   import ResponseError, AuthenticationError, AuthenticationFailed
+ from consts   import user_agent, us_authurl, uk_authurl
+ from sys      import version_info
+ 
+ 
+-class BaseAuthentication(object):
++class BaseAuthentication(PatchedConnectionClass):
+     """
+     The base authentication class from which all others inherit.
+     """
+--- cloudfiles/connection.py
++++ cloudfiles/connection.py
+@@ -13,7 +13,8 @@
+ from    urllib    import urlencode
+ from    httplib   import HTTPSConnection, HTTPConnection, HTTPException
+ from    container import Container, ContainerResults
+-from    utils     import unicode_quote, parse_url, THTTPConnection, THTTPSConnection
++from    utils     import unicode_quote, parse_url, THTTPConnection, \
++    THTTPSConnection, PatchedConnectionClass
+ from    errors    import ResponseError, NoSuchContainer, ContainerNotEmpty, \
+                          InvalidContainerName, CDNNotEnabled, ContainerExists
+ from    Queue     import Queue, Empty, Full
+@@ -27,7 +28,7 @@
+ # pylint: disable-msg=W0612
+ 
+ 
+-class Connection(object):
++class Connection(PatchedConnectionClass):
+     """
+     Manages the connection to the storage system and serves as a factory
+     for Container instances.
+--- cloudfiles/utils.py
++++ cloudfiles/utils.py
+@@ -97,3 +97,37 @@ class THTTPS(HTTP):
+ 
+     def set_timeout(self, timeout):
+         self._conn.timeout = timeout
++
++
++def _monkey_connect(self):
++    """
++    Monkey patch for HTTPSConnection.connect instances
++    """
++    import socket
++    import ssl
++
++    sock = socket.create_connection((self.host, self.port),
++                                     self.timeout, self.source_address)
++    if self._tunnel_host:
++        self.sock = sock
++        self._tunnel()
++    self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file,
++                                ssl_version=ssl.PROTOCOL_SSLv3)
++
++
++class PatchedConnectionClass(object):
++    _conn_class = None
++
++    @property
++    def conn_class(self):
++        if self._conn_class == HTTPSConnection:
++            def connection(*args, **kwargs):
++                conn = self._conn_class(*args, **kwargs)
++                conn.connect = _monkey_connect(conn)
++                return conn
++            return connection
++        return self._conn_class
++
++    @conn_class.setter
++    def conn_class(self, conn_class):
++        self._conn_class = conn_class

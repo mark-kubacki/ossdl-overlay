@@ -1,0 +1,13 @@
+Patch author: Maxim Mitroshin
+https://github.com/rackspace/python-cloudfiles/pull/77
+--- cloudfiles/storage_object.py
++++ cloudfiles/storage_object.py
+@@ -388,7 +388,7 @@ def copy_to(self, container_name, name):
+             self._etag = None
+ 
+         headers = self._make_headers()
+-        headers['Destination'] = unicode_quote("%s/%s" % (container_name, name))
++        headers['Destination'] = unicode_quote("/%s/%s" % (container_name, name))
+         headers['Content-Length'] = 0
+         response = self.container.conn.make_request(
+                    'COPY', [self.container.name, self.name], hdrs=headers, data='')

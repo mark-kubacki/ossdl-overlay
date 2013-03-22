@@ -1,0 +1,73 @@
+Patch author: Kevin J. Qiu
+https://github.com/rackspace/python-cloudfiles/pull/76
+
+--- cloudfiles/authentication.py
++++ cloudfiles/authentication.py
+@@ -46,11 +46,18 @@ def authenticate(self):
+ 
+ 
+ class MockAuthentication(BaseAuthentication):
++
++    def __init__(self, *args, **kwargs):
++        self.url = kwargs.pop('url', 'http://localhost/v1/account')
++        self.cdn_url = kwargs.pop('cdn_url', None)
++        self.token = kwargs.pop('token', 'xxxxxxxxx')
++        super(MockAuthentication, self).__init__(*args, **kwargs)
++
+     """
+     Mock authentication class for testing
+     """
+     def authenticate(self):
+-        return ('http://localhost/v1/account', None, 'xxxxxxxxx')
++        return (self.url, self.cdn_url, self.token)
+ 
+ 
+ class Authentication(BaseAuthentication):
+--- cloudfiles/connection.py
++++ cloudfiles/connection.py
+@@ -67,6 +67,11 @@ def __init__(self, username=None, api_key=None, timeout=5, **kwargs):
+         self.user_agent = kwargs.get('useragent', consts.user_agent)
+         self.timeout = timeout
+ 
++        # If use_cdn is set to False,
++        # never make CDN requests regardless of whether CDN
++        # is turned on for the account
++        self.use_cdn = kwargs.get('use_cdn', True)
++
+         # if the environement variable RACKSPACE_SERVICENET is set (to
+         # anything) it will automatically set servicenet=True
+         if not 'servicenet' in kwargs \
+@@ -98,7 +103,7 @@ def _authenticate(self):
+             self.conn_class = self.connection_args[3] and HTTPSConnection or \
+                                                               HTTPConnection
+         self.http_connect()
+-        if self.cdn_url:
++        if self.use_cdn and self.cdn_url:
+             self.cdn_connect()
+ 
+     def _set_storage_url(self, url):
+--- tests/connection_test.py
++++ tests/connection_test.py
+@@ -86,6 +86,22 @@ def test_servicenet_cnx(self):
+         auth = Auth('jsmith', 'qwerty')
+         conn = Connection(auth=auth, servicenet=True)
+         self.assert_(conn.connection_args[0].startswith("snet-"))
++
++    @printdoc
++    def test_use_cdn(self):
++        """
++        If use_cdn is set to False, do not enable cdn
++        """
++        def assert_use_cdn(cdn_url, use_cdn, expected_cdn_enabled):
++            auth = Auth('jsmith', 'qwerty', cdn_url=cdn_url)
++            conn = Connection(auth=auth, use_cdn=use_cdn)
++            self.assert_(expected_cdn_enabled == conn.cdn_enabled)
++
++        yield assert_use_cdn('https://cdn.cloudstorage.com/v1/account', True, True)
++        yield assert_use_cdn('https://cdn.cloudstorage.com/v1/account', False, False)
++        yield assert_use_cdn(None, True, False)
++        yield assert_use_cdn(None, False, False)
++
+     @printdoc
+     def test_socket_timeout(self):
+         socket.setdefaulttimeout(21)

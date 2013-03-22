@@ -1,0 +1,16 @@
+Patch author: Jim Wilcoxson
+https://github.com/rackspace/python-cloudfiles/pull/67
+--- cloudfiles/storage_object.py
++++ cloudfiles/storage_object.py
+@@ -347,10 +347,10 @@ def write(self, data='', verify=True, callback=None):
+                 http.send(buff)
+                 if verify and not self._etag_override:
+                     running_checksum.update(buff)
+-                buff = data.read(4096)
+                 transfered += len(buff)
+                 if callable(callback):
+                     callback(transfered, self.size)
++                buff = data.read(4096)
+             response = http.getresponse()
+             buff = response.read()
+         except timeout, err:
