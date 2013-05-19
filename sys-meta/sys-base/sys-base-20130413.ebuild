@@ -70,7 +70,6 @@ RDEPEND="
 	raid? (
 		sys-apps/raidutils
 		<sys-apps/smartmontools-9999
-		sys-fs/dmraid
-		sys-fs/lvm2
+		sys-fs/mdadm
 	)
 	"
