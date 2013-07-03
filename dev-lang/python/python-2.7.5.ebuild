@@ -90,6 +90,7 @@ src_prepare() {
 		epatch "${WORKDIR}/python-${PV}-to-stackless.patch"
 	fi
 	epatch "${FILESDIR}/${P}-tlssni.patch" # Python issue 5639
+	epatch "${FILESDIR}/${P}-tls1.1-and-tls1.2.patch" # Python issue 16692
 
 	# Ensure that internal copies of expat, libffi and zlib are not used.
 	rm -r Modules/expat || die
