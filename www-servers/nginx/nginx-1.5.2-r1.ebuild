@@ -302,6 +302,9 @@ src_configure() {
 	export LANG=C LC_ALL=C
 	tc-export CC
 
+	# CPU specific options
+	use amd64 && myconf+=" --with-cpu-opt=amd64"
+
 	./configure \
 		--prefix=/usr \
 		--sbin-path=/usr/sbin/nginx \
@@ -318,7 +321,8 @@ src_configure() {
 		--http-fastcgi-temp-path=/var/tmp/${PN}/fastcgi \
 		--http-scgi-temp-path=/var/tmp/${PN}/scgi \
 		--http-uwsgi-temp-path=/var/tmp/${PN}/uwsgi \
-		${myconf} || die "configure failed"
+		${myconf} \
+		${EXTRA_ECONF} || die "configure failed"
 }
 
 src_compile() {
@@ -441,5 +445,10 @@ pkg_postinst() {
 		einfo ""
 		einfo "'passenger-spawn-server' has been renamed to 'prespawn'"
 		einfo ""
+	fi
+
+	if use arm64; then
+		# arm64 knows different cache lines
+		einfo 'add EXTRA_ECONF=" NGX_CPU_CACHE_LINE=64" if applicable'
 	fi
 }
