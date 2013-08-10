@@ -1,0 +1,48 @@
+# Copyright 1999-2013 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+
+EAPI=5
+
+PYTHON_COMPAT=( python{2_6,2_7,3_2,3_3} pypy{1_9,2_0} )
+
+inherit distutils-r1
+
+DESCRIPTION="Scalable, non-blocking web server and tools"
+HOMEPAGE="http://www.tornadoweb.org/ http://pypi.python.org/pypi/tornado"
+SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz"
+
+LICENSE="Apache-2.0"
+SLOT="0"
+KEYWORDS="amd64 arm64 arm x86 amd64-linux x86-linux"
+IUSE="+curl"
+
+RDEPEND="curl? ( dev-python/pycurl[$(python_gen_usedep 'python2*')] )
+	"
+DEPEND="${RDEPEND}
+	!!www-servers/tornado
+	dev-python/setuptools[${PYTHON_USEDEP}]"
+
+REQUIRED_USE="curl? ( || ( $(python_gen_useflags python2*) ) )"
+
+setup_globals() {
+	local flag
+
+	for flag in python_targets_python{2_6,2_7}; do
+		RDEPEND+=" ${flag}? ( dev-python/futures[${flag}] )"
+	done
+}
+setup_globals
+
+src_test() {
+	# The test server tries to bind at an unused port but suffers
+	# a race condition in it. Seems to be fixed already.
+	# https://github.com/facebook/tornado/blob/master/tornado/test/process_test.py#L64
+	local DISTUTILS_NO_PARALLEL_BUILD=1
+
+	distutils-r1_src_test
+}
+
+python_test() {
+	cd "${TMPDIR}" || die
+	"${PYTHON}" -m tornado.test.runtests || die "Tests fail with ${EPYTHON}"
+}
