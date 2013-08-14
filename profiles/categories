@@ -24,6 +24,7 @@ sci-libs
 sys-apps
 sys-auth
 sys-meta
+sys-libs
 www-apache
 www-apps
 www-misc
