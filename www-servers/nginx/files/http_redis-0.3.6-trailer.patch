@@ -1,0 +1,28 @@
+diff --git a/ngx_http_redis_module.c b/ngx_http_redis_module.c
+index dcbe324..30f1a21 100644
+--- a/ngx_http_redis_module.c
++++ b/ngx_http_redis_module.c
+@@ -578,7 +578,13 @@ ngx_http_redis_filter_init(void *data)
+ 
+     u = ctx->request->upstream;
+ 
+-    u->length += NGX_HTTP_REDIS_END;
++    if (u->headers_in.status_n != 404) {
++        u->length = u->headers_in.content_length_n + NGX_HTTP_REDIS_END;
++        ctx->rest = NGX_HTTP_REDIS_END;
++
++    } else {
++        u->length = 0;
++    }
+ 
+     return NGX_OK;
+ }
+@@ -658,7 +664,7 @@ ngx_http_redis_filter(void *data, ssize_t bytes)
+         return NGX_OK;
+     }
+ 
+-    last += u->length - NGX_HTTP_REDIS_END;
++    last += (size_t) (u->length - NGX_HTTP_REDIS_END);
+ 
+     if (ngx_strncmp(last, ngx_http_redis_end, b->last - last) != 0) {
+         ngx_log_error(NGX_LOG_ERR, ctx->request->connection->log, 0,
