@@ -1,10 +1,10 @@
-# Copyright 1999-2012 Gentoo Foundation
-# Copyright 2012 W-Mark Kubacki
+# Copyright 1999-2013 Gentoo Foundation
+# Copyright 2012–2013 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI="4"
 
-inherit eutils flag-o-matic prefix
+inherit eutils flag-o-matic prefix systemd
 
 DESCRIPTION="File transfer program to keep remote files into sync"
 HOMEPAGE="http://rsync.samba.org/"
@@ -12,7 +12,7 @@ SRC_URI="http://rsync.samba.org/ftp/rsync/src/${P/_/}.tar.gz http://rsync.samba.
 
 LICENSE="GPL-3"
 SLOT="0"
-KEYWORDS="~alpha amd64 arm hppa ~ia64 ~m68k ~mips ppc ppc64 ~s390 ~sh ~sparc x86 ~ppc-aix ~amd64-fbsd ~sparc-fbsd ~x86-fbsd ~x64-freebsd ~x86-freebsd ~hppa-hpux ~ia64-hpux ~x86-interix ~amd64-linux ~ia64-linux ~x86-linux ~ppc-macos ~x64-macos ~x86-macos ~m68k-mint ~sparc-solaris ~sparc64-solaris ~x64-solaris ~x86-solaris"
+KEYWORDS="alpha amd64 arm hppa ia64 ~m68k ~mips ppc ppc64 ~s390 ~sh sparc x86 ~ppc-aix ~amd64-fbsd ~sparc-fbsd ~x86-fbsd ~x64-freebsd ~x86-freebsd ~hppa-hpux ~ia64-hpux ~x86-interix ~amd64-linux ~arm-linux ~ia64-linux ~x86-linux ~ppc-macos ~x64-macos ~x86-macos ~m68k-mint ~sparc-solaris ~sparc64-solaris ~x64-solaris ~x86-solaris"
 IUSE="acl iconv ipv6 static xattr"
 
 LIB_DEPEND="acl? ( virtual/acl[static-libs(+)] )
@@ -65,6 +65,8 @@ src_install() {
 	rm -f "${ED}"/usr/share/rsync/{Makefile*,*.c}
 
 	eprefixify "${ED}"/etc/{,xinetd.d}/rsyncd*
+
+	systemd_dounit "${FILESDIR}/rsyncd.service"
 }
 
 pkg_postinst() {
