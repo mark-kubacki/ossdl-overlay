@@ -21,13 +21,6 @@ HTTP_UPLOAD_PROGRESS_MODULE_P="ngx_upload_progress-${HTTP_UPLOAD_PROGRESS_MODULE
 HTTP_UPLOAD_PROGRESS_MODULE_SHA1="a788dea"
 HTTP_UPLOAD_PROGRESS_MODULE_URI="https://github.com/masterzen/nginx-upload-progress-module/tarball/v${HTTP_UPLOAD_PROGRESS_MODULE_PV}"
 
-# http_passenger (http://www.modrails.com/, https://github.com/FooBarWidget/passenger, MIT license)
-# TODO: currently builds some stuff in src_configure
-# Please report runtime and compilation errors to Mark <wmark@hurrikane.de>
-PASSENGER_PV="4.0.25"
-USE_RUBY="ruby18 ree18 ruby19"
-RUBY_OPTIONAL="yes"
-
 # http_redis (http://wiki.nginx.org/HttpRedis)
 HTTP_REDIS_MODULE_P="ngx_http_redis-0.3.6"
 
@@ -83,14 +76,13 @@ HTTP_CONCAT_MODULE_PV="1.2.2"
 HTTP_CONCAT_MODULE_P="nginx-http-concat-${HTTP_CONCAT_MODULE_PV}"
 HTTP_CONCAT_MODULE_URI="http://binhost.ossdl.de/distfiles/${HTTP_CONCAT_MODULE_P}.tbz2"
 
-inherit eutils ssl-cert toolchain-funcs perl-module ruby-ng flag-o-matic
+inherit eutils ssl-cert toolchain-funcs perl-module flag-o-matic
 
 DESCRIPTION="Robust, small and high performance http and reverse proxy server"
 HOMEPAGE="http://nginx.org/"
 SRC_URI="http://nginx.org/download/${P}.tar.gz
 	nginx_modules_http_upload_progress? ( ${HTTP_UPLOAD_PROGRESS_MODULE_URI} -> ${HTTP_UPLOAD_PROGRESS_MODULE_P}.tar.gz )
 	nginx_modules_http_headers_more? ( ${HTTP_HEADERS_MORE_MODULE_URI} -> ${HTTP_HEADERS_MORE_MODULE_P}.tar.gz )
-	nginx_modules_http_passenger? ( http://s3.amazonaws.com/phusion-passenger/releases/passenger-${PASSENGER_PV}.tar.gz )
 	nginx_modules_http_redis? ( http://people.freebsd.org/~osa/${HTTP_REDIS_MODULE_P}.tar.gz )
 	nginx_modules_http_echo? ( ${HTTP_ECHO_MODULE_URI} -> ${HTTP_ECHO_MODULE_P}.tar.gz )
 	nginx_modules_http_redis2? ( ${HTTP_REDIS2_MODULE_URI} -> ${HTTP_REDIS2_MODULE_P}.tar.gz )
@@ -116,7 +108,6 @@ NGINX_MODULES_3RD="
 	http_concat
 	http_upload_progress
 	http_headers_more
-	http_passenger
 	http_redis
 	http_echo
 	http_redis2
@@ -156,14 +147,6 @@ CDEPEND="
 	nginx_modules_http_rewrite? ( >=dev-libs/libpcre-4.2 )
 	nginx_modules_http_secure_link? ( userland_GNU? ( dev-libs/openssl ) )
 	nginx_modules_http_xslt? ( dev-libs/libxml2 dev-libs/libxslt )
-	nginx_modules_http_passenger? (
-		$(ruby_implementation_depend ruby18)
-		>=dev-ruby/rubygems-0.9.0
-		>=dev-ruby/rake-0.8.1
-		>=dev-ruby/fastthread-1.0.1
-		>=dev-ruby/rack-1.0.0
-		dev-libs/libev
-	)
 	nginx_modules_http_spdy? ( >=dev-libs/openssl-1.0.1 )"
 RDEPEND="${CDEPEND}"
 DEPEND="${CDEPEND}
@@ -198,16 +181,6 @@ pkg_setup() {
 		ewarn "To actually disable all http-functionality you also have to disable"
 		ewarn "all nginx http modules."
 	fi
-
-	if use nginx_modules_http_passenger; then
-		ruby-ng_pkg_setup
-		use debug && append-flags -DPASSENGER_DEBUG
-	fi
-}
-
-src_unpack() {
-	# prevent ruby-ng.eclass from messing with src_unpack
-	default
 }
 
 src_prepare() {
@@ -219,18 +192,6 @@ src_prepare() {
 
 	sed -i 's/ make/ \\$(MAKE)/' "${S}"/auto/lib/perl/make
 	sed -i 's/1001011/1001012/' "${S}"/src/core/nginx.h
-
-	if use nginx_modules_http_passenger; then
-		cd "${WORKDIR}"/passenger-${PASSENGER_PV}
-		epatch \
-			"${FILESDIR}/passenger-3.0.1-missing-include.patch"
-
-		sed -i \
-			-e 's|/usr/lib/phusion-passenger/agents|/usr/libexec/passenger/agents|' \
-			-e 's|/usr/share/phusion-passenger/helper-scripts|/usr/libexec/passenger/bin|' \
-			-e "s|/usr/share/doc/phusion-passenger|/usr/share/doc/${PF}|" \
-			lib/phusion_passenger.rb ext/common/ResourceLocator.h || die "sed failed"
-	fi
 
 	if use nginx_modules_http_redis; then
 		cd "${WORKDIR}/${HTTP_REDIS_MODULE_P}"
@@ -277,11 +238,6 @@ src_configure() {
 	if use nginx_modules_http_headers_more; then
 		http_enabled=1
 		myconf+=" --add-module=${WORKDIR}/${HTTP_HEADERS_MORE_MODULE_S}"
-	fi
-
-	if use nginx_modules_http_passenger; then
-		http_enabled=1
-		myconf+=" --add-module=${WORKDIR}/passenger-${PASSENGER_PV}/ext/nginx"
 	fi
 
 	if use nginx_modules_http_redis; then
@@ -441,34 +397,6 @@ src_install() {
 		docinto ${HTTP_SLOWFS_CACHE_MODULE_P}
 		nonfatal dodoc "${WORKDIR}"/${HTTP_SLOWFS_CACHE_MODULE_P}/{CHANGES,README}
 	fi
-
-	if use nginx_modules_http_passenger; then
-		# passengers Rakefile is so horribly broken that we have to do it
-		# manually
-		cd "${WORKDIR}"/passenger-${PASSENGER_PV}
-
-		for RUBY in $(ruby_get_use_implementations); do
-			# odd: on some machines the above variable-assignment isn't sufficient
-			export RUBY="${RUBY}"
-
-			insinto $(${RUBY} -rrbconfig -e 'print Config::CONFIG["archdir"]')
-			insopts -m 0755
-			doins libout/ruby/*/passenger_native_support.so
-			doruby -r lib/phusion_passenger lib/phusion_passenger.rb
-		done
-
-		exeinto /usr/bin
-		doexe bin/passenger-memory-stats bin/passenger-status
-
-		exeinto /usr/libexec/passenger/bin
-		doexe helper-scripts/prespawn
-
-		exeinto /usr/libexec/passenger/agents
-		doexe agents/Passenger{LoggingAgent,Watchdog}
-
-		exeinto /usr/libexec/passenger/agents/nginx
-		doexe agents/PassengerHelperAgent
-	fi
 }
 
 pkg_postinst() {
@@ -496,12 +424,6 @@ pkg_postinst() {
 		einfo ""
 		einfo "DSA and ECDSA are prone to leak the key on loss of entropy."
 		einfo "Don't enable them unless you have a reliable random number generator."
-	fi
-
-	if use nginx_modules_http_passenger; then
-		einfo ""
-		einfo "'passenger-spawn-server' has been renamed to 'prespawn'"
-		einfo ""
 	fi
 
 	ewarn "Generate ssl_dhparam files for every certificate you use:"
