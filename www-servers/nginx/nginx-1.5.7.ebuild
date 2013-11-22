@@ -401,12 +401,12 @@ src_install() {
 
 pkg_postinst() {
 	if use ssl; then
-		if [ ! -f "${ROOT}"/etc/ssl/${PN}/${PN}.key ]; then
+		if [ ! -f "${ROOT}"/etc/ssl/${PN}/${PN}.dhparam ]; then
+			# implies prefix ${ROOT}
 			install_cert /etc/ssl/${PN}/${PN}
-			insinto /etc/ssl/${PN}/
-			doins "${FILESDIR}"/nginx.dhparam
 			chown ${PN}:${PN} "${ROOT}"/etc/ssl/${PN}/${PN}.{crt,csr,key,pem,dhparam}
 		fi
+
 		einfo "For FIPS 140-2 compliance enable fips_mode in your openssl.cnf:"
 		einfo ""
 		einfo "  openssl_conf = openssl_options"
@@ -424,16 +424,16 @@ pkg_postinst() {
 		einfo ""
 		einfo "DSA and ECDSA are prone to leak the key on loss of entropy."
 		einfo "Don't enable them unless you have a reliable random number generator."
-	fi
-
-	ewarn "Generate ssl_dhparam files for every certificate you use:"
-	ewarn ""
-	ewarn "  openssl dhparam -rand - 2048 > mydomain.tld.dhparam"
-	if use paranoia; then
+		einfo ""
+		ewarn "Generate ssl_dhparam files for every certificate you use:"
 		ewarn ""
-		ewarn "... and set ssl_dhparam accordingly or else every time Nginx"
-		ewarn "starts a new dhparam will be generated, delaying that start."
-		ewarn ""
+		ewarn "  openssl dhparam -rand - 2048 > mydomain.tld.dhparam"
+		if use paranoia; then
+			ewarn ""
+			ewarn "... and set ssl_dhparam accordingly or else every time Nginx"
+			ewarn "starts a new dhparam will be generated, delaying that start."
+			ewarn ""
+		fi
 	fi
 
 	if use arm64; then
