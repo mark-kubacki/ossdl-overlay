@@ -2,7 +2,7 @@
 # Copyright 2011-2013 W-Mark Kubacki
 # Distributed under the terms of the OSI Reciprocal Public License
 
-EAPI="4"
+EAPI="5"
 
 # Maintainer notes:
 # - http_rewrite-independent pcre-support makes sense for matching locations without an actual rewrite
@@ -11,6 +11,7 @@ EAPI="4"
 #   * alive upstream
 #   * sane packaging
 #   * builds cleanly
+#   * does not need a patch for nginx core
 
 # prevent perl-module from adding automagic perl DEPENDs
 GENTOO_DEPEND_ON_PERL="no"
@@ -76,7 +77,7 @@ HTTP_CONCAT_MODULE_PV="1.2.2"
 HTTP_CONCAT_MODULE_P="nginx-http-concat-${HTTP_CONCAT_MODULE_PV}"
 HTTP_CONCAT_MODULE_URI="http://binhost.ossdl.de/distfiles/${HTTP_CONCAT_MODULE_P}.tbz2"
 
-inherit eutils ssl-cert toolchain-funcs perl-module flag-o-matic
+inherit eutils ssl-cert toolchain-funcs perl-module flag-o-matic user systemd versionator
 
 DESCRIPTION="Robust, small and high performance http and reverse proxy server"
 HOMEPAGE="http://nginx.org/"
@@ -94,15 +95,18 @@ SRC_URI="http://nginx.org/download/${P}.tar.gz
 #	nginx_modules_http_set_misc? ( ${HTTP_SET_MISC_MODULE_URI} -> ${HTTP_SET_MISC_MODULE_P}.tar.gz )
 RESTRICT="primaryuri"
 
-LICENSE="as-is BSD BSD-2 GPL-2 MIT"
+LICENSE="BSD-2 BSD SSLeay MIT GPL-2 GPL-2+
+	"
+
 SLOT="0"
-KEYWORDS="amd64 ~ppc ~sparc x86 arm arm64 ~x86-fbsd"
+KEYWORDS="amd64 arm ~ppc x86 ~amd64-fbsd ~x86-fbsd ~amd64-linux ~x86-linux"
 
 NGINX_MODULES_STD="access auth_basic autoindex browser charset empty_gif fastcgi
-geo gzip limit_req limit_zone map memcached proxy referer rewrite scgi ssi
-split_clients upstream_ip_hash userid uwsgi"
-NGINX_MODULES_OPT="addition dav degradation flv geoip gunzip gzip_static image_filter
-mp4 perl random_index realip secure_link stub_status sub xslt spdy"
+geo gzip headers index limit_conn limit_req log map memcached proxy referer
+rewrite scgi ssi upstream_ip_hash userid uwsgi"
+NGINX_MODULES_OPT="addition auth_request dav degradation flv geoip gunzip gzip_static
+image_filter mp4 perl random_index realip secure_link spdy split_clients status
+sub xslt"
 NGINX_MODULES_MAIL="imap pop3 smtp"
 NGINX_MODULES_3RD="
 	http_concat
@@ -117,7 +121,8 @@ NGINX_MODULES_3RD="
 	"
 #	http_set_misc
 
-IUSE="aio debug +http +http-cache ipv6 libatomic +pcre ssl vim-syntax paranoia"
+IUSE="aio debug +http +http-cache ipv6 libatomic +pcre +pcre-jit selinux ssl
+paranoia userland_GNU vim-syntax"
 
 for mod in $NGINX_MODULES_STD; do
 	IUSE="${IUSE} +nginx_modules_http_${mod}"
@@ -137,32 +142,39 @@ done
 
 CDEPEND="
 	pcre? ( >=dev-libs/libpcre-4.2 )
+	pcre-jit? ( >=dev-libs/libpcre-8.20[jit] )
+	selinux? ( sec-policy/selinux-nginx )
 	ssl? ( >=dev-libs/openssl-1.0.1 )
 	http-cache? ( userland_GNU? ( dev-libs/openssl ) )
-	nginx_modules_http_geo? ( dev-libs/geoip )
+	nginx_modules_http_geoip? ( dev-libs/geoip )
 	nginx_modules_http_gzip? ( sys-libs/zlib )
 	nginx_modules_http_gzip_static? ( sys-libs/zlib )
 	nginx_modules_http_image_filter? ( media-libs/gd[jpeg,png] )
 	nginx_modules_http_perl? ( >=dev-lang/perl-5.8 )
 	nginx_modules_http_rewrite? ( >=dev-libs/libpcre-4.2 )
 	nginx_modules_http_secure_link? ( userland_GNU? ( dev-libs/openssl ) )
+	nginx_modules_http_spdy? ( >=dev-libs/openssl-1.0.1c )
 	nginx_modules_http_xslt? ( dev-libs/libxml2 dev-libs/libxslt )
-	nginx_modules_http_spdy? ( >=dev-libs/openssl-1.0.1 )"
+	"
 RDEPEND="${CDEPEND}"
 DEPEND="${CDEPEND}
 	arm? ( dev-libs/libatomic_ops )
 	ppc? ( dev-libs/libatomic_ops )
 	libatomic? ( dev-libs/libatomic_ops )"
 PDEPEND="vim-syntax? ( app-vim/nginx-syntax )"
-S="${WORKDIR}/${P}"
 
-REQUIRED_USE="nginx_modules_http_spdy? ( ssl http )"
+REQUIRED_USE="pcre-jit? ( pcre )
+	nginx_modules_http_spdy? ( ssl http )
+	"
 
 pkg_setup() {
+	NGINX_HOME="/var/lib/nginx"
+	NGINX_HOME_TMP="${NGINX_HOME}/tmp"
+
 	ebegin "Creating nginx user and group"
 	enewgroup ${PN}
-	enewuser ${PN} -1 -1 -1 ${PN}
-	eend ${?}
+	enewuser ${PN} -1 -1 "${NGINX_HOME}" ${PN}
+	eend $?
 
 	if use libatomic; then
 		ewarn "GCC 4.1+ features built-in atomic operations."
@@ -190,14 +202,28 @@ src_prepare() {
 		epatch "${FILESDIR}/nginx-1.5.6-random_dhparam.patch"
 	fi
 
-	sed -i 's/ make/ \\$(MAKE)/' "${S}"/auto/lib/perl/make
-	sed -i 's/1001011/1001012/' "${S}"/src/core/nginx.h
-
 	if use nginx_modules_http_redis; then
 		cd "${WORKDIR}/${HTTP_REDIS_MODULE_P}"
 		epatch "${FILESDIR}/http_redis-0.3.6-trailer.patch" \
 		|| die "patching failed, HttpRedis won't work"
+		cd -
 	fi
+
+	find auto/ -type f -print0 | xargs -0 sed -i 's:\&\& make:\&\& \\$(MAKE):' || die
+	# We have config protection, don't rename etc files
+	sed -i 's:.default::' auto/install || die
+	# remove useless files
+	sed -i -e '/koi-/d' -e '/win-/d' auto/install || die
+
+	# don't install to /etc/nginx/ if not in use
+	local module
+	for module in fastcgi scgi uwsgi ; do
+		if ! use nginx_modules_http_${module}; then
+			sed -i -e "/${module}/d" auto/install || die
+		fi
+	done
+
+	epatch_user
 }
 
 src_configure() {
@@ -207,7 +233,8 @@ src_configure() {
 	use debug     && myconf+=" --with-debug"
 	use ipv6      && myconf+=" --with-ipv6"
 	use libatomic && myconf+=" --with-libatomic"
-	use pcre      && myconf+=" --with-pcre --with-pcre-jit"
+	use pcre      && myconf+=" --with-pcre"
+	use pcre-jit  && myconf+=" --with-pcre-jit"
 
 	# HTTP modules
 	for mod in $NGINX_MODULES_STD; do
@@ -314,25 +341,27 @@ src_configure() {
 	export LANG=C LC_ALL=C
 	tc-export CC
 
+	if ! use prefix; then
+		myconf+=" --user=${PN} --group=${PN}"
+	fi
+
 	# CPU specific options
 	use amd64 && myconf+=" --with-cpu-opt=amd64"
 
 	./configure \
-		--prefix=/usr \
-		--sbin-path=/usr/sbin/nginx \
-		--conf-path=/etc/${PN}/${PN}.conf \
-		--error-log-path=/var/log/${PN}/error_log \
-		--pid-path=/var/run/${PN}.pid \
-		--lock-path=/var/lock/nginx.lock \
-		--user=${PN} --group=${PN} \
-		--with-cc-opt="-I${ROOT}usr/include" \
-		--with-ld-opt="-L${ROOT}usr/lib" \
-		--http-log-path=/var/log/${PN}/access_log \
-		--http-client-body-temp-path=/var/tmp/${PN}/client \
-		--http-proxy-temp-path=/var/tmp/${PN}/proxy \
-		--http-fastcgi-temp-path=/var/tmp/${PN}/fastcgi \
-		--http-scgi-temp-path=/var/tmp/${PN}/scgi \
-		--http-uwsgi-temp-path=/var/tmp/${PN}/uwsgi \
+		--prefix="${EPREFIX}"/usr \
+		--conf-path="${EPREFIX}"/etc/${PN}/${PN}.conf \
+		--error-log-path="${EPREFIX}"/var/log/${PN}/error_log \
+		--pid-path="${EPREFIX}"/run/${PN}.pid \
+		--lock-path="${EPREFIX}"/run/lock/${PN}.lock \
+		--with-cc-opt="-I${EROOT}usr/include" \
+		--with-ld-opt="-L${EROOT}usr/lib" \
+		--http-log-path="${EPREFIX}"/var/log/${PN}/access_log \
+		--http-client-body-temp-path="${EPREFIX}/${NGINX_HOME_TMP}"/client \
+		--http-proxy-temp-path="${EPREFIX}/${NGINX_HOME_TMP}"/proxy \
+		--http-fastcgi-temp-path="${EPREFIX}/${NGINX_HOME_TMP}"/fastcgi \
+		--http-scgi-temp-path="${EPREFIX}/${NGINX_HOME_TMP}"/scgi \
+		--http-uwsgi-temp-path="${EPREFIX}/${NGINX_HOME_TMP}"/uwsgi \
 		${myconf} \
 		${EXTRA_ECONF} || die "configure failed"
 }
@@ -340,20 +369,15 @@ src_configure() {
 src_compile() {
 	# https://bugs.gentoo.org/286772
 	export LANG=C LC_ALL=C
-	emake LINK="${CC} ${LDFLAGS}" OTHERLDFLAGS="${LDFLAGS}" || die "emake failed"
+	emake LINK="${CC} ${LDFLAGS}" OTHERLDFLAGS="${LDFLAGS}"
 }
 
 src_install() {
-	keepdir /var/log/${PN} /var/tmp/${PN}/{client,proxy,fastcgi,scgi,uwsgi}
-	keepdir /var/www/localhost/htdocs
-
-	dosbin objs/nginx
-	newinitd "${FILESDIR}"/nginx.init-r3 nginx
+	emake DESTDIR="${D}" install
 
 	cp "${FILESDIR}"/nginx.conf-r5 conf/nginx.conf
 	sed -i	-e 's:worker_processes 2:worker_processes auto:g' \
 		conf/nginx.conf
-	rm conf/win-utf conf/koi-win conf/koi-utf
 
 	dodir /etc/${PN}
 	insinto /etc/${PN}
@@ -370,8 +394,36 @@ src_install() {
 	use nginx_modules_http_proxy	&& doins "${FILESDIR}"/05_proxy.conf
 	use nginx_modules_http_browser	&& doins "${FILESDIR}"/07_browser.conf
 
+	fperms 0750 /etc/nginx
+	fowners ${PN}:0 /etc/nginx
+
+	newinitd "${FILESDIR}"/nginx.init-r3 nginx
+
+	systemd_newunit "${FILESDIR}"/nginx.service-r1 nginx.service
+
 	doman man/nginx.8
 	nonfatal dodoc CHANGES* README
+
+	# just keepdir. do not copy the default htdocs files (bug #449136)
+	keepdir /var/www/localhost
+	rm -rf "${D}"/usr/html || die
+
+	# set up a list of directories to keep
+	local keepdir_list="${NGINX_HOME_TMP}"/client
+	local module
+	for module in proxy fastcgi scgi uwsgi; do
+		use nginx_modules_http_${module} && keepdir_list+=" ${NGINX_HOME_TMP}/${module}"
+	done
+
+	keepdir /var/log/nginx ${keepdir_list}
+
+	# this solves a problem with SELinux where nginx doesn't see the directories
+	# as root and tries to create them as nginx
+	fperms 0750 "${NGINX_HOME_TMP}"
+	fowners ${PN}:0 "${NGINX_HOME_TMP}"
+
+	fperms 0700 /var/log/nginx ${keepdir_list}
+	fowners ${PN}:${PN} /var/log/nginx ${keepdir_list}
 
 	# logrotate
 	insinto /etc/logrotate.d
@@ -379,18 +431,18 @@ src_install() {
 
 	if use nginx_modules_http_perl; then
 		cd "${S}"/objs/src/http/modules/perl/
-		einstall DESTDIR="${D}" INSTALLDIRS=vendor || die "failed to install perl stuff"
+		einstall DESTDIR="${D}" INSTALLDIRS=vendor
 		fixlocalpod
+	fi
+
+	if use nginx_modules_http_cache_purge; then
+		docinto ${HTTP_CACHE_PURGE_MODULE_P}
+		nonfatal dodoc "${WORKDIR}"/${HTTP_CACHE_PURGE_MODULE_P}/{CHANGES,README.md,TODO.md}
 	fi
 
 	if use nginx_modules_http_push; then
 		docinto ${HTTP_PUSH_MODULE_P}
 		nonfatal dodoc "${WORKDIR}"/${HTTP_PUSH_MODULE_P}/{changelog.txt,protocol.txt,README}
-	fi
-
-	if use nginx_modules_http_cache_purge; then
-		docinto ${HTTP_CACHE_PURGE_MODULE_P}
-		nonfatal dodoc "${WORKDIR}"/${HTTP_CACHE_PURGE_MODULE_P}/{CHANGES,README.md}
 	fi
 
 	if use nginx_modules_http_slowfs_cache; then
@@ -401,10 +453,10 @@ src_install() {
 
 pkg_postinst() {
 	if use ssl; then
-		if [ ! -f "${ROOT}"/etc/ssl/${PN}/${PN}.dhparam ]; then
+		if [ ! -f "${EROOT}"/etc/ssl/${PN}/${PN}.dhparam ]; then
 			# implies prefix ${ROOT}
 			install_cert /etc/ssl/${PN}/${PN}
-			chown ${PN}:${PN} "${ROOT}"/etc/ssl/${PN}/${PN}.{crt,csr,key,pem,dhparam}
+			use prefix || chown ${PN}:${PN} "${EROOT}"/etc/ssl/${PN}/${PN}.{crt,csr,key,pem,dhparam}
 		fi
 
 		einfo "For FIPS 140-2 compliance enable fips_mode in your openssl.cnf:"
@@ -436,8 +488,37 @@ pkg_postinst() {
 		fi
 	fi
 
-	if use arm64; then
-		# arm64 knows different cache lines
-		einfo 'add EXTRA_ECONF=" NGX_CPU_CACHE_LINE=64" if applicable'
+#	if use arm64; then
+#		# arm64 knows different cache lines
+#		einfo 'add EXTRA_ECONF=" NGX_CPU_CACHE_LINE=64" if applicable'
+#	fi
+
+	# This is the proper fix for bug #458726/#469094, resp. CVE-2013-0337 for
+	# existing installations
+	local fix_perms=0
+
+	for rv in ${REPLACING_VERSIONS} ; do
+		version_compare ${rv} 1.4.1-r2
+		[[ $? -eq 1 ]] && fix_perms=1
+	done
+
+	if [[ $fix_perms -eq 1 ]] ; then
+		ewarn "To fix a security bug (CVE-2013-0337, bug #458726) had the following"
+		ewarn "directories the world-readable bit removed (if set):"
+		ewarn "  ${EPREFIX}/var/log/nginx"
+		ewarn "  ${EPREFIX}${NGINX_HOME_TMP}/{,client,proxy,fastcgi,scgi,uwsgi}"
+		ewarn "Check if this is correct for your setup before restarting nginx!"
+		ewarn "This is a one-time change and will not happen on subsequent updates."
+		ewarn "Furthermore nginx' temp directories got moved to ${NGINX_HOME_TMP}"
+		chmod -f o-rwx "${EPREFIX}"/var/log/nginx "${EPREFIX}/${NGINX_HOME_TMP}"/{,client,proxy,fastcgi,scgi,uwsgi}
+	fi
+
+	# If the nginx user can't change into or read the dir, display a warning.
+	# If su is not available we display the warning nevertheless since we can't check properly
+	su -s /bin/sh -c 'cd /var/log/nginx/ && ls' nginx >&/dev/null
+	if [ $? -ne 0 ] ; then
+		ewarn "Please make sure that the nginx user or group has at least"
+		ewarn "'rx' permissions on /var/log/nginx (default on a fresh install)"
+		ewarn "Otherwise you end up with empty log files after a logrotate."
 	fi
 }
