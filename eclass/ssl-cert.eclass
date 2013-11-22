@@ -1,6 +1,6 @@
 # Copyright 1999-2011 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/eclass/ssl-cert.eclass,v 1.20 2013/01/03 19:19:55 alonbl Exp $
+# $Header:  $
 
 # @ECLASS: ssl-cert.eclass
 # @MAINTAINER:
@@ -11,7 +11,7 @@
 # This eclass implements a standard installation procedure for installing
 # self-signed SSL certificates.
 # @EXAMPLE:
-# "install_cert /foo/bar" installs ${ROOT}/foo/bar.{key,csr,crt,pem}
+# "install_cert /foo/bar" installs ${ROOT}/foo/bar.{key,csr,crt,pem,dhparam}
 
 # @ECLASS-VARIABLE: SSL_CERT_MANDATORY
 # @DESCRIPTION:
@@ -161,6 +161,22 @@ gen_crt() {
 	return $?
 }
 
+# @FUNCTION: gen_dhparam
+# @USAGE: <base path>
+# @DESCRIPTION:
+# Generates a DH parameter file
+#
+# Access: private
+gen_dhparam() {
+	local base=`get_base $1`
+	ebegin "Generating ${SSL_BITS} bit DH parameter file"
+	/usr/bin/openssl dhparam -rand "${SSL_RANDOM}" \
+		-out "${base}.dhparam" "${SSL_BITS}" &> /dev/null
+	eend $?
+
+	return $?
+}
+
 # @FUNCTION: gen_pem
 # @USAGE: <base path>
 # @DESCRIPTION:
@@ -191,7 +207,8 @@ docert() {
 # requested certificates.
 # <certificates> are full pathnames relative to ROOT, without extension.
 #
-# Example: "install_cert /foo/bar" installs ${ROOT}/foo/bar.{key,csr,crt,pem}
+# Example: "install_cert /foo/bar"
+#          installs ${ROOT}/foo/bar.{key,csr,crt,pem,dhparam}
 #
 # Access: public
 install_cert() {
@@ -225,7 +242,7 @@ install_cert() {
 		fi
 
 		# Check for previous existence of generated files
-		for type in key csr crt pem ; do
+		for type in key csr crt pem dhparam ; do
 			if [ -e "${ROOT}${cert}.${type}" ] ; then
 				ewarn "${ROOT}${cert}.${type}: exists, skipping"
 				continue 2
@@ -237,6 +254,7 @@ install_cert() {
 		gen_csr || continue
 		gen_crt || continue
 		gen_pem || continue
+		gen_dhparam || continue
 		echo
 
 		# Install the generated files and set sane permissions
@@ -246,6 +264,7 @@ install_cert() {
 		install -m0444 "${base}.csr" "${ROOT}${cert}.csr"
 		install -m0444 "${base}.crt" "${ROOT}${cert}.crt"
 		install -m0400 "${base}.pem" "${ROOT}${cert}.pem"
+		install -m0444 "${base}.dhparam" "${ROOT}${cert}.dhparam"
 		count=$((${count}+1))
 	done
 
