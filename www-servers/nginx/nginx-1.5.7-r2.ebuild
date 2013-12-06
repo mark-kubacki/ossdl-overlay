@@ -16,6 +16,12 @@ EAPI="5"
 # prevent perl-module from adding automagic perl DEPENDs
 GENTOO_DEPEND_ON_PERL="no"
 
+# devel_kit (https://github.com/simpl/ngx_devel_kit, BSD license)
+DEVEL_KIT_MODULE_PV="0.2.19"
+DEVEL_KIT_MODULE_P="ngx_devel_kit-${DEVEL_KIT_MODULE_PV}-r1"
+DEVEL_KIT_MODULE_URI="https://github.com/simpl/ngx_devel_kit/archive/v${DEVEL_KIT_MODULE_PV}.tar.gz"
+DEVEL_KIT_MODULE_WD="${WORKDIR}/ngx_devel_kit-${DEVEL_KIT_MODULE_PV}"
+
 # http_uploadprogress (https://github.com/masterzen/nginx-upload-progress-module, BSD-2 license)
 HTTP_UPLOAD_PROGRESS_MODULE_PV="0.9.0"
 HTTP_UPLOAD_PROGRESS_MODULE_P="ngx_upload_progress-${HTTP_UPLOAD_PROGRESS_MODULE_PV}"
@@ -32,6 +38,12 @@ HTTP_HEADERS_MORE_MODULE_PN="agentzh-headers-more-nginx-module"
 HTTP_HEADERS_MORE_MODULE_P="${HTTP_HEADERS_MORE_MODULE_PN}-${HTTP_HEADERS_MORE_MODULE_PV}"
 HTTP_HEADERS_MORE_MODULE_S="${HTTP_HEADERS_MORE_MODULE_PN}-${HTTP_HEADERS_MORE_MODULE_SHA1}"
 HTTP_HEADERS_MORE_MODULE_URI="https://github.com/${HTTP_HEADERS_MORE_MODULE_PN/-//}/tarball/v${HTTP_HEADERS_MORE_MODULE_PV}"
+
+# http_lua (https://github.com/chaoslawful/lua-nginx-module, BSD license)
+HTTP_LUA_MODULE_PV="0.9.2"
+HTTP_LUA_MODULE_P="ngx_http_lua-${HTTP_LUA_MODULE_PV}"
+HTTP_LUA_MODULE_URI="https://github.com/chaoslawful/lua-nginx-module/archive/v${HTTP_LUA_MODULE_PV}.tar.gz"
+HTTP_LUA_MODULE_WD="${WORKDIR}/lua-nginx-module-${HTTP_LUA_MODULE_PV}"
 
 # http_echo (https://github.com/agentzh/echo-nginx-module)
 HTTP_ECHO_MODULE_PV="0.49"
@@ -82,8 +94,10 @@ inherit eutils ssl-cert toolchain-funcs perl-module flag-o-matic user systemd ve
 DESCRIPTION="Robust, small and high performance http and reverse proxy server"
 HOMEPAGE="http://nginx.org/"
 SRC_URI="http://nginx.org/download/${P}.tar.gz
+	${DEVEL_KIT_MODULE_URI} -> ${DEVEL_KIT_MODULE_P}.tar.gz
 	nginx_modules_http_upload_progress? ( ${HTTP_UPLOAD_PROGRESS_MODULE_URI} -> ${HTTP_UPLOAD_PROGRESS_MODULE_P}.tar.gz )
 	nginx_modules_http_headers_more? ( ${HTTP_HEADERS_MORE_MODULE_URI} -> ${HTTP_HEADERS_MORE_MODULE_P}.tar.gz )
+	nginx_modules_http_lua? ( ${HTTP_LUA_MODULE_URI} -> ${HTTP_LUA_MODULE_P}.tar.gz )
 	nginx_modules_http_redis? ( http://people.freebsd.org/~osa/${HTTP_REDIS_MODULE_P}.tar.gz )
 	nginx_modules_http_echo? ( ${HTTP_ECHO_MODULE_URI} -> ${HTTP_ECHO_MODULE_P}.tar.gz )
 	nginx_modules_http_redis2? ( ${HTTP_REDIS2_MODULE_URI} -> ${HTTP_REDIS2_MODULE_P}.tar.gz )
@@ -112,6 +126,7 @@ NGINX_MODULES_3RD="
 	http_concat
 	http_upload_progress
 	http_headers_more
+	http_lua
 	http_redis
 	http_echo
 	http_redis2
@@ -155,6 +170,7 @@ CDEPEND="
 	nginx_modules_http_secure_link? ( userland_GNU? ( dev-libs/openssl ) )
 	nginx_modules_http_spdy? ( >=dev-libs/openssl-1.0.1c )
 	nginx_modules_http_xslt? ( dev-libs/libxml2 dev-libs/libxslt )
+	nginx_modules_http_lua? ( || ( dev-lang/lua dev-lang/luajit ) )
 	"
 RDEPEND="${CDEPEND}"
 DEPEND="${CDEPEND}
@@ -164,6 +180,7 @@ DEPEND="${CDEPEND}
 PDEPEND="vim-syntax? ( app-vim/nginx-syntax )"
 
 REQUIRED_USE="pcre-jit? ( pcre )
+	nginx_modules_http_lua? ( nginx_modules_http_rewrite )
 	nginx_modules_http_spdy? ( ssl http )
 	"
 
@@ -196,6 +213,7 @@ pkg_setup() {
 }
 
 src_prepare() {
+	epatch "${FILESDIR}/0001-Nginx-1.5.7-from-5450-to-5458.patch"
 	epatch "${FILESDIR}/nginx-1.3.4-if_modified_since.patch"
 	epatch "${FILESDIR}/nginx-1.1.5-zero_filesize_check.patch"
 	if use paranoia; then
@@ -265,6 +283,12 @@ src_configure() {
 	if use nginx_modules_http_headers_more; then
 		http_enabled=1
 		myconf+=" --add-module=${WORKDIR}/${HTTP_HEADERS_MORE_MODULE_S}"
+	fi
+
+	if use nginx_modules_http_lua; then
+		http_enabled=1
+		myconf+=" --add-module=${DEVEL_KIT_MODULE_WD}"
+		myconf+=" --add-module=${HTTP_LUA_MODULE_WD}"
 	fi
 
 	if use nginx_modules_http_redis; then
@@ -435,6 +459,11 @@ src_install() {
 		fixlocalpod
 	fi
 
+	if use nginx_modules_http_lua; then
+		docinto ${HTTP_LUA_MODULE_P}
+		nonfatal dodoc "${HTTP_LUA_MODULE_WD}"/{Changes,README.markdown}
+	fi
+
 	if use nginx_modules_http_cache_purge; then
 		docinto ${HTTP_CACHE_PURGE_MODULE_P}
 		nonfatal dodoc "${WORKDIR}"/${HTTP_CACHE_PURGE_MODULE_P}/{CHANGES,README.md,TODO.md}
@@ -486,6 +515,11 @@ pkg_postinst() {
 			ewarn "starts a new dhparam will be generated, delaying that start."
 			ewarn ""
 		fi
+	fi
+
+	if use nginx_modules_http_lua && use nginx_modules_http_spdy; then
+		ewarn "Lua 3rd party module author warns against using ${P} with"
+		ewarn "NGINX_MODULES_HTTP=\"lua spdy\". For more info, see http://git.io/OldLsg"
 	fi
 
 #	if use arm64; then
