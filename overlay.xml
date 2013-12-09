@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE repositories SYSTEM "/dtd/repositories.dtd">
+<repositories xmlns="" version="1.0">
+  <repo quality="stable" status="unofficial">
+    <name>OSSDL</name>
+    <description lang="en">Mark Kubacki's packages for AS and servers</description>
+    <homepage>https://github.com/wmark/ossdl-overlay</homepage>
+    <owner type="person">
+      <name>Mark Kubacki</name>
+      <email>wmark+overlay@hurrikane.de</email>
+    </owner>
+    <source type="git">https://github.com/wmark/ossdl-overlay.git</source>
+    <source type="git">https://bitbucket.org/wmark/ossdl-overlay.git</source>
+    <feed>https://github.com/wmark/ossdl-overlay/commits/master.atom</feed>
+  </repo>
+</repositories>
