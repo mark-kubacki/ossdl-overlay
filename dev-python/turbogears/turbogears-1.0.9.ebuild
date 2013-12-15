@@ -1,9 +1,10 @@
-# Copyright 2008-2012 W-Mark Kubacki
+# Copyright 2008-2013 W-Mark Kubacki
 # Distributed under the terms of the OSI Reciprocal Public License
 
 EAPI="3"
 PYTHON_DEPEND="2:2.4:2.7"
 SUPPORT_PYTHON_ABIS="1"
+RESTRICT_PYTHON_ABIS="3.*"
 
 inherit distutils eutils
 
@@ -11,11 +12,11 @@ KEYWORDS="amd64 x86 arm"
 
 MY_PN=TurboGears
 MY_P=${MY_PN}-${PV}
+PYTHON_MODNAME=${MY_PN}
 
 DESCRIPTION="The rapid web development meta-framework you've been looking for."
 HOMEPAGE="http://www.turbogears.org/"
-SRC_URI="http://files.turbogears.org/eggs/${MY_P}.tar.gz"
-RESTRICT="primaryuri"
+SRC_URI="mirror://pypi/${MY_P:0:1}/${MY_PN}/${MY_P}.tar.gz"
 LICENSE="MIT"
 SLOT="0"
 IUSE="test"
@@ -66,5 +67,4 @@ pkg_postinst() {
 	elog " - dev-python/sqlalchemy (already installed when built with tests enabled)"
 	elog " - dev-python/tg-widgets-lightbox"
 	elog " - dev-python/tg-widgets-scriptaculous"
-	python_mod_optimize "$(python_get_sitedir)/${PN}"
 }
