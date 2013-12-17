@@ -214,6 +214,7 @@ pkg_setup() {
 
 src_prepare() {
 	epatch "${FILESDIR}/0001-Nginx-1.5.7-from-5450-to-5458.patch"
+	epatch "${FILESDIR}/0001-fix-TLS-record-size.patch"
 	epatch "${FILESDIR}/nginx-1.3.4-if_modified_since.patch"
 	epatch "${FILESDIR}/nginx-1.1.5-zero_filesize_check.patch"
 	if use paranoia; then

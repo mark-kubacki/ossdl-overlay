@@ -1,0 +1,36 @@
+Subject: [PATCH] fix TLS record size
+
+---
+ src/event/ngx_event_openssl.c | 2 +-
+ src/event/ngx_event_openssl.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index e4bc1a2..0e19cda 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -567,7 +567,7 @@ ngx_ssl_info_callback(const ngx_ssl_conn_t *ssl_conn, int where, int ret)
+             wbio = SSL_get_wbio((ngx_ssl_conn_t *) ssl_conn);
+ 
+             if (rbio != wbio) {
+-                (void) BIO_set_write_buffer_size(wbio, NGX_SSL_BUFSIZE);
++                (void) BIO_set_write_buffer_size(wbio, 16384);
+                 c->ssl->handshake_buffer_set = 1;
+             }
+         }
+diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
+index 841e825..38724e4 100644
+--- a/src/event/ngx_event_openssl.h
++++ b/src/event/ngx_event_openssl.h
+@@ -104,7 +104,7 @@ typedef struct {
+ #define NGX_SSL_BUFFER   1
+ #define NGX_SSL_CLIENT   2
+ 
+-#define NGX_SSL_BUFSIZE  16384
++#define NGX_SSL_BUFSIZE  1360
+ 
+ 
+ ngx_int_t ngx_ssl_init(ngx_log_t *log);
+-- 
+1.8.5.1
+
