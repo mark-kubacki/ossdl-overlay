@@ -1,0 +1,58 @@
+From 351ac1c45c03f074871d2bab5743e61b2e7c47f9 Mon Sep 17 00:00:00 2001
+From: Daniel Kahn Gillmor <dkg@fifthhorseman.net>
+Date: Mon, 18 Nov 2013 16:58:39 +0100
+Subject: [PATCH] require DH group of 1024 bits
+
+Signed-off-by: W-Mark Kubacki <wmark@hurrikane.de>
+
+[finishes #60908226]
+---
+ ssl/s3_clnt.c | 6 ++++++
+ ssl/ssl.h     | 1 +
+ ssl/ssl_err.c | 1 +
+ 3 files changed, 8 insertions(+)
+
+diff --git a/ssl/s3_clnt.c b/ssl/s3_clnt.c
+index 6aeab44..6fa3dbe 100644
+--- a/ssl/s3_clnt.c
++++ b/ssl/s3_clnt.c
+@@ -3475,6 +3475,12 @@ int ssl3_check_cert_and_algorithm(SSL *s)
+ 		SSLerr(SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM,SSL_R_MISSING_DH_RSA_CERT);
+ 		goto f_err;
+ 		}
++	else if ((alg_k & (SSL_kEDH|SSL_kDHr|SSL_kDHd)) &&
++		(dh == NULL || DH_size(dh)*8 < 1024))
++		{
++		SSLerr(SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM,SSL_R_WEAK_DH_GROUP);
++		goto f_err;
++		}
+ #ifndef OPENSSL_NO_DSA
+ 	else if ((alg_k & SSL_kDHd) && !SSL_USE_SIGALGS(s) &&
+ 		!has_bits(i,EVP_PK_DH|EVP_PKS_DSA))
+diff --git a/ssl/ssl.h b/ssl/ssl.h
+index 480da2f..398f629 100644
+--- a/ssl/ssl.h
++++ b/ssl/ssl.h
+@@ -3030,6 +3030,7 @@ void ERR_load_SSL_strings(void);
+ #define SSL_R_UNSUPPORTED_SSL_VERSION			 259
+ #define SSL_R_UNSUPPORTED_STATUS_TYPE			 329
+ #define SSL_R_USE_SRTP_NOT_NEGOTIATED			 369
++#define SSL_R_WEAK_DH_GROUP				 394
+ #define SSL_R_WRITE_BIO_NOT_SET				 260
+ #define SSL_R_WRONG_CERTIFICATE_TYPE			 383
+ #define SSL_R_WRONG_CIPHER_RETURNED			 261
+diff --git a/ssl/ssl_err.c b/ssl/ssl_err.c
+index 3de87ea..15cc261 100644
+--- a/ssl/ssl_err.c
++++ b/ssl/ssl_err.c
+@@ -620,6 +620,7 @@ static ERR_STRING_DATA SSL_str_reasons[]=
+ {ERR_REASON(SSL_R_UNSUPPORTED_SSL_VERSION),"unsupported ssl version"},
+ {ERR_REASON(SSL_R_UNSUPPORTED_STATUS_TYPE),"unsupported status type"},
+ {ERR_REASON(SSL_R_USE_SRTP_NOT_NEGOTIATED),"use srtp not negotiated"},
++{ERR_REASON(SSL_R_WEAK_DH_GROUP)         ,"weak dh group"},
+ {ERR_REASON(SSL_R_WRITE_BIO_NOT_SET)     ,"write bio not set"},
+ {ERR_REASON(SSL_R_WRONG_CERTIFICATE_TYPE),"wrong certificate type"},
+ {ERR_REASON(SSL_R_WRONG_CIPHER_RETURNED) ,"wrong cipher returned"},
+-- 
+1.8.4
+

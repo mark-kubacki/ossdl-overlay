@@ -1,0 +1,85 @@
+From 54f7cb7ac089e21a7ec47500a25be232644e3d38 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Mon, 18 Nov 2013 14:17:49 +0100
+Subject: [PATCH] Make the assembly syntax compatible with x32 gcc. Othewise
+ x32 gcc throws errors.
+
+Received from H J Liu @ Intel
+Signed-Off-By: Nitin A Kamble <nitin.a.kamble@intel.com> 2011/07/13
+
+ported the patch to the 1.0.0e version
+Signed-Off-By: Nitin A Kamble <nitin.a.kamble@intel.com> 2011/12/01
+
+ported the patch to the 1.0.2 version
+Signed-Off-By: W-Mark Kubacki <wmark@hurrikane.de> 2013-11-18
+
+[re #60908218]
+---
+ Configure                  |  1 +
+ crypto/bn/asm/x86_64-gcc.c | 12 ++++++------
+ crypto/bn/bn.h             |  7 +++++++
+ 3 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/Configure b/Configure
+index 20e2574..ad0029c 100755
+--- a/Configure
++++ b/Configure
+@@ -198,6 +198,7 @@ my %table=(
+ "debug-linux-generic32","gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DCRYPTO_MDEBUG -DTERMIO -g -Wall::-D_REENTRANT::-ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:${no_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+ "debug-linux-generic64","gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DCRYPTO_MDEBUG -DTERMIO -g -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:${no_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+ "debug-linux-x86_64","gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DCRYPTO_MDEBUG -m64 -DL_ENDIAN -DTERMIO -g -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_INT DES_UNROLL:${x86_64_asm}:elf:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::64",
++"linux-x32",	"gcc:-DL_ENDIAN 	-DTERMIO -O2 -pipe -g -feliminate-unused-debug-types -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT RC4_CHUNK DES_INT DES_UNROLL:${x86_64_asm}:elf:dlfcn:linux-shared:-fPIC:-mx32:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+ "dist",		"cc:-O::(unknown)::::::",
+ 
+ # Basic configs that should work on any (32 and less bit) box
+diff --git a/crypto/bn/asm/x86_64-gcc.c b/crypto/bn/asm/x86_64-gcc.c
+index dfb7506..aa8bb5f 100644
+--- a/crypto/bn/asm/x86_64-gcc.c
++++ b/crypto/bn/asm/x86_64-gcc.c
+@@ -193,9 +193,9 @@ BN_ULONG bn_add_words (BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int
+ 	"	subq	%0,%0		\n"	/* clear carry */
+ 	"	jmp	1f		\n"
+ 	".p2align 4			\n"
+-	"1:	movq	(%4,%2,8),%0	\n"
+-	"	adcq	(%5,%2,8),%0	\n"
+-	"	movq	%0,(%3,%2,8)	\n"
++	"1:	movq	(%q4,%2,8),%0	\n"
++	"	adcq	(%q5,%2,8),%0	\n"
++	"	movq	%0,(%q3,%2,8)	\n"
+ 	"	lea	1(%2),%2	\n"
+ 	"	loop	1b		\n"
+ 	"	sbbq	%0,%0		\n"
+@@ -218,9 +218,9 @@ BN_ULONG bn_sub_words (BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int
+ 	"	subq	%0,%0		\n"	/* clear borrow */
+ 	"	jmp	1f		\n"
+ 	".p2align 4			\n"
+-	"1:	movq	(%4,%2,8),%0	\n"
+-	"	sbbq	(%5,%2,8),%0	\n"
+-	"	movq	%0,(%3,%2,8)	\n"
++	"1:	movq	(%q4,%2,8),%0	\n"
++	"	sbbq	(%q5,%2,8),%0	\n"
++	"	movq	%0,(%q3,%2,8)	\n"
+ 	"	lea	1(%2),%2	\n"
+ 	"	loop	1b		\n"
+ 	"	sbbq	%0,%0		\n"
+diff --git a/crypto/bn/bn.h b/crypto/bn/bn.h
+index 5897d2b..4fbb2c5 100644
+--- a/crypto/bn/bn.h
++++ b/crypto/bn/bn.h
+@@ -172,6 +172,13 @@ extern "C" {
+ # endif
+ #endif
+ 
++/* Address type.  */
++#ifdef _WIN64
++#define BN_ADDR unsigned long long
++#else
++#define BN_ADDR unsigned long
++#endif
++
+ /* assuming long is 64bit - this is the DEC Alpha
+  * unsigned long long is only 64 bits :-(, don't define
+  * BN_LLONG for the DEC Alpha */
+-- 
+1.8.4
+
