@@ -1,0 +1,62 @@
+From b7fdc7a6838314c8dbc848240e35f52c5c83309f Mon Sep 17 00:00:00 2001
+From: Piotr Sikora <piotr@cloudflare.com>
+Date: Mon, 4 Nov 2013 02:20:10 -0800
+Subject: [PATCH 1/3] SSL: support automatic selection of ECDH temporary key
+ parameters.
+
+The colon separated list of supported curves can be provided using
+either curve NIDs:
+
+    ssl_ecdh_curve  secp521r1:secp384r1:prime256v1;
+
+or names:
+
+    ssl_ecdh_curve  P-521:P-384:P-256;
+
+Signed-off-by: Piotr Sikora <piotr@cloudflare.com>
+---
+ src/event/ngx_event_openssl.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index ee66713..5a8ffbe 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -679,6 +679,25 @@ ngx_ssl_ecdh_curve(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *name)
+ {
+ #if OPENSSL_VERSION_NUMBER >= 0x0090800fL
+ #ifndef OPENSSL_NO_ECDH
++#ifdef SSL_CTRL_SET_ECDH_AUTO
++
++    if (SSL_CTX_set1_curves_list(ssl->ctx, name->data) == 0) {
++        ngx_ssl_error(NGX_LOG_EMERG, ssl->log, 0,
++                      "Unknown curve in \"%s\"", name->data);
++        return NGX_ERROR;
++    }
++
++    if (SSL_CTX_set_ecdh_auto(ssl->ctx, 1) == 0) {
++        ngx_ssl_error(NGX_LOG_EMERG, ssl->log, 0,
++                      "Unable to set automatic curve selection for \"%s\"",
++                      name->data);
++        return NGX_ERROR;
++    }
++
++    return NGX_OK;
++
++#else
++
+     int      nid;
+     EC_KEY  *ecdh;
+ 
+@@ -708,6 +727,8 @@ ngx_ssl_ecdh_curve(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *name)
+     SSL_CTX_set_tmp_ecdh(ssl->ctx, ecdh);
+ 
+     EC_KEY_free(ecdh);
++
++#endif
+ #endif
+ #endif
+ 
+-- 
+1.8.4
+
