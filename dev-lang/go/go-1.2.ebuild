@@ -13,7 +13,7 @@ if [[ ${PV} = 9999 ]]; then
 else
 	SRC_URI="http://go.googlecode.com/files/go${PV}.src.tar.gz"
 	# Upstream only supports go on amd64, arm and x86 architectures.
-	KEYWORDS="-* amd64 arm x86"
+	KEYWORDS="-* amd64 arm x86 ~x86-fbsd"
 fi
 
 DESCRIPTION="A concurrent garbage collected and typesafe programming language"
@@ -23,14 +23,14 @@ LICENSE="BSD"
 SLOT="0"
 IUSE="bash-completion emacs vim-syntax zsh-completion"
 
-DEPEND="sys-apps/ed"
+DEPEND=""
 RDEPEND="bash-completion? ( app-shells/bash-completion )
 	emacs? ( virtual/emacs )
 	vim-syntax? ( || ( app-editors/vim app-editors/gvim ) )
 	zsh-completion? ( app-shells/zsh-completion )"
 
 # The tools in /usr/lib/go should not cause the multilib-strict check to fail.
-QA_MULTILIB_PATHS="usr/lib/go/pkg/tool/linux.*/.*"
+QA_MULTILIB_PATHS="usr/lib/go/pkg/tool/.*/.*"
 
 # The go language uses *.a files which are _NOT_ libraries and should not be
 # stripped.
@@ -42,11 +42,14 @@ fi
 
 src_prepare()
 {
-	epatch "${FILESDIR}/go-1.2-json_speedup-issue13894045_107001.patch"
-	epatch "${FILESDIR}/go-1.2-more-efficient-byte-arrays-issue15930045_40001.patch"
-	epatch "${FILESDIR}/go-1.2-TCP_fastopen-issue27150044_2060001.patch"
-	epatch "${FILESDIR}/go-1.2-SHA256_assembly_for_amd64-issue28460043_80001.patch"
-	epatch "${FILESDIR}/go-1.2-SHA_use_copy-issue35840044_60001.patch"
+	epatch "${FILESDIR}"/go-1.2-json_speedup-issue13894045_107001.patch
+	epatch "${FILESDIR}"/go-1.2-more-efficient-byte-arrays-issue15930045_40001.patch
+	epatch "${FILESDIR}"/go-1.2-TCP_fastopen-issue27150044_2060001.patch
+	epatch "${FILESDIR}"/go-1.2-SHA256_assembly_for_amd64-issue28460043_80001.patch
+	epatch "${FILESDIR}"/go-1.2-SHA_use_copy-issue35840044_60001.patch
+	if [[ ${PV} != 9999 ]]; then
+		epatch "${FILESDIR}"/${P}-no-Werror.patch
+	fi
 	epatch_user
 }
 
@@ -130,6 +133,11 @@ pkg_postinst()
 	find "${ROOT}"usr/lib/go -type f \
 		-exec touch -r "${ROOT}"${tref} {} \;
 	eend $?
+
+	if [[ ${PV} != 9999 && -n ${REPLACING_VERSIONS} &&
+		${REPLACING_VERSIONS} != ${PV} ]]; then
+		elog "Release notes are located at http://golang.org/doc/go${PV}"
+	fi
 }
 
 pkg_postrm()
