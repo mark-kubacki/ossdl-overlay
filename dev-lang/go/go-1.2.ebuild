@@ -47,6 +47,16 @@ src_prepare()
 	epatch "${FILESDIR}"/go-1.2-TCP_fastopen-issue27150044_2060001.patch
 	epatch "${FILESDIR}"/go-1.2-SHA256_assembly_for_amd64-issue28460043_80001.patch
 	epatch "${FILESDIR}"/go-1.2-SHA_use_copy-issue35840044_60001.patch
+
+	# this one contains "copy from" and "copy to" which some version of patch don't understand
+	sed \
+		-e 's:crypto/sha256/sha256block:crypto/sha512/sha512block:g' \
+		"${FILESDIR}"/go-1.2-SHA512_assembly_for_amd64-issue37150044_40001.patch \
+		> go-1.2-SHA512_assembly_for_amd64.patch
+	cp src/pkg/crypto/sha256/sha256block_amd64.s src/pkg/crypto/sha512/sha512block_amd64.s
+	cp src/pkg/crypto/sha256/sha256block_decl.go src/pkg/crypto/sha512/sha512block_decl.go
+	epatch go-1.2-SHA512_assembly_for_amd64.patch
+
 	if [[ ${PV} != 9999 ]]; then
 		epatch "${FILESDIR}"/${P}-no-Werror.patch
 	fi
