@@ -1,0 +1,634 @@
+Index: src/pkg/net/dial.go
+===================================================================
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -44,6 +44,18 @@
+ 	// destination is a host name that has multiple address family
+ 	// DNS records.
+ 	DualStack bool
++
++	// FastOpen tries to reduce the message round trip time during
++	// a TCP connection setup by using TCP Fast Open protocol if
++	// possible. Otherwise it uses a conventional three-way
++	// handshake.
++	//
++	// Note that DualStack will be ignored when FastOpen is true
++	// because DualStack allows to connect uncertain multiple
++	// destination IP addresses but FastOpen allows to connect one
++	// of the most probable, already known and accepted IP
++	// addresses.
++	FastOpen bool
+ }
+ 
+ // Return either now+Timeout or Deadline, whichever comes first.
+@@ -154,6 +166,18 @@
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Addr: nil, Err: err}
+ 	}
++	switch network {
++	case "tcp", "tcp4", "tcp6":
++	default:
++		return dialSingle(network, address, d.LocalAddr, ra.toAddr(), d.deadline())
++	}
++	if d.FastOpen && supportsTCPFastOpen {
++		c, err := d.dialTCP(network, ra.toAddr().(*TCPAddr))
++		if err != nil {
++			return nil, err
++		}
++		return c, nil
++	}
+ 	dialer := func(deadline time.Time) (Conn, error) {
+ 		return dialSingle(network, address, d.LocalAddr, ra.toAddr(), deadline)
+ 	}
+Index: src/pkg/net/fd_fastopen.go
+===================================================================
+new file mode 100644
+--- /dev/null
++++ b/src/pkg/net/fd_fastopen.go
+@@ -0,0 +1,75 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++package net
++
++import "syscall"
++
++func (fd *netFD) OpenRead(b []byte, flags int) (int, error) {
++	if err := fd.readLock(); err != nil {
++		return 0, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
++	}
++	defer fd.readUnlock()
++	if err := fd.pd.PrepareRead(); err != nil {
++		return 0, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
++	}
++	for {
++		switch n, err := syscall.Read(fd.sysfd, b); err {
++		case nil:
++			return n, chkReadErr(n, err, fd)
++		case syscall.ENOTCONN:
++			if flags&msgFlagFastOpen == 0 {
++				return 0, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
++			}
++			fallthrough
++		case syscall.EAGAIN:
++			if err := fd.pd.WaitRead(); err == nil {
++				continue
++			}
++			fallthrough
++		default:
++			return 0, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
++		}
++	}
++}
++
++func (fd *netFD) OpenWrite(b []byte, flags int) (int, error) {
++	if err := fd.writeLock(); err != nil {
++		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
++	}
++	defer fd.writeUnlock()
++	if err := fd.pd.PrepareWrite(); err != nil {
++		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
++	}
++	if fd.isConnected {
++		return fd.write(b)
++	}
++	raddr, ok := fd.raddr.(*TCPAddr)
++	if !ok {
++		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: errMissingAddress}
++	}
++	sa, err := raddr.sockaddr(fd.family)
++	if err != nil {
++		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
++	}
++	for {
++		switch err := syscall.Sendmsg(fd.sysfd, b, nil, sa, flags); err {
++		case nil:
++			fd.isConnected = true
++			return len(b), nil
++		case syscall.EISCONN:
++			fd.isConnected = true
++			return fd.write(b)
++		case syscall.EAGAIN, syscall.EALREADY, syscall.EINPROGRESS, syscall.EINTR:
++			if err := fd.pd.WaitWrite(); err == nil {
++				continue
++			}
++			fallthrough
++		default:
++			return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
++		}
++	}
++}
+Index: src/pkg/net/fd_unix.go
+===================================================================
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -21,13 +21,17 @@
+ 	fdmu fdMutex
+ 
+ 	// immutable until Close
+-	sysfd       int
+-	family      int
+-	sotype      int
++	sysfd  int
++	family int
++	sotype int
++	net    string
++	laddr  Addr
++	raddr  Addr
++
++	// Almost all the time it's immutable except when TCP Fast
++	// Open protocol is used. When the protocol runs isConnected
++	// will be mutable during the connection setup phase.
+ 	isConnected bool
+-	net         string
+-	laddr       Addr
+-	raddr       Addr
+ 
+ 	// wait server
+ 	pd pollDesc
+@@ -284,6 +288,10 @@
+ 	if err := fd.pd.PrepareWrite(); err != nil {
+ 		return 0, &OpError{"write", fd.net, fd.raddr, err}
+ 	}
++	return fd.write(p)
++}
++
++func (fd *netFD) write(p []byte) (nn int, err error) {
+ 	for {
+ 		var n int
+ 		n, err = syscall.Write(int(fd.sysfd), p[nn:])
+@@ -400,6 +408,7 @@
+ 		fd.Close()
+ 		return nil, err
+ 	}
++	netfd.isConnected = true
+ 	lsa, _ := syscall.Getsockname(netfd.sysfd)
+ 	netfd.setAddr(toAddr(lsa), toAddr(rsa))
+ 	return netfd, nil
+Index: src/pkg/net/fd_windows.go
+===================================================================
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -535,6 +535,7 @@
+ 		fd.Close()
+ 		return nil, err
+ 	}
++	netfd.isConnected = true
+ 
+ 	// Submit accept request.
+ 	o := &fd.rop
+Index: src/pkg/net/file_plan9.go
+===================================================================
+--- a/src/pkg/net/file_plan9.go
++++ b/src/pkg/net/file_plan9.go
+@@ -102,7 +102,7 @@
+ 
+ 	switch fd.laddr.(type) {
+ 	case *TCPAddr:
+-		return newTCPConn(fd), nil
++		return newTCPConn(fd, false), nil
+ 	case *UDPAddr:
+ 		return newUDPConn(fd), nil
+ 	}
+Index: src/pkg/net/file_unix.go
+===================================================================
+--- a/src/pkg/net/file_unix.go
++++ b/src/pkg/net/file_unix.go
+@@ -86,7 +86,7 @@
+ 	}
+ 	switch fd.laddr.(type) {
+ 	case *TCPAddr:
+-		return newTCPConn(fd), nil
++		return newTCPConn(fd, true), nil
+ 	case *UDPAddr:
+ 		return newUDPConn(fd), nil
+ 	case *IPAddr:
+Index: src/pkg/net/ipsock.go
+===================================================================
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -26,12 +26,6 @@
+ 	supportsIPv4map bool
+ )
+ 
+-func init() {
+-	sysInit()
+-	supportsIPv4 = probeIPv4Stack()
+-	supportsIPv6, supportsIPv4map = probeIPv6Stack()
+-}
+-
+ // A netaddr represents a network endpoint address or a list of
+ // network endpoint addresses.
+ type netaddr interface {
+Index: src/pkg/net/ipsock_posix.go
+===================================================================
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -13,7 +13,7 @@
+ 	"time"
+ )
+ 
+-func probeIPv4Stack() bool {
++func probeIPv4Stack() (supportsIPv4 bool) {
+ 	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 	switch err {
+ 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
+@@ -133,7 +133,7 @@
+ 
+ func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+-	return socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, toAddr)
++	return socketReadyToIO(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, toAddr)
+ }
+ 
+ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, error) {
+Index: src/pkg/net/net.go
+===================================================================
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -50,6 +50,13 @@
+ 	"time"
+ )
+ 
++func init() {
++	sysInit()
++	supportsIPv4 = probeIPv4Stack()
++	supportsIPv6, supportsIPv4map = probeIPv6Stack()
++	supportsTCPFastOpen = probeTCPStack()
++}
++
+ // Addr represents a network end point address.
+ type Addr interface {
+ 	Network() string // name of the network
+Index: src/pkg/net/sock_bsd.go
+===================================================================
+--- a/src/pkg/net/sock_bsd.go
++++ b/src/pkg/net/sock_bsd.go
+@@ -11,6 +11,14 @@
+ 	"syscall"
+ )
+ 
++const sysSockoptTCPFastOpen = 0 // not implemented yet
++
++const msgFlagFastOpen = 0 // not implemented yet
++
++func probeTCPStack() (supportsTCPFastOpen bool) {
++	return false
++}
++
+ func maxListenerBacklog() int {
+ 	var (
+ 		n   uint32
+Index: src/pkg/net/sock_linux.go
+===================================================================
+--- a/src/pkg/net/sock_linux.go
++++ b/src/pkg/net/sock_linux.go
+@@ -6,6 +6,43 @@
+ 
+ import "syscall"
+ 
++const sysSockoptTCPFastOpen = 23 // enable TCP fast open at passive open side
++
++const msgFlagFastOpen = 0x20000000 // process TCP fast open at active open side
++
++func probeTCPStack() (supportsTCPFastOpen bool) {
++	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++	if err != nil {
++		return false
++	}
++	defer closesocket(s)
++	sa, err := (&TCPAddr{IP: IPv4(127, 0, 0, 1)}).sockaddr(syscall.AF_INET)
++	if err != nil {
++		return false
++	}
++	if err := syscall.Bind(s, sa); err != nil {
++		return false
++	}
++	if err := syscall.SetsockoptInt(s, syscall.IPPROTO_TCP, sysSockoptTCPFastOpen, listenerBacklog); err != nil {
++		return false
++	}
++	fd, err := open("/proc/sys/net/ipv4/tcp_fastopen")
++	if err != nil {
++		return false
++	}
++	defer fd.close()
++	l, ok := fd.readLine()
++	if !ok {
++		return false
++	}
++	f := getFields(l)
++	// See Documentation/networking/ip-sysctl.txt of Linux kernel.
++	if n, _, ok := dtoi(f[0], 0); !ok || n < 0x3 {
++		return false
++	}
++	return true
++}
++
+ func maxListenerBacklog() int {
+ 	fd, err := open("/proc/sys/net/core/somaxconn")
+ 	if err != nil {
+Index: src/pkg/net/sock_plan9.go
+===================================================================
+--- a/src/pkg/net/sock_plan9.go
++++ b/src/pkg/net/sock_plan9.go
+@@ -4,6 +4,14 @@
+ 
+ package net
+ 
++const sysSockoptTCPFastOpen = 0 // not implemented yet
++
++const msgFlagFastOpen = 0 // not implemented yet
++
++func probeTCPStack() (supportsTCPFastOpen bool) {
++	return false
++}
++
+ func maxListenerBacklog() int {
+ 	// /sys/include/ape/sys/socket.h:/SOMAXCONN
+ 	return 5
+Index: src/pkg/net/sock_posix.go
+===================================================================
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -34,9 +34,8 @@
+ 	sockaddr(family int) (syscall.Sockaddr, error)
+ }
+ 
+-// socket returns a network file descriptor that is ready for
+-// asynchronous I/O using the network poller.
+-func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
++// socket returns a network file descriptor.
++func socket(net string, family, sotype, proto int, ipv6only bool) (fd *netFD, err error) {
+ 	s, err := sysSocket(family, sotype, proto)
+ 	if err != nil {
+ 		return nil, err
+@@ -49,6 +48,16 @@
+ 		closesocket(s)
+ 		return nil, err
+ 	}
++	return fd, nil
++}
++
++// socketReadyToIO returns a network file descriptor that is ready for
++// asynchronous I/O using the network poller.
++func socketReadyToIO(net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
++	fd, err = socket(net, family, sotype, proto, ipv6only)
++	if err != nil {
++		return nil, err
++	}
+ 
+ 	// This function makes a network file descriptor for the
+ 	// following applications:
+@@ -147,6 +156,11 @@
+ 			return os.NewSyscallError("bind", err)
+ 		}
+ 	}
++	if (fd.family == syscall.AF_INET || fd.family == syscall.AF_INET6) && fd.sotype == syscall.SOCK_STREAM {
++		if err := setTCPListenerSockopts(fd.sysfd); err != nil {
++			return err
++		}
++	}
+ 	if err := syscall.Listen(fd.sysfd, backlog); err != nil {
+ 		return os.NewSyscallError("listen", err)
+ 	}
+Index: src/pkg/net/sock_windows.go
+===================================================================
+--- a/src/pkg/net/sock_windows.go
++++ b/src/pkg/net/sock_windows.go
+@@ -6,6 +6,14 @@
+ 
+ import "syscall"
+ 
++const sysSockoptTCPFastOpen = 0 // not implemented yet
++
++const msgFlagFastOpen = 0 // not implemented yet
++
++func probeTCPStack() (supportsTCPFastOpen bool) {
++	return false
++}
++
+ func maxListenerBacklog() int {
+ 	// TODO: Implement this
+ 	// NOTE: Never return a number bigger than 1<<16 - 1. See issue 5030.
+Index: src/pkg/net/sockopt_bsd.go
+===================================================================
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -39,3 +39,7 @@
+ 	// quick draw possible.
+ 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1))
+ }
++
++func setTCPListenerSockopts(s int) error {
++	return nil
++}
+Index: src/pkg/net/sockopt_linux.go
+===================================================================
+--- a/src/pkg/net/sockopt_linux.go
++++ b/src/pkg/net/sockopt_linux.go
+@@ -30,3 +30,10 @@
+ 	// concurrently across multiple listeners.
+ 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
+ }
++
++func setTCPListenerSockopts(s int) error {
++	if supportsTCPFastOpen {
++		return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.IPPROTO_TCP, sysSockoptTCPFastOpen, listenerBacklog))
++	}
++	return nil
++}
+Index: src/pkg/net/sockopt_windows.go
+===================================================================
+--- a/src/pkg/net/sockopt_windows.go
++++ b/src/pkg/net/sockopt_windows.go
+@@ -36,3 +36,7 @@
+ 	// concurrently across multiple listeners.
+ 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
+ }
++
++func setTCPListenerSockopts(s syscall.Handle) error {
++	return nil
++}
+Index: src/pkg/net/tcpsock.go
+===================================================================
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -4,6 +4,10 @@
+ 
+ package net
+ 
++// supportsTCPFastOpen reports whether the platform supports TCP Fast
++// Open (TFO) protocol.
++var supportsTCPFastOpen bool
++
+ // TCPAddr represents the address of a TCP end point.
+ type TCPAddr struct {
+ 	IP   IP
+Index: src/pkg/net/tcpsock_fastopen.go
+===================================================================
+new file mode 100644
+--- /dev/null
++++ b/src/pkg/net/tcpsock_fastopen.go
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++package net
++
++import "syscall"
++
++// Read implements the Conn Read method.
++func (c *TCPConn) Read(b []byte) (int, error) {
++	if !c.ok() {
++		return 0, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EINVAL}
++	}
++	if !c.fastOpen || !supportsTCPFastOpen {
++		return c.fd.Read(b)
++	}
++	return c.fd.OpenRead(b, msgFlagFastOpen)
++}
++
++// Write implements the Conn Write method.
++func (c *TCPConn) Write(b []byte) (int, error) {
++	if !c.ok() {
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: c.fd.raddr, Err: syscall.EINVAL}
++	}
++	if !c.fastOpen || !supportsTCPFastOpen {
++		return c.fd.Write(b)
++	}
++	return c.fd.OpenWrite(b, msgFlagFastOpen)
++}
+Index: src/pkg/net/tcpsock_plan9.go
+===================================================================
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -17,7 +17,7 @@
+ 	conn
+ }
+ 
+-func newTCPConn(fd *netFD) *TCPConn {
++func newTCPConn(fd *netFD, fastOpen bool) *TCPConn {
+ 	return &TCPConn{conn{fd}}
+ }
+ 
+@@ -101,7 +101,7 @@
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return newTCPConn(fd), nil
++	return newTCPConn(fd, false), nil
+ }
+ 
+ // TCPListener is a TCP network listener.  Clients should typically
+@@ -120,7 +120,7 @@
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return newTCPConn(fd), nil
++	return newTCPConn(fd, false), nil
+ }
+ 
+ // Accept implements the Accept method in the Listener interface; it
+@@ -189,3 +189,8 @@
+ 	}
+ 	return &TCPListener{fd}, nil
+ }
++
++func (d *Dialer) dialTCP(network string, raddr *TCPAddr) (*TCPConn, error) {
++	laddr, _ := d.LocalAddr.(*TCPAddr)
++	return dialTCP(network, laddr, raddr, d.deadline())
++}
+Index: src/pkg/net/tcpsock_posix.go
+===================================================================
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -56,10 +56,11 @@
+ // connections.
+ type TCPConn struct {
+ 	conn
++	fastOpen bool
+ }
+ 
+-func newTCPConn(fd *netFD) *TCPConn {
+-	c := &TCPConn{conn{fd}}
++func newTCPConn(fd *netFD, fastOpen bool) *TCPConn {
++	c := &TCPConn{conn: conn{fd}, fastOpen: fastOpen}
+ 	c.SetNoDelay(true)
+ 	return c
+ }
+@@ -188,7 +189,7 @@
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: err}
+ 	}
+-	return newTCPConn(fd), nil
++	return newTCPConn(fd, false), nil
+ }
+ 
+ func selfConnect(fd *netFD, err error) bool {
+@@ -218,6 +219,38 @@
+ 	return ok && e.Err == syscall.EADDRNOTAVAIL
+ }
+ 
++func (d *Dialer) dialTCP(network string, raddr *TCPAddr) (*TCPConn, error) {
++	dial := func(laddr, raddr *TCPAddr) (*netFD, error) {
++		family, ipv6only := favoriteAddrFamily(network, laddr, raddr, "dial")
++		fd, err := socket(network, family, syscall.SOCK_STREAM, syscall.IPPROTO_TCP, ipv6only)
++		if err != nil {
++			return nil, err
++		}
++		if err := fd.dial(laddr, nil, d.deadline(), sockaddrToTCP); err != nil {
++			fd.Close()
++			return nil, err
++		}
++		fd.raddr = raddr
++		return fd, nil
++	}
++	laddr, ok := d.LocalAddr.(*TCPAddr)
++	if !ok || laddr == nil {
++		laddr = &TCPAddr{}
++	}
++	fd, err := dial(laddr, raddr)
++	// See dialTCP for the detail of TCP simultaneous connection.
++	for i := 0; i < 2 && laddr.Port == 0 && (selfConnect(fd, err) || spuriousENOTAVAIL(err)); i++ {
++		if err == nil {
++			fd.Close()
++		}
++		fd, err = dial(laddr, raddr)
++	}
++	if err != nil {
++		return nil, &OpError{Op: "dial", Net: network, Addr: raddr, Err: err}
++	}
++	return newTCPConn(fd, true), nil
++}
++
+ // TCPListener is a TCP network listener.  Clients should typically
+ // use variables of type Listener instead of assuming TCP.
+ type TCPListener struct {
+@@ -234,7 +267,7 @@
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return newTCPConn(fd), nil
++	return newTCPConn(fd, false), nil
+ }
+ 
+ // Accept implements the Accept method in the Listener interface; it
+Index: src/pkg/net/unixsock_posix.go
+===================================================================
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -49,7 +49,7 @@
+ 		f = sockaddrToUnixpacket
+ 	}
+ 
+-	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, f)
++	fd, err := socketReadyToIO(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, f)
+ 	if err != nil {
+ 		return nil, err
+ 	}

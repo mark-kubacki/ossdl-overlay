@@ -1,0 +1,89 @@
+Index: src/cmd/gc/go.h
+===================================================================
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1250,6 +1250,7 @@
+ void	dumpobj(void);
+ void	ieeedtod(uint64 *ieee, double native);
+ Sym*	stringsym(char*, int);
++void	slicebytes(Node*, char*, int);
+ 
+ /*
+  *	order.c
+Index: src/cmd/gc/obj.c
+===================================================================
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -338,3 +338,31 @@
+ 
+ 	return sym;	
+ }
++
++void
++slicebytes(Node *nam, char *s, int len)
++{
++	int off, n, m;
++	static int gen;
++	Sym *sym;
++
++	snprint(namebuf, sizeof(namebuf), ".gobytes.%d", ++gen);
++	sym = pkglookup(namebuf, localpkg);
++	sym->def = newname(sym);
++
++	off = 0;
++	for(n=0; n<len; n+=m) {
++		m = 8;
++		if(m > len-n)
++			m = len-n;
++		off = dsname(sym, off, s+n, m);
++	}
++	ggloblsym(sym, off, 0, 0);
++	
++	if(nam->op != ONAME)
++		fatal("slicebytes %N", nam);
++	off = nam->xoffset;
++	off = dsymptr(nam->sym, off, sym, 0);
++	off = duintxx(nam->sym, off, len, widthint);
++	duintxx(nam->sym, off, len, widthint);
++}
+Index: src/cmd/gc/sinit.c
+===================================================================
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -378,6 +378,7 @@
+ 	InitPlan *p;
+ 	InitEntry *e;
+ 	int i;
++	Strlit *sval;
+ 	
+ 	switch(r->op) {
+ 	default:
+@@ -426,6 +427,14 @@
+ 		}
+ 		break;
+ 
++	case OSTRARRAYBYTE:
++		if(l->class == PEXTERN && r->left->op == OLITERAL) {
++			sval = r->left->val.u.sval;
++			slicebytes(l, sval->s, sval->len);
++			return 1;
++		}
++		break;
++
+ 	case OARRAYLIT:
+ 		initplan(r);
+ 		if(isslice(r->type)) {
+Index: src/cmd/gc/typecheck.c
+===================================================================
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1406,6 +1406,9 @@
+ 			}
+ 			break;
+ 		case OSTRARRAYBYTE:
++			// do not use stringtoarraylit.
++			// generated code and compiler memory footprint is better without it.
++			break;
+ 		case OSTRARRAYRUNE:
+ 			if(n->left->op == OLITERAL)
+ 				stringtoarraylit(&n);

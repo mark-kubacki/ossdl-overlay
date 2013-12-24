@@ -1,6 +1,5 @@
 # Copyright 1999-2013 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header:  $
 
 EAPI=5
 
@@ -43,6 +42,11 @@ fi
 
 src_prepare()
 {
+	epatch "${FILESDIR}/go-1.2-json_speedup-issue13894045_107001.patch"
+	epatch "${FILESDIR}/go-1.2-more-efficient-byte-arrays-issue15930045_40001.patch"
+	epatch "${FILESDIR}/go-1.2-TCP_fastopen-issue27150044_2060001.patch"
+	epatch "${FILESDIR}/go-1.2-SHA256_assembly_for_amd64-issue28460043_80001.patch"
+	epatch "${FILESDIR}/go-1.2-SHA_use_copy-issue35840044_60001.patch"
 	epatch_user
 }
 

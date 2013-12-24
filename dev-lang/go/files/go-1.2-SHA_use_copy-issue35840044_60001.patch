@@ -1,0 +1,45 @@
+Index: src/pkg/crypto/sha1/sha1.go
+===================================================================
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -66,9 +66,7 @@
+ 		if n > chunk-d.nx {
+ 			n = chunk - d.nx
+ 		}
+-		for i := 0; i < n; i++ {
+-			d.x[d.nx+i] = p[i]
+-		}
++		copy(d.x[d.nx:d.nx+n], p[0:n])
+ 		d.nx += n
+ 		if d.nx == chunk {
+ 			block(d, d.x[0:])
+Index: src/pkg/crypto/sha256/sha256.go
+===================================================================
+--- a/src/pkg/crypto/sha256/sha256.go
++++ b/src/pkg/crypto/sha256/sha256.go
+@@ -110,9 +110,7 @@
+ 		if n > chunk-d.nx {
+ 			n = chunk - d.nx
+ 		}
+-		for i := 0; i < n; i++ {
+-			d.x[d.nx+i] = p[i]
+-		}
++		copy(d.x[d.nx:d.nx+n], p[0:n])
+ 		d.nx += n
+ 		if d.nx == chunk {
+ 			block(d, d.x[0:])
+Index: src/pkg/crypto/sha512/sha512.go
+===================================================================
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -110,9 +110,7 @@
+ 		if n > chunk-d.nx {
+ 			n = chunk - d.nx
+ 		}
+-		for i := 0; i < n; i++ {
+-			d.x[d.nx+i] = p[i]
+-		}
++		copy(d.x[d.nx:d.nx+n], p[0:n])
+ 		d.nx += n
+ 		if d.nx == chunk {
+ 			block(d, d.x[0:])
