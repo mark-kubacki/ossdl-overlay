@@ -1,0 +1,63 @@
+Index: src/pkg/encoding/asn1/asn1.go
+===================================================================
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -451,11 +451,13 @@
+ 		if err != nil {
+ 			return
+ 		}
+-		// We pretend that GENERAL STRINGs are PRINTABLE STRINGs so
+-		// that a sequence of them can be parsed into a []string.
+-		if t.tag == tagGeneralString {
++		// We pretend that various other string types are PRINTABLE STRINGs
++		// so that a sequence of them can be parsed into a []string.
++		switch t.tag {
++		case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
+ 			t.tag = tagPrintableString
+ 		}
++
+ 		if t.class != classUniversal || t.isCompound != compoundType || t.tag != expectedTag {
+ 			err = StructuralError{"sequence tag mismatch"}
+ 			return
+Index: src/pkg/encoding/asn1/asn1_test.go
+===================================================================
+--- a/src/pkg/encoding/asn1/asn1_test.go
++++ b/src/pkg/encoding/asn1/asn1_test.go
+@@ -6,6 +6,7 @@
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"math/big"
+ 	"reflect"
+ 	"testing"
+@@ -737,3 +738,29 @@
+ 	0xc8, 0x64, 0x8c, 0xb5, 0x50, 0x23, 0x82, 0x6f, 0xdb, 0xb8, 0x22, 0x1c, 0x43,
+ 	0x96, 0x07, 0xa8, 0xbb,
+ }
++
++var stringSliceTestData = [][]string{
++	{"foo", "bar"},
++	{"foo", "\\bar"},
++	{"foo", "\"bar\""},
++	{"foo", "åäö"},
++}
++
++func TestUnmarshalStringSlice(t *testing.T) {
++	for _, test := range stringSliceTestData {
++		bs, err := Marshal(test)
++		if err != nil {
++			t.Error(err)
++		}
++
++		var res []string
++		_, err = Unmarshal(bs, &res)
++		if err != nil {
++			t.Error(err)
++		}
++
++		if fmt.Sprintf("%v", res) != fmt.Sprintf("%v", test) {
++			t.Errorf("incorrect marshal/unmarshal; %v != %v", res, test)
++		}
++	}
++}
