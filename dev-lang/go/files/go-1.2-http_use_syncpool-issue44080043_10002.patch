@@ -1,0 +1,175 @@
+Index: src/pkg/net/http/header.go
+===================================================================
+--- a/src/pkg/net/http/header.go
++++ b/src/pkg/net/http/header.go
+@@ -9,6 +9,7 @@
+ 	"net/textproto"
+ 	"sort"
+ 	"strings"
++	"sync"
+ 	"time"
+ )
+ 
+@@ -114,18 +115,15 @@
+ func (s *headerSorter) Swap(i, j int)      { s.kvs[i], s.kvs[j] = s.kvs[j], s.kvs[i] }
+ func (s *headerSorter) Less(i, j int) bool { return s.kvs[i].key < s.kvs[j].key }
+ 
+-// TODO: convert this to a sync.Cache (issue 4720)
+-var headerSorterCache = make(chan *headerSorter, 8)
++var headerSorterPool = sync.Pool{
++	New: func() interface{} { return new(headerSorter) },
++}
+ 
+ // sortedKeyValues returns h's keys sorted in the returned kvs
+ // slice. The headerSorter used to sort is also returned, for possible
+ // return to headerSorterCache.
+ func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *headerSorter) {
+-	select {
+-	case hs = <-headerSorterCache:
+-	default:
+-		hs = new(headerSorter)
+-	}
++	hs = headerSorterPool.Get().(*headerSorter)
+ 	if cap(hs.kvs) < len(h) {
+ 		hs.kvs = make([]keyValues, 0, len(h))
+ 	}
+@@ -159,10 +157,7 @@
+ 			}
+ 		}
+ 	}
+-	select {
+-	case headerSorterCache <- sorter:
+-	default:
+-	}
++	headerSorterPool.Put(sorter)
+ 	return nil
+ }
+ 
+Index: src/pkg/net/http/request.go
+===================================================================
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -20,6 +20,7 @@
+ 	"net/url"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ )
+ 
+ const (
+@@ -494,25 +495,20 @@
+ 	return line[:s1], line[s1+1 : s2], line[s2+1:], true
+ }
+ 
+-// TODO(bradfitz): use a sync.Cache when available
+-var textprotoReaderCache = make(chan *textproto.Reader, 4)
++var textprotoReaderPool sync.Pool
+ 
+ func newTextprotoReader(br *bufio.Reader) *textproto.Reader {
+-	select {
+-	case r := <-textprotoReaderCache:
+-		r.R = br
+-		return r
+-	default:
+-		return textproto.NewReader(br)
++	if v := textprotoReaderPool.Get(); v != nil {
++		tr := v.(*textproto.Reader)
++		tr.R = br
++		return tr
+ 	}
++	return textproto.NewReader(br)
+ }
+ 
+ func putTextprotoReader(r *textproto.Reader) {
+ 	r.R = nil
+-	select {
+-	case textprotoReaderCache <- r:
+-	default:
+-	}
++	textprotoReaderPool.Put(r)
+ }
+ 
+ // ReadRequest reads and parses a request from b.
+Index: src/pkg/net/http/server.go
+===================================================================
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -435,56 +435,52 @@
+ 	return c, nil
+ }
+ 
+-// TODO: use a sync.Cache instead
+ var (
+-	bufioReaderCache   = make(chan *bufio.Reader, 4)
+-	bufioWriterCache2k = make(chan *bufio.Writer, 4)
+-	bufioWriterCache4k = make(chan *bufio.Writer, 4)
++	bufioReaderPool   sync.Pool
++	bufioWriter2kPool sync.Pool
++	bufioWriter4kPool sync.Pool
+ )
+ 
+-func bufioWriterCache(size int) chan *bufio.Writer {
++func bufioWriterPool(size int) *sync.Pool {
+ 	switch size {
+ 	case 2 << 10:
+-		return bufioWriterCache2k
++		return &bufioWriter2kPool
+ 	case 4 << 10:
+-		return bufioWriterCache4k
++		return &bufioWriter4kPool
+ 	}
+ 	return nil
+ }
+ 
+ func newBufioReader(r io.Reader) *bufio.Reader {
+-	select {
+-	case p := <-bufioReaderCache:
+-		p.Reset(r)
+-		return p
+-	default:
+-		return bufio.NewReader(r)
++	if v := bufioReaderPool.Get(); v != nil {
++		br := v.(*bufio.Reader)
++		br.Reset(r)
++		return br
+ 	}
++	return bufio.NewReader(r)
+ }
+ 
+ func putBufioReader(br *bufio.Reader) {
+ 	br.Reset(nil)
+-	select {
+-	case bufioReaderCache <- br:
+-	default:
+-	}
++	bufioReaderPool.Put(br)
+ }
+ 
+ func newBufioWriterSize(w io.Writer, size int) *bufio.Writer {
+-	select {
+-	case p := <-bufioWriterCache(size):
+-		p.Reset(w)
+-		return p
+-	default:
+-		return bufio.NewWriterSize(w, size)
++	pool := bufioWriterPool(size)
++	if pool != nil {
++		if v := pool.Get(); v != nil {
++			bw := v.(*bufio.Writer)
++			bw.Reset(w)
++			return bw
++		}
+ 	}
++	return bufio.NewWriterSize(w, size)
+ }
+ 
+ func putBufioWriter(bw *bufio.Writer) {
+ 	bw.Reset(nil)
+-	select {
+-	case bufioWriterCache(bw.Available()) <- bw:
+-	default:
++	if pool := bufioWriterPool(bw.Available()); pool != nil {
++		pool.Put(bw)
+ 	}
+ }
+ 

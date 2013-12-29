@@ -51,6 +51,8 @@ src_prepare()
 	epatch "${FILESDIR}"/go-1.2-ASN1_non_printable_strings-issue22460043_50001.patch
 	epatch "${FILESDIR}"/go-1.2-set_default_signature_hash_to_SHA256-issue40720047_100001.patch
 	epatch "${FILESDIR}"/go-1.2-x509_import_SHA256-issue44010047_120001.patch
+	epatch "${FILESDIR}"/go-1.2-syncpool-issue41860043_250001.patch
+	epatch "${FILESDIR}"/go-1.2-http_use_syncpool-issue44080043_10002.patch
 
 	# this one contains "copy from" and "copy to" which some version of patch don't understand
 	sed \
