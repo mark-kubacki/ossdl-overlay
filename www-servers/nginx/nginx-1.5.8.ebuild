@@ -220,6 +220,8 @@ src_prepare() {
 	epatch "${FILESDIR}/nginx-1.1.5-zero_filesize_check.patch"
 	if use paranoia; then
 		epatch "${FILESDIR}/nginx-1.5.6-random_dhparam.patch"
+	else
+		epatch "${FILESDIR}/nginx-1.5.6-3072-bit-dhparam.patch"
 	fi
 
 	if use nginx_modules_http_redis; then

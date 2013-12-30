@@ -49,7 +49,7 @@ index cd8f0e7..63da2f6 100644
 +                return NGX_ERROR;
 +            }
 +
-+            if (!DH_generate_parameters_ex(random_dh, 2048, DH_GENERATOR_2, NULL)) {
++            if (!DH_generate_parameters_ex(random_dh, 3072, DH_GENERATOR_2, NULL)) {
 +                ngx_ssl_error(NGX_LOG_EMERG, ssl->log, 0, "DH_generate_parameters_ex() failed");
 +                DH_free(random_dh);
 +                return NGX_ERROR;
