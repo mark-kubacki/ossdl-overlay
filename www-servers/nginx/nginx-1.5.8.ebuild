@@ -223,6 +223,7 @@ src_prepare() {
 	else
 		epatch "${FILESDIR}/nginx-1.5.6-3072-bit-dhparam.patch"
 	fi
+	epatch "${FILESDIR}/nginx-1.5.8-remove-RC4-from-the-list-of-default-ciphers.patch"
 
 	if use nginx_modules_http_redis; then
 		cd "${WORKDIR}/${HTTP_REDIS_MODULE_P}"
