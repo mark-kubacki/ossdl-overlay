@@ -1,10 +1,12 @@
 # Copyright 1999-2010 Gentoo Foundation
-# Copyright 2012 W-Mark Kubacki
+# Copyright 2012-2014 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI="4"
+EAPI="5"
+PYTHON_COMPAT=( python{2_6,2_7} )
+PYTHON_REQ_USE='threads(+)'
 
-inherit apache-module eutils subversion
+inherit apache-module eutils subversion python-r1
 
 DESCRIPTION="Apache module for rewriting web pages to reduce latency and bandwidth"
 HOMEPAGE="http://code.google.com/p/modpagespeed"
@@ -18,9 +20,11 @@ IUSE=""
 
 DEPEND="dev-util/depot-tools
 	>=sys-devel/gcc-4.1.0[cxx]
-	>=dev-lang/python-2.6.0[threads]
 	dev-util/gperf"
-RDEPEND=">=www-servers/apache-2.2.0"
+RDEPEND=">=www-servers/apache-2.2.0
+	${PYTHON_DEPS}
+	"
+REQUIRED_USE="${PYTHON_REQUIRED_USE}"
 
 APACHE2_MOD_FILE="${S}/out/Release/${PN}.so"
 APACHE2_MOD_CONF="80_${PN//-/_}"
@@ -54,10 +58,17 @@ src_compile() {
 }
 
 src_install() {
-	mv -f out/Release/libmod_pagespeed.so out/Release/${PN}.so
+	local OUTDIR=out/Release
+	mv -f ${OUTDIR}/libmod_pagespeed.so ${OUTDIR}/${PN}.so
 	apache-module_src_install
 
 	keepdir /var/cache/mod_pagespeed /var/cache/mod_pagespeed/files /var/cache/mod_pagespeed/cache
 	fowners apache:apache /var/cache/mod_pagespeed /var/cache/mod_pagespeed/files /var/cache/mod_pagespeed/cache
 	fperms 0770 /var/cache/mod_pagespeed /var/cache/mod_pagespeed/files /var/cache/mod_pagespeed/cache
+
+	mv -f ${OUTDIR}/html_minifier_main ${OUTDIR}/pagespeed_minify_html
+	dobin ${OUTDIR}/pagespeed_minify_html
+
+	mv -f ${OUTDIR}/js_minify ${OUTDIR}/pagespeed_js_minify
+	dobin ${OUTDIR}/pagespeed_js_minify
 }
