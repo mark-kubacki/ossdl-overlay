@@ -1,22 +1,21 @@
 # Copyright 1999-2009 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: $
 
 inherit versionator java-vm-2 eutils pax-utils
 
 DESCRIPTION="Open Source Messaging"
 HOMEPAGE="http://activemq.apache.org"
 SRC_URI="mirror://apache/activemq/apache-activemq/${PV}/${P}-bin.tar.gz"
+SRC_URI="http://archive.apache.org/dist/activemq/apache-activemq/${PV}/${P}-bin.tar.gz"
 
 SLOT="0"
 LICENSE="apache-2"
 KEYWORDS="amd64 x86"
-RESTRICT="strip"
+RESTRICT="strip primaryuri"
 IUSE=""
 
 RDEPEND=">=virtual/jre-1.6"
 DEPEND="${RDEPEND}"
-
 
 src_unpack() {
 	local modules
