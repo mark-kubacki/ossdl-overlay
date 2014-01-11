@@ -1,6 +1,5 @@
-# Copyright 2010 W-Mark Kubacki
+# Copyright 2010-2014 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
-# $Header: $
 
 EAPI=2
 
@@ -14,7 +13,7 @@ KEYWORDS="alpha amd64 ~hppa ia64 ppc ppc64 sparc x86"
 IUSE="doc examples ssl test"
 
 RDEPEND="ssl? ( dev-libs/openssl )
-	>=dev-libs/boost-1.34.1"
+	>=dev-libs/boost-1.35.0"
 DEPEND="${RDEPEND}"
 
 src_prepare() {
@@ -30,8 +29,7 @@ install:
 }
 
 src_install() {
-	emake DESTDIR="${D}" install || die "emake install failed"
-	dodoc README
+	default
 
 	if use doc ; then
 		dohtml -r doc/*
@@ -42,7 +40,6 @@ src_install() {
 			# Get rid of the object files
 			emake clean || die "emake clean failed"
 		fi
-		insinto /usr/share/doc/${PF}
-		doins -r src/examples
+		dodoc -r src/examples
 	fi
 }
