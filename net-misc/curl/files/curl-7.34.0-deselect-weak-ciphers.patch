@@ -1,0 +1,68 @@
+From 7ef0d661d3b21ee79d3caa2267dc20023ff2b922 Mon Sep 17 00:00:00 2001
+From: Daniel Stenberg <daniel@haxx.se>
+Date: Sun, 12 Jan 2014 19:54:48 +0100
+Subject: [PATCH] OpenSSL: deselect weak ciphers by default
+
+By default even recent versions of OpenSSL supports and accepts both
+"export strength" ciphers, small-bitsize ciphers as well as downright
+deprecated ones.
+
+This change sets a default cipher selection that tries to avoid the
+worst ones, and subsequently it makes https://www.howsmyssl.com/a/check
+no longer grade curl/OpenSSL connects as 'Bad'.
+
+Bug: http://curl.haxx.se/bug/view.cgi?id=1323
+Reported-by: Jeff Hodges
+Ported to 7.34.0: Mark Kubacki
+---
+ lib/ssluse.c | 14 +++++++-------
+ lib/ssluse.h |  2 ++
+ 2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/lib/ssluse.c b/lib/ssluse.c
+index d0a83f7..18aff24 100644
+--- a/lib/ssluse.c
++++ b/lib/ssluse.c
+@@ -1404,7 +1404,7 @@ ossl_connect_step1(struct connectdata *conn,
+                    int sockindex)
+ {
+   CURLcode retcode = CURLE_OK;
+-
++  char *ciphers;
+   struct SessionHandle *data = conn->data;
+   SSL_METHOD_QUAL SSL_METHOD *req_method=NULL;
+   void *ssl_sessionid=NULL;
+@@ -1609,12 +1609,12 @@ ossl_connect_step1(struct connectdata *conn,
+     }
+   }
+ 
+-  if(data->set.str[STRING_SSL_CIPHER_LIST]) {
+-    if(!SSL_CTX_set_cipher_list(connssl->ctx,
+-                                data->set.str[STRING_SSL_CIPHER_LIST])) {
+-      failf(data, "failed setting cipher list");
+-      return CURLE_SSL_CIPHER;
+-    }
++  ciphers = data->set.str[STRING_SSL_CIPHER_LIST];
++  if(!ciphers)
++    ciphers = (char *)DEFAULT_CIPHER_SELECTION;
++  if(!SSL_CTX_set_cipher_list(connssl->ctx, ciphers)) {
++    failf(data, "failed setting cipher list: %s", ciphers);
++    return CURLE_SSL_CIPHER;
+   }
+ 
+ #ifdef USE_TLS_SRP
+diff --git a/lib/ssluse.h b/lib/ssluse.h
+index d6efcb2..5001768 100644
+--- a/lib/ssluse.h
++++ b/lib/ssluse.h
+@@ -95,5 +95,7 @@ void Curl_ossl_md5sum(unsigned char *tmp, /* input */
+ #define curlssl_random(x,y,z) Curl_ossl_random(x,y,z)
+ #define curlssl_md5sum(a,b,c,d) Curl_ossl_md5sum(a,b,c,d)
+ 
++#define DEFAULT_CIPHER_SELECTION "ALL!EXPORT!EXPORT40!EXPORT56!aNULL!LOW!RC4!RC2"
++
+ #endif /* USE_SSLEAY */
+ #endif /* HEADER_CURL_SSLUSE_H */
+-- 
+1.8.5.2
+
