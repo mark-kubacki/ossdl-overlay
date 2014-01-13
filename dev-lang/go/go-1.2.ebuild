@@ -47,7 +47,7 @@ src_prepare()
 	epatch "${FILESDIR}"/go-1.2-more-efficient-byte-arrays-issue15930045_40001.patch
 	epatch "${FILESDIR}"/go-1.2-TCP_fastopen-issue27150044_2060001.patch
 	epatch "${FILESDIR}"/go-1.2-SHA256_assembly_for_amd64-issue28460043_80001.patch
-	epatch "${FILESDIR}"/go-1.2-SHA_use_copy-issue35840044_60001.patch
+	epatch "${FILESDIR}"/go-1.2-SHA_use_copy-issue35840044_140001.patch
 	epatch "${FILESDIR}"/go-1.2-ASN1_non_printable_strings-issue22460043_50001.patch
 	epatch "${FILESDIR}"/go-1.2-set_default_signature_hash_to_SHA256-issue40720047_100001.patch
 	epatch "${FILESDIR}"/go-1.2-x509_import_SHA256-issue44010047_120001.patch
@@ -57,7 +57,7 @@ src_prepare()
 	# this one contains "copy from" and "copy to" which some version of patch don't understand
 	sed \
 		-e 's:crypto/sha256/sha256block:crypto/sha512/sha512block:g' \
-		"${FILESDIR}"/go-1.2-SHA512_assembly_for_amd64-issue37150044_40001.patch \
+		"${FILESDIR}"/go-1.2-SHA512_assembly_for_amd64-issue37150044_100001.patch \
 		> go-1.2-SHA512_assembly_for_amd64.patch
 	cp src/pkg/crypto/sha256/sha256block_amd64.s src/pkg/crypto/sha512/sha512block_amd64.s
 	cp src/pkg/crypto/sha256/sha256block_decl.go src/pkg/crypto/sha512/sha512block_decl.go

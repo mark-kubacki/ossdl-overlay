@@ -448,7 +448,7 @@ copy to src/pkg/crypto/sha512/sha512block_decl.go
 +++ b/src/pkg/crypto/sha512/sha512block_decl.go
 @@ -4,7 +4,7 @@
  
- // +build amd64
+ // +build 386 amd64
  
 -package sha256
 +package sha512
