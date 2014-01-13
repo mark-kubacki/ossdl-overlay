@@ -1,0 +1,60 @@
+Index: src/pkg/net/http/server.go
+===================================================================
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1608,11 +1608,11 @@
+ 	if addr == "" {
+ 		addr = ":http"
+ 	}
+-	l, e := net.Listen("tcp", addr)
+-	if e != nil {
+-		return e
++	ln, err := net.Listen("tcp", addr)
++	if err != nil {
++		return err
+ 	}
+-	return srv.Serve(l)
++	return srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
+ }
+ 
+ // Serve accepts incoming connections on the Listener l, creating a
+@@ -1742,12 +1742,12 @@
+ 		return err
+ 	}
+ 
+-	conn, err := net.Listen("tcp", addr)
++	ln, err := net.Listen("tcp", addr)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	tlsListener := tls.NewListener(conn, config)
++	tlsListener := tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, config)
+ 	return srv.Serve(tlsListener)
+ }
+ 
+@@ -1837,6 +1837,24 @@
+ 	tw.w.WriteHeader(code)
+ }
+ 
++// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
++// connections. It's used by ListenAndServe and ListenAndServeTLS so
++// dead TCP connections (e.g. closing laptop mid-download) eventually
++// go away.
++type tcpKeepAliveListener struct {
++	*net.TCPListener
++}
++
++func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
++	tc, err := ln.AcceptTCP()
++	if err != nil {
++		return
++	}
++	tc.SetKeepAlive(true)
++	tc.SetKeepAlivePeriod(3 * time.Minute)
++	return tc, nil
++}
++
+ // globalOptionsHandler responds to "OPTIONS *" requests.
+ type globalOptionsHandler struct{}
+ 

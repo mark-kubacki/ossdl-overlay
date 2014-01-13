@@ -1,0 +1,70 @@
+Index: src/pkg/crypto/rsa/pkcs1v15.go
+===================================================================
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -176,7 +176,8 @@
+ 
+ // SignPKCS1v15 calculates the signature of hashed using RSASSA-PKCS1-V1_5-SIGN from RSA PKCS#1 v1.5.
+ // Note that hashed must be the result of hashing the input message using the
+-// given hash function.
++// given hash function. If hash is zero, hashed is signed directly. This isn't
++// advisable except for interoperability.
+ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) (s []byte, err error) {
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+@@ -212,7 +213,8 @@
+ // VerifyPKCS1v15 verifies an RSA PKCS#1 v1.5 signature.
+ // hashed is the result of hashing the input message using the given hash
+ // function and sig is the signature. A valid signature is indicated by
+-// returning a nil error.
++// returning a nil error. If hash is zero then hashed is used directly. This
++// isn't advisable except for interopability.
+ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) (err error) {
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+@@ -249,6 +251,12 @@
+ }
+ 
+ func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, err error) {
++	// Special case: crypto.Hash(0) is used to indicate that the data is
++	// signed directly.
++	if hash == 0 {
++		return inLen, nil, nil
++	}
++
+ 	hashLen = hash.Size()
+ 	if inLen != hashLen {
+ 		return 0, nil, errors.New("crypto/rsa: input must be hashed message")
+Index: src/pkg/crypto/rsa/pkcs1v15_test.go
+===================================================================
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -205,6 +205,28 @@
+ 	}
+ }
+ 
++func TestUnpaddedSignature(t *testing.T) {
++	msg := []byte("Thu Dec 19 18:06:16 EST 2013\n")
++	// This base64 value was generated with:
++	// % echo Thu Dec 19 18:06:16 EST 2013 > /tmp/msg
++	// % openssl rsautl -sign -inkey key -out /tmp/sig -in /tmp/msg
++	//
++	// Where "key" contains the RSA private key given at the bottom of this
++	// file.
++	expectedSig := decodeBase64("pX4DR8azytjdQ1rtUiC040FjkepuQut5q2ZFX1pTjBrOVKNjgsCDyiJDGZTCNoh9qpXYbhl7iEym30BWWwuiZg==")
++
++	sig, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.Hash(0), msg)
++	if err != nil {
++		t.Fatalf("SignPKCS1v15 failed: %s", err)
++	}
++	if !bytes.Equal(sig, expectedSig) {
++		t.Fatalf("signature is not expected value: got %x, want %x", sig, expectedSig)
++	}
++	if err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.Hash(0), msg, sig); err != nil {
++		t.Fatalf("signature failed to verify: %s", err)
++	}
++}
++
+ // In order to generate new test vectors you'll need the PEM form of this key:
+ // -----BEGIN RSA PRIVATE KEY-----
+ // MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0

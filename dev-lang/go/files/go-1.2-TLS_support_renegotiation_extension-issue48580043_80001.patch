@@ -1,0 +1,278 @@
+Index: src/pkg/crypto/tls/common.go
+===================================================================
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -64,7 +64,7 @@
+ )
+ 
+ // TLS extension numbers
+-var (
++const (
+ 	extensionServerName          uint16 = 0
+ 	extensionStatusRequest       uint16 = 5
+ 	extensionSupportedCurves     uint16 = 10
+@@ -72,11 +72,17 @@
+ 	extensionSignatureAlgorithms uint16 = 13
+ 	extensionSessionTicket       uint16 = 35
+ 	extensionNextProtoNeg        uint16 = 13172 // not IANA assigned
++	extensionRenegotiationInfo   uint16 = 0xff01
++)
++
++// TLS signaling cipher suite values
++const (
++	scsvRenegotiation uint16 = 0x00ff
+ )
+ 
+ // TLS Elliptic Curves
+ // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
+-var (
++const (
+ 	curveP256 uint16 = 23
+ 	curveP384 uint16 = 24
+ 	curveP521 uint16 = 25
+@@ -84,7 +90,7 @@
+ 
+ // TLS Elliptic Curve Point Formats
+ // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-9
+-var (
++const (
+ 	pointFormatUncompressed uint8 = 0
+ )
+ 
+Index: src/pkg/crypto/tls/handshake_client.go
+===================================================================
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -22,14 +22,15 @@
+ 	}
+ 
+ 	hello := &clientHelloMsg{
+-		vers:               c.config.maxVersion(),
+-		compressionMethods: []uint8{compressionNone},
+-		random:             make([]byte, 32),
+-		ocspStapling:       true,
+-		serverName:         c.config.ServerName,
+-		supportedCurves:    []uint16{curveP256, curveP384, curveP521},
+-		supportedPoints:    []uint8{pointFormatUncompressed},
+-		nextProtoNeg:       len(c.config.NextProtos) > 0,
++		vers:                c.config.maxVersion(),
++		compressionMethods:  []uint8{compressionNone},
++		random:              make([]byte, 32),
++		ocspStapling:        true,
++		serverName:          c.config.ServerName,
++		supportedCurves:     []uint16{curveP256, curveP384, curveP521},
++		supportedPoints:     []uint8{pointFormatUncompressed},
++		nextProtoNeg:        len(c.config.NextProtos) > 0,
++		secureRenegotiation: true,
+ 	}
+ 
+ 	possibleCipherSuites := c.config.cipherSuites()
+Index: src/pkg/crypto/tls/handshake_messages.go
+===================================================================
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -7,20 +7,21 @@
+ import "bytes"
+ 
+ type clientHelloMsg struct {
+-	raw                []byte
+-	vers               uint16
+-	random             []byte
+-	sessionId          []byte
+-	cipherSuites       []uint16
+-	compressionMethods []uint8
+-	nextProtoNeg       bool
+-	serverName         string
+-	ocspStapling       bool
+-	supportedCurves    []uint16
+-	supportedPoints    []uint8
+-	ticketSupported    bool
+-	sessionTicket      []uint8
+-	signatureAndHashes []signatureAndHash
++	raw                 []byte
++	vers                uint16
++	random              []byte
++	sessionId           []byte
++	cipherSuites        []uint16
++	compressionMethods  []uint8
++	nextProtoNeg        bool
++	serverName          string
++	ocspStapling        bool
++	supportedCurves     []uint16
++	supportedPoints     []uint8
++	ticketSupported     bool
++	sessionTicket       []uint8
++	signatureAndHashes  []signatureAndHash
++	secureRenegotiation bool
+ }
+ 
+ func (m *clientHelloMsg) equal(i interface{}) bool {
+@@ -42,7 +43,8 @@
+ 		bytes.Equal(m.supportedPoints, m1.supportedPoints) &&
+ 		m.ticketSupported == m1.ticketSupported &&
+ 		bytes.Equal(m.sessionTicket, m1.sessionTicket) &&
+-		eqSignatureAndHashes(m.signatureAndHashes, m1.signatureAndHashes)
++		eqSignatureAndHashes(m.signatureAndHashes, m1.signatureAndHashes) &&
++		m.secureRenegotiation == m1.secureRenegotiation
+ }
+ 
+ func (m *clientHelloMsg) marshal() []byte {
+@@ -80,6 +82,10 @@
+ 		extensionsLength += 2 + 2*len(m.signatureAndHashes)
+ 		numExtensions++
+ 	}
++	if m.secureRenegotiation {
++		extensionsLength += 1
++		numExtensions++
++	}
+ 	if numExtensions > 0 {
+ 		extensionsLength += 4 * numExtensions
+ 		length += 2 + extensionsLength
+@@ -114,13 +120,13 @@
+ 	}
+ 	if m.nextProtoNeg {
+ 		z[0] = byte(extensionNextProtoNeg >> 8)
+-		z[1] = byte(extensionNextProtoNeg)
++		z[1] = byte(extensionNextProtoNeg & 0xff)
+ 		// The length is always 0
+ 		z = z[4:]
+ 	}
+ 	if len(m.serverName) > 0 {
+ 		z[0] = byte(extensionServerName >> 8)
+-		z[1] = byte(extensionServerName)
++		z[1] = byte(extensionServerName & 0xff)
+ 		l := len(m.serverName) + 5
+ 		z[2] = byte(l >> 8)
+ 		z[3] = byte(l)
+@@ -224,6 +230,13 @@
+ 			z = z[2:]
+ 		}
+ 	}
++	if m.secureRenegotiation {
++		z[0] = byte(extensionRenegotiationInfo >> 8)
++		z[1] = byte(extensionRenegotiationInfo & 0xff)
++		z[2] = 0
++		z[3] = 1
++		z = z[5:]
++	}
+ 
+ 	m.raw = x
+ 
+@@ -256,6 +269,9 @@
+ 	m.cipherSuites = make([]uint16, numCipherSuites)
+ 	for i := 0; i < numCipherSuites; i++ {
+ 		m.cipherSuites[i] = uint16(data[2+2*i])<<8 | uint16(data[3+2*i])
++		if m.cipherSuites[i] == scsvRenegotiation {
++			m.secureRenegotiation = true
++		}
+ 	}
+ 	data = data[2+cipherSuiteLen:]
+ 	if len(data) < 1 {
+@@ -379,6 +395,11 @@
+ 				m.signatureAndHashes[i].signature = d[1]
+ 				d = d[2:]
+ 			}
++		case extensionRenegotiationInfo + 1:
++			if length != 1 || data[0] != 0 {
++				return false
++			}
++			m.secureRenegotiation = true
+ 		}
+ 		data = data[length:]
+ 	}
+@@ -387,16 +408,17 @@
+ }
+ 
+ type serverHelloMsg struct {
+-	raw               []byte
+-	vers              uint16
+-	random            []byte
+-	sessionId         []byte
+-	cipherSuite       uint16
+-	compressionMethod uint8
+-	nextProtoNeg      bool
+-	nextProtos        []string
+-	ocspStapling      bool
+-	ticketSupported   bool
++	raw                 []byte
++	vers                uint16
++	random              []byte
++	sessionId           []byte
++	cipherSuite         uint16
++	compressionMethod   uint8
++	nextProtoNeg        bool
++	nextProtos          []string
++	ocspStapling        bool
++	ticketSupported     bool
++	secureRenegotiation bool
+ }
+ 
+ func (m *serverHelloMsg) equal(i interface{}) bool {
+@@ -414,7 +436,8 @@
+ 		m.nextProtoNeg == m1.nextProtoNeg &&
+ 		eqStrings(m.nextProtos, m1.nextProtos) &&
+ 		m.ocspStapling == m1.ocspStapling &&
+-		m.ticketSupported == m1.ticketSupported
++		m.ticketSupported == m1.ticketSupported &&
++		m.secureRenegotiation == m1.secureRenegotiation
+ }
+ 
+ func (m *serverHelloMsg) marshal() []byte {
+@@ -441,6 +464,10 @@
+ 	if m.ticketSupported {
+ 		numExtensions++
+ 	}
++	if m.secureRenegotiation {
++		extensionsLength += 1
++		numExtensions++
++	}
+ 	if numExtensions > 0 {
+ 		extensionsLength += 4 * numExtensions
+ 		length += 2 + extensionsLength
+@@ -469,7 +496,7 @@
+ 	}
+ 	if m.nextProtoNeg {
+ 		z[0] = byte(extensionNextProtoNeg >> 8)
+-		z[1] = byte(extensionNextProtoNeg)
++		z[1] = byte(extensionNextProtoNeg & 0xff)
+ 		z[2] = byte(nextProtoLen >> 8)
+ 		z[3] = byte(nextProtoLen)
+ 		z = z[4:]
+@@ -494,6 +521,13 @@
+ 		z[1] = byte(extensionSessionTicket)
+ 		z = z[4:]
+ 	}
++	if m.secureRenegotiation {
++		z[0] = byte(extensionRenegotiationInfo >> 8)
++		z[1] = byte(extensionRenegotiationInfo & 0xff)
++		z[2] = 0
++		z[3] = 1
++		z = z[5:]
++	}
+ 
+ 	m.raw = x
+ 
+@@ -573,6 +607,11 @@
+ 				return false
+ 			}
+ 			m.ticketSupported = true
++		case extensionRenegotiationInfo:
++			if length != 1 || data[0] != 0 {
++				return false
++			}
++			m.secureRenegotiation = true
+ 		}
+ 		data = data[length:]
+ 	}
+Index: src/pkg/crypto/tls/handshake_server.go
+===================================================================
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -152,6 +152,7 @@
+ 	hs.hello.random[1] = byte(t >> 16)
+ 	hs.hello.random[2] = byte(t >> 8)
+ 	hs.hello.random[3] = byte(t)
++	hs.hello.secureRenegotiation = hs.clientHello.secureRenegotiation
+ 	_, err = io.ReadFull(config.rand(), hs.hello.random[4:])
+ 	if err != nil {
+ 		return false, c.sendAlert(alertInternalError)

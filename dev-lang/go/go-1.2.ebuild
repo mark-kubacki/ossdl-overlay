@@ -63,6 +63,10 @@ src_prepare()
 	cp src/pkg/crypto/sha256/sha256block_decl.go src/pkg/crypto/sha512/sha512block_decl.go
 	epatch go-1.2-SHA512_assembly_for_amd64.patch
 
+	epatch "${FILESDIR}"/go-1.2-RSA_support_unpadded_signatures-issue44400043_80001.diff.patch
+	epatch "${FILESDIR}"/go-1.2-use_TCP_keepalive-issue48300043_80001.patch
+	epatch "${FILESDIR}"/go-1.2-TLS_support_renegotiation_extension-issue48580043_80001.patch
+
 	if [[ ${PV} != 9999 ]]; then
 		epatch "${FILESDIR}"/${P}-no-Werror.patch
 	fi
