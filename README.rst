@@ -11,7 +11,7 @@ To install::
 
     mkdir -p /var/portage/overlays
     cd $_
-    git clone [adress-of-overlay] ossdl
+    git clone [address-of-overlay] ossdl
 
     nano /etc/portage/make.conf || nano /etc/make.conf
     PORTDIR_OVERLAY="/var/portage/overlays/ossdl"
