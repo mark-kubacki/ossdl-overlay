@@ -66,6 +66,8 @@ src_prepare()
 	epatch "${FILESDIR}"/go-1.2-RSA_support_unpadded_signatures-issue44400043_80001.diff.patch
 	epatch "${FILESDIR}"/go-1.2-use_TCP_keepalive-issue48300043_80001.patch
 	epatch "${FILESDIR}"/go-1.2-TLS_support_renegotiation_extension-issue48580043_80001.patch
+	epatch "${FILESDIR}"/go-1.2-speed_up_xop_ops-issue24250044_160001.patch
+	epatch "${FILESDIR}"/go-1.2-improved_cbc_performance-issue50900043_200001.patch
 
 	if [[ ${PV} != 9999 ]]; then
 		epatch "${FILESDIR}"/${P}-no-Werror.patch

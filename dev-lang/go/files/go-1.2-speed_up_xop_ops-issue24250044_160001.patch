@@ -1,0 +1,613 @@
+Index: src/pkg/crypto/cipher/benchmark_test.go
+===================================================================
+new file mode 100644
+--- /dev/null
++++ b/src/pkg/crypto/cipher/benchmark_test.go
+@@ -0,0 +1,139 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cipher_test
++
++import (
++	"crypto/aes"
++	"crypto/cipher"
++	"testing"
++)
++
++func BenchmarkAESGCMSeal1K(b *testing.B) {
++	buf := make([]byte, 1024)
++	b.SetBytes(int64(len(buf)))
++
++	var key [16]byte
++	var nonce [12]byte
++	aes, _ := aes.NewCipher(key[:])
++	aesgcm, _ := cipher.NewGCM(aes)
++	var out []byte
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		out = aesgcm.Seal(out[:0], nonce[:], buf, nonce[:])
++	}
++}
++
++func BenchmarkAESGCMOpen1K(b *testing.B) {
++	buf := make([]byte, 1024)
++	b.SetBytes(int64(len(buf)))
++
++	var key [16]byte
++	var nonce [12]byte
++	aes, _ := aes.NewCipher(key[:])
++	aesgcm, _ := cipher.NewGCM(aes)
++	var out []byte
++	out = aesgcm.Seal(out[:0], nonce[:], buf, nonce[:])
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, err := aesgcm.Open(buf[:0], nonce[:], out, nonce[:])
++		if err != nil {
++			b.Errorf("Open: %v", err)
++		}
++	}
++}
++
++// If we test exactly 1K blocks, we would generate exact multiples of
++// the cipher's block size, and and the cipher stream fragments would
++// always be wordsize aligned, whereas non-aligned is a more typical
++// use-case.
++const almost1K = 1024 - 5
++
++func BenchmarkAESCFBEncrypt1K(b *testing.B) {
++	buf := make([]byte, almost1K)
++	b.SetBytes(int64(len(buf)))
++
++	var key [16]byte
++	var iv [16]byte
++	aes, _ := aes.NewCipher(key[:])
++	ctr := cipher.NewCFBEncrypter(aes, iv[:])
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		ctr.XORKeyStream(buf, buf)
++	}
++}
++
++func BenchmarkAESCFBDecrypt1K(b *testing.B) {
++	buf := make([]byte, almost1K)
++	b.SetBytes(int64(len(buf)))
++
++	var key [16]byte
++	var iv [16]byte
++	aes, _ := aes.NewCipher(key[:])
++	ctr := cipher.NewCFBDecrypter(aes, iv[:])
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		ctr.XORKeyStream(buf, buf)
++	}
++}
++
++func BenchmarkAESOFB1K(b *testing.B) {
++	buf := make([]byte, almost1K)
++	b.SetBytes(int64(len(buf)))
++
++	var key [16]byte
++	var iv [16]byte
++	aes, _ := aes.NewCipher(key[:])
++	ctr := cipher.NewOFB(aes, iv[:])
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		ctr.XORKeyStream(buf, buf)
++	}
++}
++
++func BenchmarkAESCTR1K(b *testing.B) {
++	buf := make([]byte, almost1K)
++	b.SetBytes(int64(len(buf)))
++
++	var key [16]byte
++	var iv [16]byte
++	aes, _ := aes.NewCipher(key[:])
++	ctr := cipher.NewCTR(aes, iv[:])
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		ctr.XORKeyStream(buf, buf)
++	}
++}
++
++func BenchmarkAESCBCEncrypt1K(b *testing.B) {
++	buf := make([]byte, 1024)
++	b.SetBytes(int64(len(buf)))
++
++	var key [16]byte
++	var iv [16]byte
++	aes, _ := aes.NewCipher(key[:])
++	cbc := cipher.NewCBCEncrypter(aes, iv[:])
++	for i := 0; i < b.N; i++ {
++		cbc.CryptBlocks(buf, buf)
++	}
++}
++
++func BenchmarkAESCBCDecrypt1K(b *testing.B) {
++	buf := make([]byte, 1024)
++	b.SetBytes(int64(len(buf)))
++
++	var key [16]byte
++	var iv [16]byte
++	aes, _ := aes.NewCipher(key[:])
++	cbc := cipher.NewCBCDecrypter(aes, iv[:])
++	for i := 0; i < b.N; i++ {
++		cbc.CryptBlocks(buf, buf)
++	}
++}
+Index: src/pkg/crypto/cipher/cbc.go
+===================================================================
+--- a/src/pkg/crypto/cipher/cbc.go
++++ b/src/pkg/crypto/cipher/cbc.go
+@@ -49,13 +49,9 @@
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+ 	for len(src) > 0 {
+-		for i := 0; i < x.blockSize; i++ {
+-			x.iv[i] ^= src[i]
+-		}
++		xorBytes(x.iv, x.iv, src[:x.blockSize])
+ 		x.b.Encrypt(x.iv, x.iv)
+-		for i := 0; i < x.blockSize; i++ {
+-			dst[i] = x.iv[i]
+-		}
++		copy(dst, x.iv)
+ 		src = src[x.blockSize:]
+ 		dst = dst[x.blockSize:]
+ 	}
+@@ -91,12 +87,9 @@
+ 	}
+ 	for len(src) > 0 {
+ 		x.b.Decrypt(x.tmp, src[:x.blockSize])
+-		for i := 0; i < x.blockSize; i++ {
+-			x.tmp[i] ^= x.iv[i]
+-			x.iv[i] = src[i]
+-			dst[i] = x.tmp[i]
+-		}
+-
++		xorBytes(x.tmp, x.tmp, x.iv)
++		copy(x.iv, src)
++		copy(dst, x.tmp)
+ 		src = src[x.blockSize:]
+ 		dst = dst[x.blockSize:]
+ 	}
+Index: src/pkg/crypto/cipher/cfb.go
+===================================================================
+--- a/src/pkg/crypto/cipher/cfb.go
++++ b/src/pkg/crypto/cipher/cfb.go
+@@ -8,18 +8,40 @@
+ 
+ type cfb struct {
+ 	b       Block
++	next    []byte
+ 	out     []byte
+ 	outUsed int
++
+ 	decrypt bool
+ }
+ 
++func (x *cfb) XORKeyStream(dst, src []byte) {
++	for i := 0; i < len(src); i++ {
++		if x.outUsed == len(x.out) {
++			x.b.Encrypt(x.out, x.next)
++			x.outUsed = 0
++		}
++
++		n := xorBytes(dst, src, x.out[x.outUsed:])
++		if x.decrypt {
++			// We can precompute a larger segment of the
++			// keystream on decryption. This will allow
++			// larger batches for xor, and we should be
++			// able to match CTR/OFB performance.
++			copy(x.next[x.outUsed:], src[:n])
++		} else {
++			copy(x.next[x.outUsed:], dst[:n])
++		}
++		dst = dst[n:]
++		src = src[n:]
++		x.outUsed += n
++	}
++}
++
+ // NewCFBEncrypter returns a Stream which encrypts with cipher feedback mode,
+ // using the given Block. The iv must be the same length as the Block's block
+ // size.
+ func NewCFBEncrypter(block Block, iv []byte) Stream {
+-	if len(iv) != block.BlockSize() {
+-		panic("cipher.NewCBFEncrypter: IV length must equal block size")
+-	}
+ 	return newCFB(block, iv, false)
+ }
+ 
+@@ -27,44 +49,23 @@
+ // using the given Block. The iv must be the same length as the Block's block
+ // size.
+ func NewCFBDecrypter(block Block, iv []byte) Stream {
+-	if len(iv) != block.BlockSize() {
+-		panic("cipher.NewCBFEncrypter: IV length must equal block size")
+-	}
+ 	return newCFB(block, iv, true)
+ }
+ 
+ func newCFB(block Block, iv []byte, decrypt bool) Stream {
+ 	blockSize := block.BlockSize()
+ 	if len(iv) != blockSize {
+-		return nil
++		// stack trace will indicate whether it was de or encryption
++		panic("cipher.newCFB: IV length must equal block size")
+ 	}
+-
+ 	x := &cfb{
+ 		b:       block,
+ 		out:     make([]byte, blockSize),
+-		outUsed: 0,
++		next:    make([]byte, blockSize),
++		outUsed: blockSize,
+ 		decrypt: decrypt,
+ 	}
+-	block.Encrypt(x.out, iv)
++	copy(x.next, iv)
+ 
+ 	return x
+ }
+-
+-func (x *cfb) XORKeyStream(dst, src []byte) {
+-	for i := 0; i < len(src); i++ {
+-		if x.outUsed == len(x.out) {
+-			x.b.Encrypt(x.out, x.out)
+-			x.outUsed = 0
+-		}
+-
+-		if x.decrypt {
+-			t := src[i]
+-			dst[i] = src[i] ^ x.out[x.outUsed]
+-			x.out[x.outUsed] = t
+-		} else {
+-			x.out[x.outUsed] ^= src[i]
+-			dst[i] = x.out[x.outUsed]
+-		}
+-		x.outUsed++
+-	}
+-}
+Index: src/pkg/crypto/cipher/ctr.go
+===================================================================
+--- a/src/pkg/crypto/cipher/ctr.go
++++ b/src/pkg/crypto/cipher/ctr.go
+@@ -19,37 +19,58 @@
+ 	outUsed int
+ }
+ 
++const streamBufferSize = 512
++
+ // NewCTR returns a Stream which encrypts/decrypts using the given Block in
+ // counter mode. The length of iv must be the same as the Block's block size.
+ func NewCTR(block Block, iv []byte) Stream {
+ 	if len(iv) != block.BlockSize() {
+ 		panic("cipher.NewCTR: IV length must equal block size")
+ 	}
+-
++	bufSize := streamBufferSize
++	if bufSize < block.BlockSize() {
++		bufSize = block.BlockSize()
++	}
+ 	return &ctr{
+ 		b:       block,
+ 		ctr:     dup(iv),
+-		out:     make([]byte, len(iv)),
+-		outUsed: len(iv),
++		out:     make([]byte, 0, bufSize),
++		outUsed: 0,
+ 	}
+ }
+ 
+-func (x *ctr) XORKeyStream(dst, src []byte) {
+-	for i := 0; i < len(src); i++ {
+-		if x.outUsed == len(x.ctr) {
+-			x.b.Encrypt(x.out, x.ctr)
+-			x.outUsed = 0
++func (x *ctr) refill() {
++	remain := len(x.out) - x.outUsed
++	if remain > x.outUsed {
++		return
++	}
++	copy(x.out, x.out[x.outUsed:])
++	x.out = x.out[:cap(x.out)]
++	bs := x.b.BlockSize()
++	for remain < len(x.out)-bs {
++		x.b.Encrypt(x.out[remain:], x.ctr)
++		remain += bs
+ 
+-			// Increment counter
+-			for i := len(x.ctr) - 1; i >= 0; i-- {
+-				x.ctr[i]++
+-				if x.ctr[i] != 0 {
+-					break
+-				}
++		// Increment counter
++		for i := len(x.ctr) - 1; i >= 0; i-- {
++			x.ctr[i]++
++			if x.ctr[i] != 0 {
++				break
+ 			}
+ 		}
++	}
++	x.out = x.out[:remain]
++	x.outUsed = 0
++}
+ 
+-		dst[i] = src[i] ^ x.out[x.outUsed]
+-		x.outUsed++
++func (x *ctr) XORKeyStream(dst, src []byte) {
++	for len(src) > 0 {
++		if x.outUsed >= len(x.out)-x.b.BlockSize() {
++			x.refill()
++		}
++		n := xorBytes(dst, src, x.out[x.outUsed:])
++		dst = dst[n:]
++		src = src[n:]
++		x.outUsed += n
+ 	}
+ }
+Index: src/pkg/crypto/cipher/gcm.go
+===================================================================
+--- a/src/pkg/crypto/cipher/gcm.go
++++ b/src/pkg/crypto/cipher/gcm.go
+@@ -289,9 +289,7 @@
+ 		g.cipher.Encrypt(mask[:], counter[:])
+ 		gcmInc32(counter)
+ 
+-		for i := range mask {
+-			out[i] = in[i] ^ mask[i]
+-		}
++		xorWords(out, in, mask[:])
+ 		out = out[gcmBlockSize:]
+ 		in = in[gcmBlockSize:]
+ 	}
+@@ -299,10 +297,7 @@
+ 	if len(in) > 0 {
+ 		g.cipher.Encrypt(mask[:], counter[:])
+ 		gcmInc32(counter)
+-
+-		for i := range in {
+-			out[i] = in[i] ^ mask[i]
+-		}
++		xorBytes(out, in, mask[:])
+ 	}
+ }
+ 
+@@ -321,9 +316,7 @@
+ 	putUint64(out, y.low)
+ 	putUint64(out[8:], y.high)
+ 
+-	for i := range tagMask {
+-		out[i] ^= tagMask[i]
+-	}
++	xorWords(out, out, tagMask[:])
+ }
+ 
+ func getUint64(data []byte) uint64 {
+Index: src/pkg/crypto/cipher/gcm_test.go
+===================================================================
+--- a/src/pkg/crypto/cipher/gcm_test.go
++++ b/src/pkg/crypto/cipher/gcm_test.go
+@@ -157,19 +157,3 @@
+ 		ct[0] ^= 0x80
+ 	}
+ }
+-
+-func BenchmarkAESGCM(b *testing.B) {
+-	buf := make([]byte, 1024)
+-	b.SetBytes(int64(len(buf)))
+-
+-	var key [16]byte
+-	var nonce [12]byte
+-	aes, _ := aes.NewCipher(key[:])
+-	aesgcm, _ := cipher.NewGCM(aes)
+-	var out []byte
+-
+-	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		out = aesgcm.Seal(out[:0], nonce[:], buf, nonce[:])
+-	}
+-}
+Index: src/pkg/crypto/cipher/ofb.go
+===================================================================
+--- a/src/pkg/crypto/cipher/ofb.go
++++ b/src/pkg/crypto/cipher/ofb.go
+@@ -8,6 +8,7 @@
+ 
+ type ofb struct {
+ 	b       Block
++	cipher  []byte
+ 	out     []byte
+ 	outUsed int
+ }
+@@ -20,25 +21,46 @@
+ 	if len(iv) != blockSize {
+ 		return nil
+ 	}
+-
++	bufSize := streamBufferSize
++	if bufSize < blockSize {
++		bufSize = blockSize
++	}
+ 	x := &ofb{
+ 		b:       b,
+-		out:     make([]byte, blockSize),
++		cipher:  make([]byte, blockSize),
++		out:     make([]byte, 0, bufSize),
+ 		outUsed: 0,
+ 	}
+-	b.Encrypt(x.out, iv)
+ 
++	copy(x.cipher, iv)
+ 	return x
+ }
+ 
++func (x *ofb) refill() {
++	bs := x.b.BlockSize()
++	remain := len(x.out) - x.outUsed
++	if remain > x.outUsed {
++		return
++	}
++	copy(x.out, x.out[x.outUsed:])
++	x.out = x.out[:cap(x.out)]
++	for remain < len(x.out)-bs {
++		x.b.Encrypt(x.cipher, x.cipher)
++		copy(x.out[remain:], x.cipher)
++		remain += bs
++	}
++	x.out = x.out[:remain]
++	x.outUsed = 0
++}
++
+ func (x *ofb) XORKeyStream(dst, src []byte) {
+-	for i, s := range src {
+-		if x.outUsed == len(x.out) {
+-			x.b.Encrypt(x.out, x.out)
+-			x.outUsed = 0
++	for len(src) > 0 {
++		if x.outUsed >= len(x.out)-x.b.BlockSize() {
++			x.refill()
+ 		}
+-
+-		dst[i] = s ^ x.out[x.outUsed]
+-		x.outUsed++
++		n := xorBytes(dst, src, x.out[x.outUsed:])
++		dst = dst[n:]
++		src = src[n:]
++		x.outUsed += n
+ 	}
+ }
+Index: src/pkg/crypto/cipher/xor.go
+===================================================================
+new file mode 100644
+--- /dev/null
++++ b/src/pkg/crypto/cipher/xor.go
+@@ -0,0 +1,84 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cipher
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++const wordSize = int(unsafe.Sizeof(uintptr(0)))
++const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "amd64"
++
++// fastXORBytes xors in bulk. It only works on architectures that
++// support unaligned read/writes.
++func fastXORBytes(dst, a, b []byte) int {
++	n := len(a)
++	if len(b) < n {
++		n = len(b)
++	}
++
++	w := n / wordSize
++	if w > 0 {
++		dw := *(*[]uintptr)(unsafe.Pointer(&dst))
++		aw := *(*[]uintptr)(unsafe.Pointer(&a))
++		bw := *(*[]uintptr)(unsafe.Pointer(&b))
++		for i := 0; i < w; i++ {
++			dw[i] = aw[i] ^ bw[i]
++		}
++	}
++
++	for i := (n - n%wordSize); i < n; i++ {
++		dst[i] = a[i] ^ b[i]
++	}
++
++	return n
++}
++
++func safeXORBytes(dst, a, b []byte) int {
++	n := len(a)
++	if len(b) < n {
++		n = len(b)
++	}
++	for i := 0; i < n; i++ {
++		dst[i] = a[i] ^ b[i]
++	}
++	return n
++}
++
++// xorBytes xors the bytes in a and b. The destination is assumed to have enough
++// space. Returns the number of bytes xor'd.
++func xorBytes(dst, a, b []byte) int {
++	if supportsUnaligned {
++		return fastXORBytes(dst, a, b)
++	} else {
++		// TODO(hanwen): if (dst, a, b) have common alignment
++		// we could still try fastXORBytes. It is not clear
++		// how often this happens, and it's only worth it if
++		// the block encryption itself is hardware
++		// accelerated.
++		return safeXORBytes(dst, a, b)
++	}
++}
++
++// fastXORWords XORs multiples of 4 or 8 bytes (depending on architecture.)
++// The arguments are assumed to be of equal length.
++func fastXORWords(dst, a, b []byte) {
++	dw := *(*[]uintptr)(unsafe.Pointer(&dst))
++	aw := *(*[]uintptr)(unsafe.Pointer(&a))
++	bw := *(*[]uintptr)(unsafe.Pointer(&b))
++	n := len(b) / wordSize
++	for i := 0; i < n; i++ {
++		dw[i] = aw[i] ^ bw[i]
++	}
++}
++
++func xorWords(dst, a, b []byte) {
++	if supportsUnaligned {
++		fastXORWords(dst, a, b)
++	} else {
++		safeXORBytes(dst, a, b)
++	}
++}
+Index: src/pkg/crypto/cipher/xor_test.go
+===================================================================
+new file mode 100644
+--- /dev/null
++++ b/src/pkg/crypto/cipher/xor_test.go
+@@ -0,0 +1,28 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cipher
++
++import (
++	"bytes"
++	"testing"
++)
++
++func TestXOR(t *testing.T) {
++	for alignP := 0; alignP < 2; alignP++ {
++		for alignQ := 0; alignQ < 2; alignQ++ {
++			for alignD := 0; alignD < 2; alignD++ {
++				p := make([]byte, 1024)[alignP:]
++				q := make([]byte, 1024)[alignQ:]
++				d1 := make([]byte, 1024+alignD)[alignD:]
++				d2 := make([]byte, 1024+alignD)[alignD:]
++				xorBytes(d1, p, q)
++				safeXORBytes(d2, p, q)
++				if bytes.Compare(d1, d2) != 0 {
++					t.Error("not equal")
++				}
++			}
++		}
++	}
++}
