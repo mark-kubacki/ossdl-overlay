@@ -19,6 +19,7 @@ net-mail
 net-misc
 sys-apps
 sys-auth
+sys-devel
 sys-fs
 sys-meta
 sys-libs
