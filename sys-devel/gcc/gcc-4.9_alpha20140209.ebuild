@@ -5,7 +5,7 @@ EAPI="2"
 I_PROMISE_TO_SUPPLY_PATCHES_WITH_BUGS=1
 
 MY_PV="${PV%%_*}"
-MY_PRE="${PV##*_pre}"
+MY_PRE="${PV##*_alpha}"
 MY_PRE="${MY_PRE%%_*}"
 MY_P="${PN}-${MY_PV}-${MY_PRE}"
 G_P="${PN}-${MY_PV}"
