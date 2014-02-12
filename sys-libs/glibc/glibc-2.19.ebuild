@@ -1,25 +1,29 @@
-# Copyright 1999-2013 Gentoo Foundation
+# Copyright 1999-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-inherit eutils versionator toolchain-funcs flag-o-matic gnuconfig multilib unpacker multiprocessing
+inherit eutils versionator toolchain-funcs flag-o-matic gnuconfig multilib systemd unpacker multiprocessing
 
 DESCRIPTION="GNU libc6 (also called glibc2) C library"
 HOMEPAGE="http://www.gnu.org/software/libc/libc.html"
 
 LICENSE="LGPL-2.1+ BSD HPND ISC inner-net rc PCRE"
-KEYWORDS="~alpha amd64 ~arm -hppa ~ia64 ~mips ~ppc ~ppc64 ~s390 ~sh sparc x86"
+KEYWORDS="~alpha amd64 ~arm ~hppa ~ia64 ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc ~x86"
 RESTRICT="strip" # strip ourself #46186
 EMULTILIB_PKG="true"
 
-S="${WORKDIR}/${PN}-${PV%%_p[0-9]}"
-
 # Configuration variables
-RELEASE_VER="${PV%%_p[0-9]}"
-EGIT_REPO_URIS="git://sourceware.org/git/glibc.git"
-EGIT_SOURCEDIRS="${S}"
-EGIT_COMMIT="e3764517a416ccdca1d924b6706995fdb1030582"
-inherit git-2
-PATCH_VER="7"                                  # Gentoo patchset
+RELEASE_VER=""
+case ${PV} in
+9999*)
+	EGIT_REPO_URIS="git://sourceware.org/git/glibc.git"
+	EGIT_SOURCEDIRS="${S}"
+	inherit git-2
+	;;
+*)
+	RELEASE_VER=${PV}
+	;;
+esac
+PATCH_VER="X"                                  # Gentoo patchset
 NPTL_KERN_VER=${NPTL_KERN_VER:-"2.6.16"}       # min kernel version nptl requires
 
 IUSE="debug gd hardened multilib nscd selinux systemtap profile suid vanilla crosscompile_opts_headers-only"
@@ -93,7 +97,7 @@ SRC_URI=$(
 		echo mirror://gentoo/$1 ${devspace//URI/$1}
 	}
 
-	[[ -z ${EGIT_REPO_URIS} ]] && upstream_uris ${P%%_p[0-9]}.tar.xz
+	[[ -z ${EGIT_REPO_URIS} ]] && upstream_uris ${P}.tar.xz
 	[[ -n ${PATCH_VER}      ]] && echo https://binhost.ossdl.de/distfiles/${P%%_p[0-9]}-patches-${PATCH_VER}.tar.bz2
 )
 
@@ -147,30 +151,35 @@ for x in setup {pre,post}inst ; do
 done
 
 eblit-src_unpack-pre() {
-      GLIBC_PATCH_EXCLUDE+=" 0035_all_glibc-2.16-i386-math-feraiseexcept-overhead.patch"
-      GLIBC_PATCH_EXCLUDE+=" 0065_all_glibc-2.18-qecvt-guards.patch"
-      GLIBC_PATCH_EXCLUDE+=" 0070_all_glibc-2.18-localedef-page-align-1.patch"
-      GLIBC_PATCH_EXCLUDE+=" 0071_all_glibc-2.18-localedef-page-align-2.patch"
-      GLIBC_PATCH_EXCLUDE+=" 0072_all_glibc-2.18-localedef-page-align-3.patch"
-      GLIBC_PATCH_EXCLUDE+=" 0090_all_glibc-2.17-arm-ldso.cache.patch"
-      GLIBC_PATCH_EXCLUDE+=" 1506_all_glibc-2.17-hppa-fpu.patch"
-      GLIBC_PATCH_EXCLUDE+=" 3020_all_glibc-tests-sandbox-libdl-paths.patch"
-      GLIBC_PATCH_EXCLUDE+=" 5063_all_glibc-dont-build-timezone.patch"
-      GLIBC_PATCH_EXCLUDE+=" 6230_all_arm-glibc-hardened.patch"
+	GLIBC_PATCH_EXCLUDE+=" 00_all_0012-mips-add-clock_-g-s-ettime-symbol-compat-hacks.patch" #456912 #481438
+	GLIBC_PATCH_EXCLUDE+=" 0035_all_glibc-2.16-i386-math-feraiseexcept-overhead.patch"
+	GLIBC_PATCH_EXCLUDE+=" 0065_all_glibc-2.18-qecvt-guards.patch"
+	GLIBC_PATCH_EXCLUDE+=" 0070_all_glibc-2.18-localedef-page-align-1.patch"
+	GLIBC_PATCH_EXCLUDE+=" 0071_all_glibc-2.18-localedef-page-align-2.patch"
+	GLIBC_PATCH_EXCLUDE+=" 0072_all_glibc-2.18-localedef-page-align-3.patch"
+	GLIBC_PATCH_EXCLUDE+=" 0090_all_glibc-2.17-arm-ldso.cache.patch"
+	GLIBC_PATCH_EXCLUDE+=" 1506_all_glibc-2.17-hppa-fpu.patch"
+	GLIBC_PATCH_EXCLUDE+=" 3020_all_glibc-tests-sandbox-libdl-paths.patch"
+	GLIBC_PATCH_EXCLUDE+=" 5063_all_glibc-dont-build-timezone.patch"
+	GLIBC_PATCH_EXCLUDE+=" 6230_all_arm-glibc-hardened.patch"
 }
 
 eblit-src_unpack-post() {
+	cd ${P%%_p[0-9]}
+	epatch "${FILESDIR}"/glibc-2.19-misc.patch
+	cd -
+
 	if use hardened ; then
 		cd "${S}"
 		einfo "Patching to get working PIE binaries on PIE (hardened) platforms"
 		gcc-specs-pie && epatch "${FILESDIR}"/2.17/glibc-2.17-hardened-pie.patch
 		epatch "${FILESDIR}"/2.10/glibc-2.10-hardened-configure-picdefault.patch
-		epatch "${FILESDIR}"/2.10/glibc-2.10-hardened-inittls-nosysenter.patch
+		epatch "${FILESDIR}"/2.18/glibc-2.18-hardened-inittls-nosysenter.patch
 
 		einfo "Installing Hardened Gentoo SSP and FORTIFY_SOURCE handler"
-		cp -f "${FILESDIR}"/2.6/glibc-2.6-gentoo-stack_chk_fail.c \
+		cp -f "${FILESDIR}"/2.18/glibc-2.18-gentoo-stack_chk_fail.c \
 			debug/stack_chk_fail.c || die
-		cp -f "${FILESDIR}"/2.10/glibc-2.10-gentoo-chk_fail.c \
+		cp -f "${FILESDIR}"/2.18/glibc-2.18-gentoo-chk_fail.c \
 			debug/chk_fail.c || die
 
 		if use debug ; then
