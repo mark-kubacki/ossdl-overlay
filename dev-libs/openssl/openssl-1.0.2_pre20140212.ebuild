@@ -36,7 +36,6 @@ LIB_DEPEND="gmp? ( dev-libs/gmp[static-libs(+)] )
 # the future.
 RDEPEND="static-libs? ( ${LIB_DEPEND} )
 	!static-libs? ( ${LIB_DEPEND//\[static-libs(+)]} )
-	cryptodev? ( app-crypt/cryptodev-linux )
 	!<net-misc/openssh-5.9_p1-r4
 	!<net-libs/neon-0.29.6-r1"
 DEPEND="${RDEPEND}
@@ -44,6 +43,8 @@ DEPEND="${RDEPEND}
 	>=dev-lang/perl-5
 	test? ( sys-devel/bc )"
 PDEPEND="app-misc/ca-certificates"
+# This is part of the kernel:
+#	cryptodev? ( app-crypt/cryptodev-linux )
 
 src_unpack() {
 	unpack ${MY_P}.tar.gz
@@ -98,6 +99,13 @@ src_prepare() {
 
 	append-flags -fno-strict-aliasing
 	append-flags $(test-flags-CC -Wa,--noexecstack)
+
+	if use cryptodev; then
+		ewarn "If you have not compiled cryptodev into the kernel"
+		ewarn "emerge app-crypt/cryptodev-linux before OpenSSL!"
+		# sys-kernel/linux-headers doesn't contain crypto/cryptodev.h, therefore:
+		append-flags -I/usr/src/linux
+	fi
 
 	sed -i '1s,^:$,#!'${EPREFIX}'/usr/bin/perl,' Configure #141906
 	# The config script does stupid stuff to prompt the user.  Kill it.
@@ -253,14 +261,15 @@ pkg_postinst() {
 	has_version ${CATEGORY}/${PN}:0.9.8 && return 0
 	preserve_old_lib_notify /usr/$(get_libdir)/lib{crypto,ssl}.so.0.9.8
 
-	#if use cryptodev; then
-	#	einfo "You will need kernel support for OCF to work. For Intel QA:"
-	#	einfo ""
-	#	einfo "  modprobe ocf, cryptodev, icp_ocf"
-	#	einfo ""
-	#	einfo "Use as follows:"
-	#	einfo ""
-	#	einfo "  shell:  openssl -engine cryptodev ..."
-	#	einfo "  apache: SSLCryptoDevice cryptodev"
-	#fi
+	if use cryptodev; then
+		einfo "Please remember:"
+		einfo ""
+		einfo "  modprobe cryptodev"
+		einfo ""
+		einfo "Use as follows:"
+		einfo ""
+		einfo "  shell:  openssl -evp -engine cryptodev ..."
+		einfo "  apache: SSLCryptoDevice cryptodev"
+		einfo "  nginx:  main {ssl_engine cryptodev; ...}"
+	fi
 }
