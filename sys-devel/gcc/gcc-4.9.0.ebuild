@@ -1,19 +1,7 @@
 # Copyright 1999-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI="2"
-I_PROMISE_TO_SUPPLY_PATCHES_WITH_BUGS=1
-
-MY_PV="${PV%%_*}"
-MY_PRE="${PV##*_alpha}"
-MY_PRE="${MY_PRE%%_*}"
-MY_P="${PN}-${MY_PV}-${MY_PRE}"
-G_P="${PN}-${MY_PV}"
-S="${WORKDIR}/${MY_P}"
-
-EPATCH_SOURCE="${FILESDIR}/${PV}"
-EPATCH_EXCLUDE="${FILESDIR}/${PV}/exclude"
-EPATCH_SUFFIX="patch"
+EAPI="5"
 
 # Hardened gcc 4 stuff
 # arch/libc configurations known to be stable with {PIE,SSP}-by-default
@@ -28,7 +16,6 @@ SSP_UCLIBC_STABLE="x86 amd64 mips ppc ppc64 arm"
 inherit eutils toolchain
 
 DESCRIPTION="The GNU Compiler Collection"
-GCC_SRC_URI="mirror://gcc/snapshots/${MY_PV}-${MY_PRE}/${MY_P}.tar.bz2"
 
 LICENSE="GPL-3+ LGPL-3+ || ( GPL-3+ libgcc libstdc++ gcc-runtime-library-exception-3.1 ) FDL-1.3+"
 
@@ -37,17 +24,28 @@ KEYWORDS="~amd64 ~amd64-linux"
 RDEPEND=""
 DEPEND="${RDEPEND}
 	elibc_glibc? ( >=sys-libs/glibc-2.12 )
+	amd64? ( multilib? ( gcj? ( app-emulation/emul-linux-x86-xlibs ) ) )
 	>=${CATEGORY}/binutils-2.20"
-#	amd64? ( multilib? ( gcj? ( app-emulation/emul-linux-x86-xlibs ) ) )
 
 if [[ ${CATEGORY} != cross-* ]] ; then
 	PDEPEND="${PDEPEND} elibc_glibc? ( >=sys-libs/glibc-2.12 )"
 fi
 
 src_prepare() {
+	export BRANDING_GCC_PKGVERSION="Gentoo Live"
+
 	toolchain_src_prepare
 
 	use vanilla && return 0
 	#Use -r1 for newer piepatchet that use DRIVER_SELF_SPECS for the hardened specs.
 	[[ ${CHOST} == ${CTARGET} ]] && epatch "${FILESDIR}"/gcc-spec-env-r1.patch
+}
+
+pkg_postinst() {
+	toolchain_pkg_postinst
+	echo
+	einfo "This GCC ebuild is provided for your convenience, and the use"
+	einfo "of this compiler is not supported by the Gentoo Developers."
+	einfo "Please report bugs to upstream at http://gcc.gnu.org/bugzilla/"
+	echo
 }
