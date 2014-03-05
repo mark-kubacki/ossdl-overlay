@@ -1,0 +1,505 @@
+Index: src/cmd/8a/lex.c
+===================================================================
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -781,6 +781,7 @@
+ 	"PSUBW",	LTYPE3,	APSUBW,
+ 	"PUNPCKHQDQ",	LTYPE3,	APUNPCKHQDQ,
+ 	"PUNPCKLQDQ",	LTYPE3,	APUNPCKLQDQ,
++	"PXOR",		LTYPE3, APXOR,
+ 	"RCPPS",	LTYPE3,	ARCPPS,
+ 	"RCPSS",	LTYPE3,	ARCPSS,
+ 	"RSQRTPS",	LTYPE3,	ARSQRTPS,
+Index: src/cmd/8l/8.out.h
+===================================================================
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -547,6 +547,7 @@
+ 	APSUBW,
+ 	APUNPCKHQDQ,
+ 	APUNPCKLQDQ,
++	APXOR,
+ 	ARCPPS,
+ 	ARCPSS,
+ 	ARSQRTPS,
+Index: src/liblink/asm8.c
+===================================================================
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -1115,6 +1115,7 @@
+ 	{ APSUBW,	yxm,	Pe, 0xf9 },
+ 	{ APUNPCKHQDQ,	yxm,	Pe, 0x6d },
+ 	{ APUNPCKLQDQ,	yxm,	Pe, 0x6c },
++	{ APXOR,	yxm,	Pe, 0xef },
+ 	{ ARCPPS,	yxm,	Pm, 0x53 },
+ 	{ ARCPSS,	yxm,	Pf3, 0x53 },
+ 	{ ARSQRTPS,	yxm,	Pm, 0x52 },
+Index: src/pkg/runtime/alg.c
+===================================================================
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -514,6 +514,11 @@
+ 	t->alg->equal((bool*)ret, t->size, x, y);
+ }
+ 
++// Testing adapter for memclr
++void runtime·memclrBytes(Slice s) {
++	runtime·memclr(s.array, s.len);
++}
++
+ // Testing adapters for hash quality tests (see hash_test.go)
+ void runtime·haveGoodHash(bool res) {
+ 	res = use_aeshash;
+Index: src/pkg/runtime/asm_386.s
+===================================================================
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -753,21 +753,6 @@
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·memclr(SB),NOSPLIT,$0-8
+-	MOVL	4(SP), DI		// arg 1 addr
+-	MOVL	8(SP), CX		// arg 2 count
+-	MOVL	CX, BX
+-	ANDL	$3, BX
+-	SHRL	$2, CX
+-	MOVL	$0, AX
+-	CLD
+-	REP
+-	STOSL
+-	MOVL	BX, CX
+-	REP
+-	STOSB
+-	RET
+-
+ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-4
+ 	MOVL	x+0(FP),AX		// addr of first arg
+ 	MOVL	-4(AX),AX		// get calling pc
+Index: src/pkg/runtime/asm_amd64.s
+===================================================================
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -794,21 +794,6 @@
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·memclr(SB),NOSPLIT,$0-16
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVQ	16(SP), CX		// arg 2 count
+-	MOVQ	CX, BX
+-	ANDQ	$7, BX
+-	SHRQ	$3, CX
+-	MOVQ	$0, AX
+-	CLD
+-	REP
+-	STOSQ
+-	MOVQ	BX, CX
+-	REP
+-	STOSB
+-	RET
+-
+ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
+ 	MOVQ	x+0(FP),AX		// addr of first arg
+ 	MOVQ	-8(AX),AX		// get calling pc
+Index: src/pkg/runtime/export_test.go
+===================================================================
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -84,3 +84,7 @@
+ 
+ var hashLoad float64 // declared in hashmap.c
+ var HashLoad = &hashLoad
++
++func memclrBytes(b []byte)
++
++var MemclrBytes = memclrBytes
+Index: src/pkg/runtime/memclr_386.s
+===================================================================
+new file mode 100644
+--- /dev/null
++++ b/src/pkg/runtime/memclr_386.s
+@@ -0,0 +1,125 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++// void runtime·memclr(void*, uintptr)
++TEXT runtime·memclr(SB), NOSPLIT, $0-8
++	MOVL	ptr+0(FP), DI
++	MOVL	n+4(FP), BX
++	XORL	AX, AX
++
++	// MOVOU seems always faster than REP STOSL.
++clr_tail:
++	TESTL	BX, BX
++	JEQ	clr_0
++	CMPL	BX, $2
++	JBE	clr_1or2
++	CMPL	BX, $4
++	JBE	clr_3or4
++	CMPL	BX, $8
++	JBE	clr_5through8
++	CMPL	BX, $16
++	JBE	clr_9through16
++	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
++	JEQ	nosse2
++	PXOR	X0, X0
++	CMPL	BX, $32
++	JBE	clr_17through32
++	CMPL	BX, $64
++	JBE	clr_33through64
++	CMPL	BX, $128
++	JBE	clr_65through128
++	CMPL	BX, $256
++	JBE	clr_129through256
++	// TODO: use branch table and BSR to make this just a single dispatch
++
++clr_loop:
++	MOVOU	X0, 0(DI)
++	MOVOU	X0, 16(DI)
++	MOVOU	X0, 32(DI)
++	MOVOU	X0, 48(DI)
++	MOVOU	X0, 64(DI)
++	MOVOU	X0, 80(DI)
++	MOVOU	X0, 96(DI)
++	MOVOU	X0, 112(DI)
++	MOVOU	X0, 128(DI)
++	MOVOU	X0, 144(DI)
++	MOVOU	X0, 160(DI)
++	MOVOU	X0, 176(DI)
++	MOVOU	X0, 192(DI)
++	MOVOU	X0, 208(DI)
++	MOVOU	X0, 224(DI)
++	MOVOU	X0, 240(DI)
++	SUBL	$256, BX
++	ADDL	$256, DI
++	CMPL	BX, $256
++	JAE	clr_loop
++	JMP	clr_tail
++
++clr_1or2:
++	MOVB	AX, (DI)
++	MOVB	AX, -1(DI)(BX*1)
++clr_0:
++	RET
++clr_3or4:
++	MOVW	AX, (DI)
++	MOVW	AX, -2(DI)(BX*1)
++	RET
++clr_5through8:
++	MOVL	AX, (DI)
++	MOVL	AX, -4(DI)(BX*1)
++	RET
++clr_9through16:
++	MOVL	AX, (DI)
++	MOVL	AX, 4(DI)
++	MOVL	AX, -8(DI)(BX*1)
++	MOVL	AX, -4(DI)(BX*1)
++	RET
++clr_17through32:
++	MOVOU	X0, (DI)
++	MOVOU	X0, -16(DI)(BX*1)
++	RET
++clr_33through64:
++	MOVOU	X0, (DI)
++	MOVOU	X0, 16(DI)
++	MOVOU	X0, -32(DI)(BX*1)
++	MOVOU	X0, -16(DI)(BX*1)
++	RET
++clr_65through128:
++	MOVOU	X0, (DI)
++	MOVOU	X0, 16(DI)
++	MOVOU	X0, 32(DI)
++	MOVOU	X0, 48(DI)
++	MOVOU	X0, -64(DI)(BX*1)
++	MOVOU	X0, -48(DI)(BX*1)
++	MOVOU	X0, -32(DI)(BX*1)
++	MOVOU	X0, -16(DI)(BX*1)
++	RET
++clr_129through256:
++	MOVOU	X0, (DI)
++	MOVOU	X0, 16(DI)
++	MOVOU	X0, 32(DI)
++	MOVOU	X0, 48(DI)
++	MOVOU	X0, 64(DI)
++	MOVOU	X0, 80(DI)
++	MOVOU	X0, 96(DI)
++	MOVOU	X0, 112(DI)
++	MOVOU	X0, -128(DI)(BX*1)
++	MOVOU	X0, -112(DI)(BX*1)
++	MOVOU	X0, -96(DI)(BX*1)
++	MOVOU	X0, -80(DI)(BX*1)
++	MOVOU	X0, -64(DI)(BX*1)
++	MOVOU	X0, -48(DI)(BX*1)
++	MOVOU	X0, -32(DI)(BX*1)
++	MOVOU	X0, -16(DI)(BX*1)
++	RET
++nosse2:
++	MOVL	BX, CX
++	SHRL	$2, CX
++	REP
++	STOSL
++	ANDL	$3, BX
++	JNE	clr_tail
++	RET
+Index: src/pkg/runtime/memclr_amd64.s
+===================================================================
+new file mode 100644
+--- /dev/null
++++ b/src/pkg/runtime/memclr_amd64.s
+@@ -0,0 +1,114 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++// void runtime·memclr(void*, uintptr)
++TEXT runtime·memclr(SB), NOSPLIT, $0-16
++	MOVQ	ptr+0(FP), DI
++	MOVQ	n+8(FP), BX
++	XORQ	AX, AX
++
++	// MOVOU seems always faster than REP STOSQ.
++clr_tail:
++	TESTQ	BX, BX
++	JEQ	clr_0
++	CMPQ	BX, $2
++	JBE	clr_1or2
++	CMPQ	BX, $4
++	JBE	clr_3or4
++	CMPQ	BX, $8
++	JBE	clr_5through8
++	CMPQ	BX, $16
++	JBE	clr_9through16
++	PXOR	X0, X0
++	CMPQ	BX, $32
++	JBE	clr_17through32
++	CMPQ	BX, $64
++	JBE	clr_33through64
++	CMPQ	BX, $128
++	JBE	clr_65through128
++	CMPQ	BX, $256
++	JBE	clr_129through256
++	// TODO: use branch table and BSR to make this just a single dispatch
++	// TODO: for really big clears, use MOVNTDQ.
++
++clr_loop:
++	MOVOU	X0, 0(DI)
++	MOVOU	X0, 16(DI)
++	MOVOU	X0, 32(DI)
++	MOVOU	X0, 48(DI)
++	MOVOU	X0, 64(DI)
++	MOVOU	X0, 80(DI)
++	MOVOU	X0, 96(DI)
++	MOVOU	X0, 112(DI)
++	MOVOU	X0, 128(DI)
++	MOVOU	X0, 144(DI)
++	MOVOU	X0, 160(DI)
++	MOVOU	X0, 176(DI)
++	MOVOU	X0, 192(DI)
++	MOVOU	X0, 208(DI)
++	MOVOU	X0, 224(DI)
++	MOVOU	X0, 240(DI)
++	SUBQ	$256, BX
++	ADDQ	$256, DI
++	CMPQ	BX, $256
++	JAE	clr_loop
++	JMP	clr_tail
++
++clr_1or2:
++	MOVB	AX, (DI)
++	MOVB	AX, -1(DI)(BX*1)
++clr_0:
++	RET
++clr_3or4:
++	MOVW	AX, (DI)
++	MOVW	AX, -2(DI)(BX*1)
++	RET
++clr_5through8:
++	MOVL	AX, (DI)
++	MOVL	AX, -4(DI)(BX*1)
++	RET
++clr_9through16:
++	MOVQ	AX, (DI)
++	MOVQ	AX, -8(DI)(BX*1)
++	RET
++clr_17through32:
++	MOVOU	X0, (DI)
++	MOVOU	X0, -16(DI)(BX*1)
++	RET
++clr_33through64:
++	MOVOU	X0, (DI)
++	MOVOU	X0, 16(DI)
++	MOVOU	X0, -32(DI)(BX*1)
++	MOVOU	X0, -16(DI)(BX*1)
++	RET
++clr_65through128:
++	MOVOU	X0, (DI)
++	MOVOU	X0, 16(DI)
++	MOVOU	X0, 32(DI)
++	MOVOU	X0, 48(DI)
++	MOVOU	X0, -64(DI)(BX*1)
++	MOVOU	X0, -48(DI)(BX*1)
++	MOVOU	X0, -32(DI)(BX*1)
++	MOVOU	X0, -16(DI)(BX*1)
++	RET
++clr_129through256:
++	MOVOU	X0, (DI)
++	MOVOU	X0, 16(DI)
++	MOVOU	X0, 32(DI)
++	MOVOU	X0, 48(DI)
++	MOVOU	X0, 64(DI)
++	MOVOU	X0, 80(DI)
++	MOVOU	X0, 96(DI)
++	MOVOU	X0, 112(DI)
++	MOVOU	X0, -128(DI)(BX*1)
++	MOVOU	X0, -112(DI)(BX*1)
++	MOVOU	X0, -96(DI)(BX*1)
++	MOVOU	X0, -80(DI)(BX*1)
++	MOVOU	X0, -64(DI)(BX*1)
++	MOVOU	X0, -48(DI)(BX*1)
++	MOVOU	X0, -32(DI)(BX*1)
++	MOVOU	X0, -16(DI)(BX*1)
++	RET
+Index: src/pkg/runtime/memclr_arm.s
+===================================================================
+--- a/src/pkg/runtime/memclr_arm.s
++++ b/src/pkg/runtime/memclr_arm.s
+@@ -40,12 +40,6 @@
+ 	CMP	$4, R(N)		/* need at least 4 bytes to copy */
+ 	BLT	_1tail
+ 
+-	AND	$0xFF, R(0)		/* it's a byte */
+-	SLL	$8, R(0), R(TMP)	/* replicate to a word */
+-	ORR	R(TMP), R(0)
+-	SLL	$16, R(0), R(TMP)
+-	ORR	R(TMP), R(0)
+-
+ _4align:				/* align on 4 */
+ 	AND.S	$3, R(TO), R(TMP)
+ 	BEQ	_4aligned
+Index: src/pkg/runtime/memmove_test.go
+===================================================================
+--- a/src/pkg/runtime/memmove_test.go
++++ b/src/pkg/runtime/memmove_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	. "runtime"
+ 	"testing"
+ )
+ 
+@@ -80,7 +81,7 @@
+ 	}
+ }
+ 
+-func bmMemmove(n int, b *testing.B) {
++func bmMemmove(b *testing.B, n int) {
+ 	x := make([]byte, n)
+ 	y := make([]byte, n)
+ 	b.SetBytes(int64(n))
+@@ -89,28 +90,74 @@
+ 	}
+ }
+ 
+-func BenchmarkMemmove0(b *testing.B)    { bmMemmove(0, b) }
+-func BenchmarkMemmove1(b *testing.B)    { bmMemmove(1, b) }
+-func BenchmarkMemmove2(b *testing.B)    { bmMemmove(2, b) }
+-func BenchmarkMemmove3(b *testing.B)    { bmMemmove(3, b) }
+-func BenchmarkMemmove4(b *testing.B)    { bmMemmove(4, b) }
+-func BenchmarkMemmove5(b *testing.B)    { bmMemmove(5, b) }
+-func BenchmarkMemmove6(b *testing.B)    { bmMemmove(6, b) }
+-func BenchmarkMemmove7(b *testing.B)    { bmMemmove(7, b) }
+-func BenchmarkMemmove8(b *testing.B)    { bmMemmove(8, b) }
+-func BenchmarkMemmove9(b *testing.B)    { bmMemmove(9, b) }
+-func BenchmarkMemmove10(b *testing.B)   { bmMemmove(10, b) }
+-func BenchmarkMemmove11(b *testing.B)   { bmMemmove(11, b) }
+-func BenchmarkMemmove12(b *testing.B)   { bmMemmove(12, b) }
+-func BenchmarkMemmove13(b *testing.B)   { bmMemmove(13, b) }
+-func BenchmarkMemmove14(b *testing.B)   { bmMemmove(14, b) }
+-func BenchmarkMemmove15(b *testing.B)   { bmMemmove(15, b) }
+-func BenchmarkMemmove16(b *testing.B)   { bmMemmove(16, b) }
+-func BenchmarkMemmove32(b *testing.B)   { bmMemmove(32, b) }
+-func BenchmarkMemmove64(b *testing.B)   { bmMemmove(64, b) }
+-func BenchmarkMemmove128(b *testing.B)  { bmMemmove(128, b) }
+-func BenchmarkMemmove256(b *testing.B)  { bmMemmove(256, b) }
+-func BenchmarkMemmove512(b *testing.B)  { bmMemmove(512, b) }
+-func BenchmarkMemmove1024(b *testing.B) { bmMemmove(1024, b) }
+-func BenchmarkMemmove2048(b *testing.B) { bmMemmove(2048, b) }
+-func BenchmarkMemmove4096(b *testing.B) { bmMemmove(4096, b) }
++func BenchmarkMemmove0(b *testing.B)    { bmMemmove(b, 0) }
++func BenchmarkMemmove1(b *testing.B)    { bmMemmove(b, 1) }
++func BenchmarkMemmove2(b *testing.B)    { bmMemmove(b, 2) }
++func BenchmarkMemmove3(b *testing.B)    { bmMemmove(b, 3) }
++func BenchmarkMemmove4(b *testing.B)    { bmMemmove(b, 4) }
++func BenchmarkMemmove5(b *testing.B)    { bmMemmove(b, 5) }
++func BenchmarkMemmove6(b *testing.B)    { bmMemmove(b, 6) }
++func BenchmarkMemmove7(b *testing.B)    { bmMemmove(b, 7) }
++func BenchmarkMemmove8(b *testing.B)    { bmMemmove(b, 8) }
++func BenchmarkMemmove9(b *testing.B)    { bmMemmove(b, 9) }
++func BenchmarkMemmove10(b *testing.B)   { bmMemmove(b, 10) }
++func BenchmarkMemmove11(b *testing.B)   { bmMemmove(b, 11) }
++func BenchmarkMemmove12(b *testing.B)   { bmMemmove(b, 12) }
++func BenchmarkMemmove13(b *testing.B)   { bmMemmove(b, 13) }
++func BenchmarkMemmove14(b *testing.B)   { bmMemmove(b, 14) }
++func BenchmarkMemmove15(b *testing.B)   { bmMemmove(b, 15) }
++func BenchmarkMemmove16(b *testing.B)   { bmMemmove(b, 16) }
++func BenchmarkMemmove32(b *testing.B)   { bmMemmove(b, 32) }
++func BenchmarkMemmove64(b *testing.B)   { bmMemmove(b, 64) }
++func BenchmarkMemmove128(b *testing.B)  { bmMemmove(b, 128) }
++func BenchmarkMemmove256(b *testing.B)  { bmMemmove(b, 256) }
++func BenchmarkMemmove512(b *testing.B)  { bmMemmove(b, 512) }
++func BenchmarkMemmove1024(b *testing.B) { bmMemmove(b, 1024) }
++func BenchmarkMemmove2048(b *testing.B) { bmMemmove(b, 2048) }
++func BenchmarkMemmove4096(b *testing.B) { bmMemmove(b, 4096) }
++
++func TestMemclr(t *testing.T) {
++	size := 512
++	if testing.Short() {
++		size = 128 + 16
++	}
++	mem := make([]byte, size)
++	for i := 0; i < size; i++ {
++		mem[i] = 0xee
++	}
++	for n := 0; n < size; n++ {
++		for x := 0; x <= size-n; x++ { // offset in mem
++			MemclrBytes(mem[x : x+n])
++			for i := 0; i < x; i++ {
++				if mem[i] != 0xee {
++					t.Fatalf("overwrite prefix mem[%d] = %d", i, mem[i])
++				}
++			}
++			for i := x; i < x+n; i++ {
++				if mem[i] != 0 {
++					t.Fatalf("failed clear mem[%d] = %d", i, mem[i])
++				}
++				mem[i] = 0xee
++			}
++			for i := x + n; i < size; i++ {
++				if mem[i] != 0xee {
++					t.Fatalf("overwrite suffix mem[%d] = %d", i, mem[i])
++				}
++			}
++		}
++	}
++}
++
++func bmMemclr(b *testing.B, n int) {
++	x := make([]byte, n)
++	b.SetBytes(int64(n))
++	for i := 0; i < b.N; i++ {
++		MemclrBytes(x)
++	}
++}
++func BenchmarkMemclr5(b *testing.B)     { bmMemclr(b, 5) }
++func BenchmarkMemclr16(b *testing.B)    { bmMemclr(b, 16) }
++func BenchmarkMemclr64(b *testing.B)    { bmMemclr(b, 64) }
++func BenchmarkMemclr256(b *testing.B)   { bmMemclr(b, 256) }
++func BenchmarkMemclr4096(b *testing.B)  { bmMemclr(b, 4096) }
++func BenchmarkMemclr65536(b *testing.B) { bmMemclr(b, 65536) }

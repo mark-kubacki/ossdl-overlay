@@ -1,0 +1,86 @@
+Index: src/pkg/runtime/mgc0.c
+===================================================================
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1694,16 +1694,19 @@
+ {
+ 	uint32 sg;
+ 
++	// Caller must disable preemption.
++	// Otherwise when this function returns the span can become unswept again
++	// (if GC is triggered on another goroutine).
++	if(m->locks == 0 && m->mallocing == 0)
++		runtime·throw("MSpan_EnsureSwept: m is not locked");
++
+ 	sg = runtime·mheap.sweepgen;
+ 	if(runtime·atomicload(&s->sweepgen) == sg)
+ 		return;
+-	m->locks++;
+ 	if(runtime·cas(&s->sweepgen, sg-2, sg-1)) {
+ 		runtime·MSpan_Sweep(s);
+-		m->locks--;
+ 		return;
+ 	}
+-	m->locks--;
+ 	// unfortunate condition, and we don't have efficient means to wait
+ 	while(runtime·atomicload(&s->sweepgen) != sg)
+ 		runtime·osyield();  
+Index: src/pkg/runtime/mheap.c
+===================================================================
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -653,6 +653,7 @@
+ 
+ 	// Ensure that the span is swept.
+ 	// GC accesses specials list w/o locks. And it's just much safer.
++	m->locks++;
+ 	runtime·MSpan_EnsureSwept(span);
+ 
+ 	offset = (uintptr)p - (span->start << PageShift);
+@@ -665,6 +666,7 @@
+ 	while((x = *t) != nil) {
+ 		if(offset == x->offset && kind == x->kind) {
+ 			runtime·unlock(&span->specialLock);
++			m->locks--;
+ 			return false; // already exists
+ 		}
+ 		if(offset < x->offset || (offset == x->offset && kind < x->kind))
+@@ -676,6 +678,7 @@
+ 	s->next = x;
+ 	*t = s;
+ 	runtime·unlock(&span->specialLock);
++	m->locks--;
+ 	return true;
+ }
+ 
+@@ -695,6 +698,7 @@
+ 
+ 	// Ensure that the span is swept.
+ 	// GC accesses specials list w/o locks. And it's just much safer.
++	m->locks++;
+ 	runtime·MSpan_EnsureSwept(span);
+ 
+ 	offset = (uintptr)p - (span->start << PageShift);
+@@ -707,11 +711,13 @@
+ 		if(offset == s->offset && kind == s->kind) {
+ 			*t = s->next;
+ 			runtime·unlock(&span->specialLock);
++			m->locks--;
+ 			return s;
+ 		}
+ 		t = &s->next;
+ 	}
+ 	runtime·unlock(&span->specialLock);
++	m->locks--;
+ 	return nil;
+ }
+ 
+@@ -805,6 +811,8 @@
+ 	Special *s, **t, *list;
+ 	uintptr offset;
+ 
++	if(span->sweepgen != runtime·mheap.sweepgen)
++		runtime·throw("runtime: freeallspecials: unswept span");
+ 	// first, collect all specials into the list; then, free them
+ 	// this is required to not cause deadlock between span->specialLock and proflock
+ 	list = nil;

@@ -1,0 +1,81 @@
+Index: src/pkg/encoding/asn1/asn1.go
+===================================================================
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -634,6 +634,10 @@
+ 		universalTag = tagGeneralizedTime
+ 	}
+ 
++	if params.set {
++		universalTag = tagSet
++	}
++
+ 	expectedClass := classUniversal
+ 	expectedTag := universalTag
+ 
+@@ -854,13 +858,20 @@
+ //
+ // The following tags on struct fields have special meaning to Unmarshal:
+ //
+-//	optional		marks the field as ASN.1 OPTIONAL
+-//	[explicit] tag:x	specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
+-//	default:x		sets the default value for optional integer fields
++//	application	specifies that a APPLICATION tag is used
++//	default:x	sets the default value for optional integer fields
++//	explicit	specifies that an additional, explicit tag wraps the implicit one
++//	optional	marks the field as ASN.1 OPTIONAL
++//	set		causes a SET, rather than a SEQUENCE type to be expected
++//	tag:x		specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
+ //
+ // If the type of the first field of a structure is RawContent then the raw
+ // ASN1 contents of the struct will be stored in it.
+ //
++// If the type name of a slice element ends with "SET" then it's treated as if
++// the "set" tag was set on it. This can be used with nested slices where a
++// struct tag cannot be given.
++//
+ // Other ASN.1 types are not supported; if it encounters them,
+ // Unmarshal returns a parse error.
+ func Unmarshal(b []byte, val interface{}) (rest []byte, err error) {
+Index: src/pkg/encoding/asn1/asn1_test.go
+===================================================================
+--- a/src/pkg/encoding/asn1/asn1_test.go
++++ b/src/pkg/encoding/asn1/asn1_test.go
+@@ -397,6 +397,10 @@
+ 	X *big.Int
+ }
+ 
++type TestSet struct {
++	Ints []int `asn1:"set"`
++}
++
+ var unmarshalTestData = []struct {
+ 	in  []byte
+ 	out interface{}
+@@ -416,6 +420,7 @@
+ 	{[]byte{0x01, 0x01, 0xff}, newBool(true)},
+ 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
+ 	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
++	{[]byte{0x30, 0x0b, 0x31, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &TestSet{Ints: []int{1, 2, 3}}},
+ }
+ 
+ func TestUnmarshal(t *testing.T) {
+Index: src/pkg/encoding/asn1/marshal.go
+===================================================================
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -568,6 +568,14 @@
+ }
+ 
+ // Marshal returns the ASN.1 encoding of val.
++//
++// In addition to the struct tags recognised by Unmarshal, the following can be
++// used:
++//
++//	ia5:		causes strings to be marshaled as ASN.1, IA5 strings
++//	omitempty:	causes empty slices to be skipped
++//	printable:	causes strings to be marshaled as ASN.1, PrintableString strings.
++//	utf8:		causes strings to be marshaled as ASN.1, UTF8 strings
+ func Marshal(val interface{}) ([]byte, error) {
+ 	var out bytes.Buffer
+ 	v := reflect.ValueOf(val)

@@ -1,0 +1,12 @@
+Index: src/cmd/6a/lex.c
+===================================================================
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -507,6 +507,7 @@
+ 	"MOVLQZX",	LTYPE3, AMOVLQZX,
+ 	"MOVNTIL",	LTYPE3,	AMOVNTIL,
+ 	"MOVNTIQ",	LTYPE3,	AMOVNTIQ,
++	"MOVQL",	LTYPE3, AMOVQL,
+ 	"MOVWLSX",	LTYPE3, AMOVWLSX,
+ 	"MOVWLZX",	LTYPE3, AMOVWLZX,
+ 	"MOVWQSX",	LTYPE3,	AMOVWQSX,

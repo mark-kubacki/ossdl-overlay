@@ -1,0 +1,1134 @@
+Index: src/pkg/syscall/lsf_linux.go
+===================================================================
+--- a/src/pkg/syscall/lsf_linux.go
++++ b/src/pkg/syscall/lsf_linux.go
+@@ -69,10 +69,10 @@
+ 	var p SockFprog
+ 	p.Len = uint16(len(i))
+ 	p.Filter = (*SockFilter)(unsafe.Pointer(&i[0]))
+-	return setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, uintptr(unsafe.Pointer(&p)), unsafe.Sizeof(p))
++	return setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, unsafe.Pointer(&p), unsafe.Sizeof(p))
+ }
+ 
+ func DetachLsf(fd int) error {
+ 	var dummy int
+-	return setsockopt(fd, SOL_SOCKET, SO_DETACH_FILTER, uintptr(unsafe.Pointer(&dummy)), unsafe.Sizeof(dummy))
++	return setsockopt(fd, SOL_SOCKET, SO_DETACH_FILTER, unsafe.Pointer(&dummy), unsafe.Sizeof(dummy))
+ }
+Index: src/pkg/syscall/syscall_bsd.go
+===================================================================
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -134,18 +134,18 @@
+ }
+ 
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+-//sys	bind(s int, addr uintptr, addrlen _Socklen) (err error)
+-//sys	connect(s int, addr uintptr, addrlen _Socklen) (err error)
++//sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
++//sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+-//sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error)
+-//sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error)
++//sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
++//sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
+ //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
+ //sys	Shutdown(s int, how int) (err error)
+ 
+-func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, error) {
++func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if sa.Port < 0 || sa.Port > 0xFFFF {
+-		return 0, 0, EINVAL
++		return nil, 0, EINVAL
+ 	}
+ 	sa.raw.Len = SizeofSockaddrInet4
+ 	sa.raw.Family = AF_INET
+@@ -155,12 +155,12 @@
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i]
+ 	}
+-	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), nil
++	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil
+ }
+ 
+-func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, error) {
++func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if sa.Port < 0 || sa.Port > 0xFFFF {
+-		return 0, 0, EINVAL
++		return nil, 0, EINVAL
+ 	}
+ 	sa.raw.Len = SizeofSockaddrInet6
+ 	sa.raw.Family = AF_INET6
+@@ -171,26 +171,26 @@
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i]
+ 	}
+-	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), nil
++	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil
+ }
+ 
+-func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, error) {
++func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	name := sa.Name
+ 	n := len(name)
+ 	if n >= len(sa.raw.Path) || n == 0 {
+-		return 0, 0, EINVAL
++		return nil, 0, EINVAL
+ 	}
+ 	sa.raw.Len = byte(3 + n) // 2 for Family, Len; 1 for NUL
+ 	sa.raw.Family = AF_UNIX
+ 	for i := 0; i < n; i++ {
+ 		sa.raw.Path[i] = int8(name[i])
+ 	}
+-	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), nil
++	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil
+ }
+ 
+-func (sa *SockaddrDatalink) sockaddr() (uintptr, _Socklen, error) {
++func (sa *SockaddrDatalink) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if sa.Index == 0 {
+-		return 0, 0, EINVAL
++		return nil, 0, EINVAL
+ 	}
+ 	sa.raw.Len = sa.Len
+ 	sa.raw.Family = AF_LINK
+@@ -202,7 +202,7 @@
+ 	for i := 0; i < len(sa.raw.Data); i++ {
+ 		sa.raw.Data[i] = sa.Data[i]
+ 	}
+-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrDatalink, nil
++	return unsafe.Pointer(&sa.raw), SizeofSockaddrDatalink, nil
+ }
+ 
+ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+@@ -313,46 +313,46 @@
+ func GetsockoptByte(fd, level, opt int) (value byte, err error) {
+ 	var n byte
+ 	vallen := _Socklen(1)
+-	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
++	err = getsockopt(fd, level, opt, unsafe.Pointer(&n), &vallen)
+ 	return n, err
+ }
+ 
+ func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, err error) {
+ 	vallen := _Socklen(4)
+-	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), &vallen)
++	err = getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
+ 	return value, err
+ }
+ 
+ func GetsockoptIPMreq(fd, level, opt int) (*IPMreq, error) {
+ 	var value IPMreq
+ 	vallen := _Socklen(SizeofIPMreq)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, error) {
+ 	var value IPv6Mreq
+ 	vallen := _Socklen(SizeofIPv6Mreq)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ func GetsockoptIPv6MTUInfo(fd, level, opt int) (*IPv6MTUInfo, error) {
+ 	var value IPv6MTUInfo
+ 	vallen := _Socklen(SizeofIPv6MTUInfo)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ func GetsockoptICMPv6Filter(fd, level, opt int) (*ICMPv6Filter, error) {
+ 	var value ICMPv6Filter
+ 	vallen := _Socklen(SizeofICMPv6Filter)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ //sys   recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
+-//sys   sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error)
++//sys   sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ 
+ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+@@ -392,7 +392,7 @@
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
+ 
+ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+-	var ptr uintptr
++	var ptr unsafe.Pointer
+ 	var salen _Socklen
+ 	if to != nil {
+ 		ptr, salen, err = to.sockaddr()
+Index: src/pkg/syscall/syscall_freebsd.go
+===================================================================
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -95,12 +95,12 @@
+ func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
+ 	var value IPMreqn
+ 	vallen := _Socklen(SizeofIPMreqn)
+-	errno := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	errno := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, errno
+ }
+ 
+ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
++	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
+ }
+ 
+ /*
+Index: src/pkg/syscall/syscall_linux.go
+===================================================================
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -230,9 +230,9 @@
+ 	return Mknod(path, mode|S_IFIFO, 0)
+ }
+ 
+-func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, error) {
++func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if sa.Port < 0 || sa.Port > 0xFFFF {
+-		return 0, 0, EINVAL
++		return nil, 0, EINVAL
+ 	}
+ 	sa.raw.Family = AF_INET
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+@@ -241,12 +241,12 @@
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i]
+ 	}
+-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrInet4, nil
++	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
+ }
+ 
+-func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, error) {
++func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if sa.Port < 0 || sa.Port > 0xFFFF {
+-		return 0, 0, EINVAL
++		return nil, 0, EINVAL
+ 	}
+ 	sa.raw.Family = AF_INET6
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+@@ -256,14 +256,14 @@
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i]
+ 	}
+-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrInet6, nil
++	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
+ }
+ 
+-func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, error) {
++func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	name := sa.Name
+ 	n := len(name)
+ 	if n >= len(sa.raw.Path) {
+-		return 0, 0, EINVAL
++		return nil, 0, EINVAL
+ 	}
+ 	sa.raw.Family = AF_UNIX
+ 	for i := 0; i < n; i++ {
+@@ -280,7 +280,7 @@
+ 		sl--
+ 	}
+ 
+-	return uintptr(unsafe.Pointer(&sa.raw)), sl, nil
++	return unsafe.Pointer(&sa.raw), sl, nil
+ }
+ 
+ type SockaddrLinklayer struct {
+@@ -293,9 +293,9 @@
+ 	raw      RawSockaddrLinklayer
+ }
+ 
+-func (sa *SockaddrLinklayer) sockaddr() (uintptr, _Socklen, error) {
++func (sa *SockaddrLinklayer) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if sa.Ifindex < 0 || sa.Ifindex > 0x7fffffff {
+-		return 0, 0, EINVAL
++		return nil, 0, EINVAL
+ 	}
+ 	sa.raw.Family = AF_PACKET
+ 	sa.raw.Protocol = sa.Protocol
+@@ -306,7 +306,7 @@
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i]
+ 	}
+-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrLinklayer, nil
++	return unsafe.Pointer(&sa.raw), SizeofSockaddrLinklayer, nil
+ }
+ 
+ type SockaddrNetlink struct {
+@@ -317,12 +317,12 @@
+ 	raw    RawSockaddrNetlink
+ }
+ 
+-func (sa *SockaddrNetlink) sockaddr() (uintptr, _Socklen, error) {
++func (sa *SockaddrNetlink) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	sa.raw.Family = AF_NETLINK
+ 	sa.raw.Pad = sa.Pad
+ 	sa.raw.Pid = sa.Pid
+ 	sa.raw.Groups = sa.Groups
+-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrNetlink, nil
++	return unsafe.Pointer(&sa.raw), SizeofSockaddrNetlink, nil
+ }
+ 
+ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+@@ -439,54 +439,54 @@
+ 
+ func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, err error) {
+ 	vallen := _Socklen(4)
+-	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), &vallen)
++	err = getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
+ 	return value, err
+ }
+ 
+ func GetsockoptIPMreq(fd, level, opt int) (*IPMreq, error) {
+ 	var value IPMreq
+ 	vallen := _Socklen(SizeofIPMreq)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
+ 	var value IPMreqn
+ 	vallen := _Socklen(SizeofIPMreqn)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, error) {
+ 	var value IPv6Mreq
+ 	vallen := _Socklen(SizeofIPv6Mreq)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ func GetsockoptIPv6MTUInfo(fd, level, opt int) (*IPv6MTUInfo, error) {
+ 	var value IPv6MTUInfo
+ 	vallen := _Socklen(SizeofIPv6MTUInfo)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ func GetsockoptICMPv6Filter(fd, level, opt int) (*ICMPv6Filter, error) {
+ 	var value ICMPv6Filter
+ 	vallen := _Socklen(SizeofICMPv6Filter)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ func GetsockoptUcred(fd, level, opt int) (*Ucred, error) {
+ 	var value Ucred
+ 	vallen := _Socklen(SizeofUcred)
+-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+ 	return &value, err
+ }
+ 
+ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
++	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
+ }
+ 
+ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+@@ -524,7 +524,7 @@
+ }
+ 
+ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+-	var ptr uintptr
++	var ptr unsafe.Pointer
+ 	var salen _Socklen
+ 	if to != nil {
+ 		var err error
+Index: src/pkg/syscall/syscall_linux_386.go
+===================================================================
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -212,7 +212,7 @@
+ 	return
+ }
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, e := socketcall(_BIND, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
+ 	if e != 0 {
+ 		err = e
+@@ -220,7 +220,7 @@
+ 	return
+ }
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, e := socketcall(_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
+ 	if e != 0 {
+ 		err = e
+@@ -236,7 +236,7 @@
+ 	return
+ }
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, e := socketcall(_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e != 0 {
+ 		err = e
+@@ -244,8 +244,8 @@
+ 	return
+ }
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
+-	_, e := socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), val, vallen, 0)
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
++	_, e := socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), vallen, 0)
+ 	if e != 0 {
+ 		err = e
+ 	}
+@@ -264,12 +264,12 @@
+ 	return
+ }
+ 
+-func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, p []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var base uintptr
+ 	if len(p) > 0 {
+ 		base = uintptr(unsafe.Pointer(&p[0]))
+ 	}
+-	_, e := socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), to, uintptr(addrlen))
++	_, e := socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), uintptr(to), uintptr(addrlen))
+ 	if e != 0 {
+ 		err = e
+ 	}
+Index: src/pkg/syscall/syscall_linux_amd64.go
+===================================================================
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -40,18 +40,18 @@
+ //sys	Truncate(path string, length int64) (err error)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+-//sys	bind(s int, addr uintptr, addrlen _Socklen) (err error)
+-//sys	connect(s int, addr uintptr, addrlen _Socklen) (err error)
++//sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
++//sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+ //sysnb	setgroups(n int, list *_Gid_t) (err error)
+-//sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error)
+-//sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error)
++//sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
++//sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+ //sysnb	socketpair(domain int, typ int, proto int, fd *[2]int32) (err error)
+ //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
+ //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
+-//sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error)
++//sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
+ //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
+Index: src/pkg/syscall/syscall_linux_arm.go
+===================================================================
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -29,17 +29,17 @@
+ 
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+-//sys	bind(s int, addr uintptr, addrlen _Socklen) (err error)
+-//sys	connect(s int, addr uintptr, addrlen _Socklen) (err error)
++//sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
++//sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error) = SYS_GETGROUPS32
+ //sysnb	setgroups(n int, list *_Gid_t) (err error) = SYS_SETGROUPS32
+-//sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error)
+-//sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error)
++//sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
++//sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+ //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
+ //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
+-//sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error)
++//sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	socketpair(domain int, typ int, flags int, fd *[2]int32) (err error)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
+Index: src/pkg/syscall/syscall_unix.go
+===================================================================
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -55,7 +55,7 @@
+ 		cap  int
+ 	}{addr, length, length}
+ 
+-	// Use unsafe to turn sl into a []byte.
++	// Use unsafeto turn sl into a []byte.
+ 	b := *(*[]byte)(unsafe.Pointer(&sl))
+ 
+ 	// Register mapping in m and return it.
+@@ -160,7 +160,7 @@
+ var SocketDisableIPv6 bool
+ 
+ type Sockaddr interface {
+-	sockaddr() (ptr uintptr, len _Socklen, err error) // lowercase; only we can define Sockaddrs
++	sockaddr() (ptr unsafe.Pointer, len _Socklen, err error) // lowercase; only we can define Sockaddrs
+ }
+ 
+ type SockaddrInet4 struct {
+@@ -209,7 +209,7 @@
+ func GetsockoptInt(fd, level, opt int) (value int, err error) {
+ 	var n int32
+ 	vallen := _Socklen(4)
+-	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
++	err = getsockopt(fd, level, opt, unsafe.Pointer(&n), &vallen)
+ 	return int(n), err
+ }
+ 
+@@ -234,40 +234,40 @@
+ }
+ 
+ func SetsockoptByte(fd, level, opt int, value byte) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), 1)
++	return setsockopt(fd, level, opt, unsafe.Pointer(&value), 1)
+ }
+ 
+ func SetsockoptInt(fd, level, opt int, value int) (err error) {
+ 	var n = int32(value)
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
++	return setsockopt(fd, level, opt, unsafe.Pointer(&n), 4)
+ }
+ 
+ func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), 4)
++	return setsockopt(fd, level, opt, unsafe.Pointer(&value[0]), 4)
+ }
+ 
+ func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), SizeofIPMreq)
++	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), SizeofIPMreq)
+ }
+ 
+ func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), SizeofIPv6Mreq)
++	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), SizeofIPv6Mreq)
+ }
+ 
+ func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(filter)), SizeofICMPv6Filter)
++	return setsockopt(fd, level, opt, unsafe.Pointer(filter), SizeofICMPv6Filter)
+ }
+ 
+ func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), SizeofLinger)
++	return setsockopt(fd, level, opt, unsafe.Pointer(l), SizeofLinger)
+ }
+ 
+ func SetsockoptString(fd, level, opt int, s string) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
++	return setsockopt(fd, level, opt, unsafe.Pointer(&[]byte(s)[0]), uintptr(len(s)))
+ }
+ 
+ func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
++	return setsockopt(fd, level, opt, unsafe.Pointer(tv), unsafe.Sizeof(*tv))
+ }
+ 
+ func Socket(domain, typ, proto int) (fd int, err error) {
+Index: src/pkg/syscall/zsyscall_darwin_386.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_darwin_amd64.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_dragonfly_386.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_dragonfly_386.go
++++ b/src/pkg/syscall/zsyscall_dragonfly_386.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_dragonfly_amd64.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/pkg/syscall/zsyscall_dragonfly_amd64.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_freebsd_386.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_freebsd_amd64.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_linux_amd64.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -1763,7 +1763,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -1773,7 +1773,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -1804,7 +1804,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -1814,7 +1814,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -1882,7 +1882,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_linux_arm.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -1383,7 +1383,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -1393,7 +1393,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -1424,7 +1424,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -1434,7 +1434,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -1492,7 +1492,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_netbsd_386.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_netbsd_386.go
++++ b/src/pkg/syscall/zsyscall_netbsd_386.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_netbsd_amd64.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_netbsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_netbsd_amd64.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_openbsd_386.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_openbsd_386.go
++++ b/src/pkg/syscall/zsyscall_openbsd_386.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+Index: src/pkg/syscall/zsyscall_openbsd_amd64.go
+===================================================================
+--- a/src/pkg/syscall/zsyscall_openbsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_openbsd_amd64.go
+@@ -50,7 +50,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
++func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -60,7 +60,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func connect(s int, addr uintptr, addrlen _Socklen) (err error) {
++func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+ 		err = e1
+@@ -81,7 +81,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) {
++func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -91,7 +91,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error) {
++func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -158,7 +158,7 @@
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error) {
++func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])

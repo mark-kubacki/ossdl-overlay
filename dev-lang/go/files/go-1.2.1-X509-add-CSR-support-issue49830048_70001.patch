@@ -1,0 +1,619 @@
+Index: src/pkg/crypto/x509/pkix/pkix.go
+===================================================================
+--- a/src/pkg/crypto/x509/pkix/pkix.go
++++ b/src/pkg/crypto/x509/pkix/pkix.go
+@@ -30,6 +30,13 @@
+ 	Value interface{}
+ }
+ 
++// AttributeTypeAndValueSET represents a set of ASN.1 sequences of
++// AttributeTypeAndValue sequences from RFC 2986 (PKCS #10).
++type AttributeTypeAndValueSET struct {
++	Type  asn1.ObjectIdentifier
++	Value [][]AttributeTypeAndValue `asn1:"set"`
++}
++
+ // Extension represents the ASN.1 structure of the same name. See RFC
+ // 5280, section 4.2.
+ type Extension struct {
+Index: src/pkg/crypto/x509/x509.go
+===================================================================
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -1151,6 +1151,25 @@
+ 	return false
+ }
+ 
++func buildSANRaw(DNSNames, EmailAddresses []string, IPAddresses []net.IP) []asn1.RawValue {
++	var rawValues []asn1.RawValue
++	for _, name := range DNSNames {
++		rawValues = append(rawValues, asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)})
++	}
++	for _, email := range EmailAddresses {
++		rawValues = append(rawValues, asn1.RawValue{Tag: 1, Class: 2, Bytes: []byte(email)})
++	}
++	for _, rawIP := range IPAddresses {
++		// If possible, we always want to encode IPv4 addresses in 4 bytes.
++		ip := rawIP.To4()
++		if ip == nil {
++			ip = rawIP
++		}
++		rawValues = append(rawValues, asn1.RawValue{Tag: 7, Class: 2, Bytes: ip})
++	}
++	return rawValues
++}
++
+ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
+ 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
+ 	n := 0
+@@ -1251,22 +1270,8 @@
+ 
+ 	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0) &&
+ 		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
++		rawValues := buildSANRaw(template.DNSNames, template.EmailAddresses, template.IPAddresses)
+ 		ret[n].Id = oidExtensionSubjectAltName
+-		var rawValues []asn1.RawValue
+-		for _, name := range template.DNSNames {
+-			rawValues = append(rawValues, asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)})
+-		}
+-		for _, email := range template.EmailAddresses {
+-			rawValues = append(rawValues, asn1.RawValue{Tag: 1, Class: 2, Bytes: []byte(email)})
+-		}
+-		for _, rawIP := range template.IPAddresses {
+-			// If possible, we always want to encode IPv4 addresses in 4 bytes.
+-			ip := rawIP.To4()
+-			if ip == nil {
+-				ip = rawIP
+-			}
+-			rawValues = append(rawValues, asn1.RawValue{Tag: 7, Class: 2, Bytes: ip})
+-		}
+ 		ret[n].Value, err = asn1.Marshal(rawValues)
+ 		if err != nil {
+ 			return
+@@ -1342,6 +1347,50 @@
+ 	return asn1.Marshal(cert.Subject.ToRDNSequence())
+ }
+ 
++type privKeyInfo struct {
++	HashFunc           crypto.Hash
++	PrivType           PublicKeyAlgorithm
++	SigAlgo            pkix.AlgorithmIdentifier
++	PublicKeyAlgorithm pkix.AlgorithmIdentifier
++	PublicKeyBytes     []byte
++}
++
++func getPrivateKey(priv interface{}) (pi *privKeyInfo, err error) {
++	pi = &privKeyInfo{}
++
++	switch priv := priv.(type) {
++	case *rsa.PrivateKey:
++		pi.PrivType = RSA
++		pi.SigAlgo.Algorithm = oidSignatureSHA256WithRSA
++		pi.HashFunc = crypto.SHA256
++		if pi.PublicKeyBytes, pi.PublicKeyAlgorithm, err = marshalPublicKey(&priv.PublicKey); err != nil {
++			return nil, err
++		}
++	case *ecdsa.PrivateKey:
++		pi.PrivType = ECDSA
++		if pi.PublicKeyBytes, pi.PublicKeyAlgorithm, err = marshalPublicKey(&priv.PublicKey); err != nil {
++			return nil, err
++		}
++
++		switch priv.Curve {
++		case elliptic.P224(), elliptic.P256():
++			pi.HashFunc = crypto.SHA256
++			pi.SigAlgo.Algorithm = oidSignatureECDSAWithSHA256
++		case elliptic.P384():
++			pi.HashFunc = crypto.SHA384
++			pi.SigAlgo.Algorithm = oidSignatureECDSAWithSHA384
++		case elliptic.P521():
++			pi.HashFunc = crypto.SHA512
++			pi.SigAlgo.Algorithm = oidSignatureECDSAWithSHA512
++		default:
++			return nil, errors.New("x509: unknown elliptic curve")
++		}
++	default:
++		return nil, errors.New("x509: only RSA and ECDSA private keys supported")
++	}
++	return pi, nil
++}
++
+ // CreateCertificate creates a new certificate based on a template. The
+ // following members of template are used: SerialNumber, Subject, NotBefore,
+ // NotAfter, KeyUsage, ExtKeyUsage, UnknownExtKeyUsage, BasicConstraintsValid,
+@@ -1357,51 +1406,24 @@
+ // The only supported key types are RSA and ECDSA (*rsa.PublicKey or
+ // *ecdsa.PublicKey for pub, *rsa.PrivateKey or *ecdsa.PrivateKey for priv).
+ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interface{}, priv interface{}) (cert []byte, err error) {
+-	var publicKeyBytes []byte
+-	var publicKeyAlgorithm pkix.AlgorithmIdentifier
+-
+-	if publicKeyBytes, publicKeyAlgorithm, err = marshalPublicKey(pub); err != nil {
++	pi, err := getPrivateKey(priv)
++	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	var signatureAlgorithm pkix.AlgorithmIdentifier
+-	var hashFunc crypto.Hash
+-	var privType PublicKeyAlgorithm
+-
+-	switch priv := priv.(type) {
+-	case *rsa.PrivateKey:
+-		privType = RSA
+-		signatureAlgorithm.Algorithm = oidSignatureSHA256WithRSA
+-		hashFunc = crypto.SHA256
+-	case *ecdsa.PrivateKey:
+-		privType = ECDSA
+-
+-		switch priv.Curve {
+-		case elliptic.P224(), elliptic.P256():
+-			hashFunc = crypto.SHA256
+-			signatureAlgorithm.Algorithm = oidSignatureECDSAWithSHA256
+-		case elliptic.P384():
+-			hashFunc = crypto.SHA384
+-			signatureAlgorithm.Algorithm = oidSignatureECDSAWithSHA384
+-		case elliptic.P521():
+-			hashFunc = crypto.SHA512
+-			signatureAlgorithm.Algorithm = oidSignatureECDSAWithSHA512
+-		default:
+-			return nil, errors.New("x509: unknown elliptic curve")
+-		}
+-	default:
+-		return nil, errors.New("x509: only RSA and ECDSA private keys supported")
++	if pi.PublicKeyBytes, pi.PublicKeyAlgorithm, err = marshalPublicKey(pub); err != nil {
++		return nil, err
+ 	}
+ 
+ 	if template.SignatureAlgorithm != 0 {
+ 		found := false
+ 		for _, details := range signatureAlgorithmDetails {
+ 			if details.algo == template.SignatureAlgorithm {
+-				if details.pubKeyAlgo != privType {
++				if details.pubKeyAlgo != pi.PrivType {
+ 					return nil, errors.New("x509: requested SignatureAlgorithm does not match private key type")
+ 				}
+-				signatureAlgorithm.Algorithm, hashFunc = details.oid, details.hash
+-				if hashFunc == 0 {
++				pi.SigAlgo.Algorithm, pi.HashFunc = details.oid, details.hash
++				if pi.HashFunc == 0 {
+ 					return nil, errors.New("x509: cannot sign with hash function requested")
+ 				}
+ 				found = true
+@@ -1436,15 +1458,15 @@
+ 		return
+ 	}
+ 
+-	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
++	encodedPublicKey := asn1.BitString{BitLength: len(pi.PublicKeyBytes) * 8, Bytes: pi.PublicKeyBytes}
+ 	c := tbsCertificate{
+ 		Version:            2,
+ 		SerialNumber:       template.SerialNumber,
+-		SignatureAlgorithm: signatureAlgorithm,
++		SignatureAlgorithm: pi.SigAlgo,
+ 		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
+ 		Validity:           validity{template.NotBefore.UTC(), template.NotAfter.UTC()},
+ 		Subject:            asn1.RawValue{FullBytes: asn1Subject},
+-		PublicKey:          publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey},
++		PublicKey:          publicKeyInfo{nil, pi.PublicKeyAlgorithm, encodedPublicKey},
+ 		Extensions:         extensions,
+ 	}
+ 
+@@ -1455,7 +1477,7 @@
+ 
+ 	c.Raw = tbsCertContents
+ 
+-	h := hashFunc.New()
++	h := pi.HashFunc.New()
+ 	h.Write(tbsCertContents)
+ 	digest := h.Sum(nil)
+ 
+@@ -1463,7 +1485,7 @@
+ 
+ 	switch priv := priv.(type) {
+ 	case *rsa.PrivateKey:
+-		signature, err = rsa.SignPKCS1v15(rand, priv, hashFunc, digest)
++		signature, err = rsa.SignPKCS1v15(rand, priv, pi.HashFunc, digest)
+ 	case *ecdsa.PrivateKey:
+ 		var r, s *big.Int
+ 		if r, s, err = ecdsa.Sign(rand, priv, digest); err == nil {
+@@ -1480,7 +1502,7 @@
+ 	cert, err = asn1.Marshal(certificate{
+ 		nil,
+ 		c,
+-		signatureAlgorithm,
++		pi.SigAlgo,
+ 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
+ 	})
+ 	return
+@@ -1559,3 +1581,308 @@
+ 		SignatureValue: asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
+ 	})
+ }
++
++// CertificateRequest represents a PKCS #10 certificate signature request.
++type CertificateRequest struct {
++	Raw                      []byte // Complete ASN.1 DER content (CSR, signature algorithm and signature).
++	RawTBSCertificateRequest []byte // Certificate request info part of raw ASN.1 DER content.
++	RawSubjectPublicKeyInfo  []byte // DER encoded SubjectPublicKeyInfo.
++	RawSubject               []byte // DER encoded Subject.
++
++	Version            int
++	Signature          []byte
++	SignatureAlgorithm SignatureAlgorithm
++
++	PublicKeyAlgorithm PublicKeyAlgorithm
++	PublicKey          interface{}
++
++	Subject pkix.Name
++
++	// Attributes is a collection of attributes providing
++	// additional information about the subject of the certificate.
++	// See RFC 2986 section 4.1.
++	Attributes []pkix.AttributeTypeAndValueSET
++
++	// Extensions contains raw X.509 extensions. When parsing certificates,
++	// this can be used to extract non-critical extensions that are not
++	// parsed by this package.
++	Extensions []pkix.Extension
++
++	// Subject Alternate Name values.
++	DNSNames       []string
++	EmailAddresses []string
++	IPAddresses    []net.IP
++}
++
++// These structures reflect the ASN.1 structure of X.509 certificate
++// signature requests (see RFC 2986):
++
++type tbsCertificateRequest struct {
++	Raw        asn1.RawContent
++	Version    int
++	Subject    asn1.RawValue
++	PublicKey  publicKeyInfo
++	Attributes []pkix.AttributeTypeAndValueSET `asn1:"tag:0"`
++}
++
++type certificateRequest struct {
++	Raw                asn1.RawContent
++	TBSCSR             tbsCertificateRequest
++	SignatureAlgorithm pkix.AlgorithmIdentifier
++	SignatureValue     asn1.BitString
++}
++
++var oidExtensionRequest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 14}
++
++// CreateCertificateRequest creates a new certificate based on a template. The following members
++// of template are used: Subject, Attributes, DNSNames, EmailAddresses, and IPAddresses. The
++// private key is the private key of the signer.
++//
++// The returned slice is the certificate request in DER encoding.
++//
++// The only supported key types are RSA (*rsa.PrivateKey) and ECDSA (*ecdsa.PrivateKey).
++func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv interface{}) (csr []byte, err error) {
++	pi, err := getPrivateKey(priv)
++	if err != nil {
++		return nil, err
++	}
++
++	encodedPublicKey := asn1.BitString{BitLength: len(pi.PublicKeyBytes) * 8, Bytes: pi.PublicKeyBytes}
++	if template.SignatureAlgorithm != 0 {
++		found := false
++		for _, details := range signatureAlgorithmDetails {
++			if details.algo == template.SignatureAlgorithm {
++				if details.pubKeyAlgo != pi.PrivType {
++					return nil, errors.New("x509: requested SignatureAlgorithm does not match private key type")
++				}
++				pi.SigAlgo.Algorithm, pi.HashFunc = details.oid, details.hash
++				if pi.HashFunc == 0 {
++					return nil, errors.New("x509: cannot sign with hash function requested")
++				}
++				found = true
++				break
++			}
++		}
++		if !found {
++			return nil, errors.New("x509: unknown SignatureAlgorithm")
++		}
++	}
++
++	extensions := make([][]pkix.AttributeTypeAndValue, 1)
++	extensions[0] = make([]pkix.AttributeTypeAndValue, 1)
++
++	rawValues := buildSANRaw(template.DNSNames, template.EmailAddresses, template.IPAddresses)
++	extensions[0][0].Type = oidExtensionSubjectAltName
++	extensions[0][0].Value, err = asn1.Marshal(rawValues)
++	if err != nil {
++		return
++	}
++
++	template.Attributes = append(template.Attributes, pkix.AttributeTypeAndValueSET{
++		Type:  oidExtensionRequest,
++		Value: extensions,
++	})
++
++	var asn1Subject []byte
++	if len(template.RawSubject) > 0 {
++		asn1Subject = template.RawSubject
++	} else {
++		asn1Subject, err = asn1.Marshal(template.Subject.ToRDNSequence())
++		if err != nil {
++			return
++		}
++	}
++
++	tbsCSR := tbsCertificateRequest{
++		Version:    0, // PKCS #10, RFC 2986
++		Subject:    asn1.RawValue{FullBytes: asn1Subject},
++		PublicKey:  publicKeyInfo{nil, pi.PublicKeyAlgorithm, encodedPublicKey},
++		Attributes: template.Attributes,
++	}
++
++	tbsCSRContents, err := asn1.Marshal(tbsCSR)
++	if err != nil {
++		return
++	}
++	tbsCSR.Raw = tbsCSRContents
++
++	h := pi.HashFunc.New()
++	h.Write(tbsCSRContents)
++	digest := h.Sum(nil)
++
++	var signature []byte
++	switch priv := priv.(type) {
++	case *rsa.PrivateKey:
++		signature, err = rsa.SignPKCS1v15(rand, priv, pi.HashFunc, digest)
++	case *ecdsa.PrivateKey:
++		var r, s *big.Int
++		if r, s, err = ecdsa.Sign(rand, priv, digest); err == nil {
++			signature, err = asn1.Marshal(ecdsaSignature{r, s})
++		}
++	default:
++		panic("internal error")
++	}
++
++	if err != nil {
++		return
++	}
++
++	csr, err = asn1.Marshal(certificateRequest{
++		nil,
++		tbsCSR,
++		pi.SigAlgo,
++		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
++	})
++	return
++}
++
++// ParseCertificateRequest parses a single certificate request from the
++// given ASN.1 DER data.
++func ParseCertificateRequest(asn1Data []byte) (*CertificateRequest, error) {
++	var csr certificateRequest
++
++	rest, err := asn1.Unmarshal(asn1Data, &csr)
++	if err != nil {
++		return nil, err
++	} else if len(rest) != 0 {
++		return nil, asn1.SyntaxError{Msg: "trailing data"}
++	}
++	return parseCertificateRequest(&csr)
++}
++
++// ParseCertificateRequestss parses one or more certificate requests from
++// the given ASN.1 DER data. The certificate requests must be concatenated
++// with no intermediate padding.
++func ParseCertificateRequests(asn1Data []byte) ([]*CertificateRequest, error) {
++	var v []*certificateRequest
++
++	for len(asn1Data) > 0 {
++		req := new(certificateRequest)
++		var err error
++		asn1Data, err = asn1.Unmarshal(asn1Data, req)
++		if err != nil {
++			return nil, err
++		}
++		v = append(v, req)
++	}
++
++	ret := make([]*CertificateRequest, len(v))
++	for i, ci := range v {
++		cert, err := parseCertificateRequest(ci)
++		if err != nil {
++			return nil, err
++		}
++		ret[i] = cert
++	}
++
++	return ret, nil
++}
++
++func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error) {
++	out := new(CertificateRequest)
++	out.Raw = in.Raw
++	out.RawTBSCertificateRequest = in.TBSCSR.Raw
++	out.RawSubjectPublicKeyInfo = in.TBSCSR.PublicKey.Raw
++	out.RawSubject = in.TBSCSR.Subject.FullBytes
++
++	out.Signature = in.SignatureValue.RightAlign()
++	out.SignatureAlgorithm =
++		getSignatureAlgorithmFromOID(in.SignatureAlgorithm.Algorithm)
++
++	out.PublicKeyAlgorithm =
++		getPublicKeyAlgorithmFromOID(in.TBSCSR.PublicKey.Algorithm.Algorithm)
++	var err error
++	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, &in.TBSCSR.PublicKey)
++	if err != nil {
++		return nil, err
++	}
++
++	out.Version = in.TBSCSR.Version
++
++	var subject pkix.RDNSequence
++	if _, err := asn1.Unmarshal(in.TBSCSR.Subject.FullBytes, &subject); err != nil {
++		return nil, err
++	}
++
++	out.Subject.FillFromRDNSequence(&subject)
++
++	var extensions []pkix.AttributeTypeAndValue
++	for _, atvSet := range in.TBSCSR.Attributes {
++		if atvSet.Type.Equal(oidExtensionRequest) {
++			if atvSet.Value != nil {
++				for _, atvs := range atvSet.Value {
++					extensions = append(extensions, atvs...)
++				}
++			}
++		}
++	}
++
++	for _, e := range extensions {
++		out.Extensions = append(out.Extensions, pkix.Extension{Id: e.Type, Value: e.Value.([]byte)})
++
++		if len(e.Type) == 4 && e.Type[0] == 2 && e.Type[1] == 5 && e.Type[2] == 29 {
++			switch e.Type[3] {
++			case 17:
++				// RFC 5280, 4.2.1.6
++
++				// SubjectAltName ::= GeneralNames
++				//
++				// GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
++				//
++				// GeneralName ::= CHOICE {
++				//      otherName                       [0]     OtherName,
++				//      rfc822Name                      [1]     IA5String,
++				//      dNSName                         [2]     IA5String,
++				//      x400Address                     [3]     ORAddress,
++				//      directoryName                   [4]     Name,
++				//      ediPartyName                    [5]     EDIPartyName,
++				//      uniformResourceIdentifier       [6]     IA5String,
++				//      iPAddress                       [7]     OCTET STRING,
++				//      registeredID                    [8]     OBJECT IDENTIFIER }
++				var seq asn1.RawValue
++				_, err := asn1.Unmarshal(e.Value.([]byte), &seq)
++				if err != nil {
++					return nil, err
++				}
++				if !seq.IsCompound || seq.Tag != 16 || seq.Class != 0 {
++					return nil, asn1.StructuralError{Msg: "bad SAN sequence"}
++				}
++
++				parsedName := false
++
++				rest := seq.Bytes
++				for len(rest) > 0 {
++					var v asn1.RawValue
++					rest, err = asn1.Unmarshal(rest, &v)
++					if err != nil {
++						return nil, err
++					}
++					switch v.Tag {
++					case 1:
++						out.EmailAddresses = append(out.EmailAddresses, string(v.Bytes))
++						parsedName = true
++					case 2:
++						out.DNSNames = append(out.DNSNames, string(v.Bytes))
++						parsedName = true
++					case 7:
++						switch len(v.Bytes) {
++						case net.IPv4len, net.IPv6len:
++							out.IPAddresses = append(out.IPAddresses, v.Bytes)
++						default:
++							return nil, errors.New("x509: certificate contained IP address of length " + strconv.Itoa(len(v.Bytes)))
++						}
++					}
++				}
++
++				if parsedName {
++					continue
++				}
++				// If we didn't parse any of the names then we
++				// fall through to the critical check below.
++
++			}
++		}
++	}
++
++	return out, nil
++}
+Index: src/pkg/crypto/x509/x509_test.go
+===================================================================
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -735,3 +735,77 @@
+ const derCRLBase64 = "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"
+ 
+ const pemCRLBase64 = "LS0tLS1CRUdJTiBYNTA5IENSTC0tLS0tDQpNSUlCOWpDQ0FWOENBUUV3RFFZSktvWklodmNOQVFFRkJRQXdiREVhTUJnR0ExVUVDaE1SVWxOQklGTmxZM1Z5DQphWFI1SUVsdVl5NHhIakFjQmdOVkJBTVRGVkpUUVNCUWRXSnNhV01nVW05dmRDQkRRU0IyTVRFdU1Dd0dDU3FHDQpTSWIzRFFFSkFSWWZjbk5oYTJWdmJuSnZiM1J6YVdkdVFISnpZWE5sWTNWeWFYUjVMbU52YlJjTk1URXdNakl6DQpNVGt5T0RNd1doY05NVEV3T0RJeU1Ua3lPRE13V2pDQmpEQktBaEVBckRxb2g5RkhKSFhUN09QZ3V1bjQrQmNODQpNRGt4TVRBeU1UUXlOekE1V2pBbU1Bb0dBMVVkRlFRRENnRUpNQmdHQTFVZEdBUVJHQTh5TURBNU1URXdNakUwDQpNalExTlZvd1BnSVJBTEd6blowOTVQQjVhQU9MUGc1N2ZNTVhEVEF5TVRBeU16RTBOVEF4TkZvd0dqQVlCZ05WDQpIUmdFRVJnUE1qQXdNakV3TWpNeE5EVXdNVFJhb0RBd0xqQWZCZ05WSFNNRUdEQVdnQlQxVERGNlVRTS9MTmVMDQpsNWx2cUhHUXEzZzltekFMQmdOVkhSUUVCQUlDQUlRd0RRWUpLb1pJaHZjTkFRRUZCUUFEZ1lFQUZVNUFzNk16DQpxNVBSc2lmYW9iUVBHaDFhSkx5QytNczVBZ2MwYld5QTNHQWR4dXI1U3BQWmVSV0NCamlQL01FSEJXSkNsQkhQDQpHUmNxNXlJZDNFakRrYUV5eFJhK2k2N0x6dmhJNmMyOUVlNks5cFNZd2ppLzdSVWhtbW5Qclh0VHhsTDBsckxyDQptUVFKNnhoRFJhNUczUUE0Q21VZHNITnZicnpnbUNZcHZWRT0NCi0tLS0tRU5EIFg1MDkgQ1JMLS0tLS0NCg0K"
++
++func TestCreateCertificateRequest(t *testing.T) {
++	random := rand.Reader
++
++	block, _ := pem.Decode([]byte(pemPrivateKey))
++	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
++	if err != nil {
++		t.Fatalf("Failed to parse private key: %s", err)
++	}
++
++	ecdsa256Priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatalf("Failed to generate ECDSA key: %s", err)
++	}
++
++	ecdsa384Priv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
++	if err != nil {
++		t.Fatalf("Failed to generate ECDSA key: %s", err)
++	}
++
++	ecdsa521Priv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
++	if err != nil {
++		t.Fatalf("Failed to generate ECDSA key: %s", err)
++	}
++
++	tests := []struct {
++		name    string
++		priv    interface{}
++		sigAlgo SignatureAlgorithm
++	}{
++		{"RSA", rsaPriv, SHA1WithRSA},
++		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA1},
++		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA1},
++		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA1},
++	}
++
++	for _, test := range tests {
++		commonName := "test.example.com"
++		template := CertificateRequest{
++			Subject: pkix.Name{
++				CommonName:   commonName,
++				Organization: []string{"Σ Acme Co"},
++			},
++			// SignatureAlgorithm: test.sigAlgo,
++			DNSNames:       []string{"test.example.com"},
++			EmailAddresses: []string{"gopher@golang.org"},
++			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1).To4(), net.ParseIP("2001:4860:0:2001::68")},
++		}
++
++		derBytes, err := CreateCertificateRequest(random, &template, test.priv)
++		if err != nil {
++			t.Errorf("%s: failed to create certificate request: %s", test.name, err)
++			continue
++		}
++
++		out, err := ParseCertificateRequest(derBytes)
++		if err != nil {
++			t.Errorf("%s: failed to create certificate request: %s", test.name, err)
++			continue
++		}
++
++		if out.Subject.CommonName != template.Subject.CommonName {
++			t.Errorf("%s: output subject common name and template subject common name don't match", test.name)
++		} else if len(out.Subject.Organization) != len(template.Subject.Organization) {
++			t.Errorf("%s: output subject organisation and template subject organisation don't match", test.name)
++		} else if len(out.DNSNames) != len(template.DNSNames) {
++			t.Errorf("%s: output DNS names and template DNS names don't match", test.name)
++		} else if len(out.EmailAddresses) != len(template.EmailAddresses) {
++			t.Errorf("%s: output email addresses and template email addresses don't match", test.name)
++		} else if len(out.IPAddresses) != len(template.IPAddresses) {
++			t.Errorf("%s: output IP addresses and template IP addresses names don't match", test.name)
++		}
++	}
++}

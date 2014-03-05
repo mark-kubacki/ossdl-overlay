@@ -1,0 +1,75 @@
+Index: src/pkg/runtime/proc.c
+===================================================================
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -58,9 +58,16 @@
+ 	int32	profilehz;	// cpu profiling rate
+ };
+ 
+-// The max value of GOMAXPROCS.
+-// There are no fundamental restrictions on the value.
+-enum { MaxGomaxprocs = 1<<8 };
++enum
++{
++	// The max value of GOMAXPROCS.
++	// There are no fundamental restrictions on the value.
++	MaxGomaxprocs = 1<<8,
++
++	// Number of goroutine ids to grab from runtime·sched.goidgen to local per-P cache at once.
++	// 16 seems to provide enough amortization, but other than that it's mostly arbitrary number.
++	GoidCacheBatch = 16,
++};
+ 
+ Sched	runtime·sched;
+ int32	runtime·gomaxprocs;
+@@ -1752,6 +1759,7 @@
+ {
+ 	byte *sp;
+ 	G *newg;
++	P *p;
+ 	int32 siz;
+ 
+ //runtime·printf("newproc1 %p %p narg=%d nret=%d\n", fn->fn, argp, narg, nret);
+@@ -1766,7 +1774,8 @@
+ 	if(siz > StackMin - 1024)
+ 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
+ 
+-	if((newg = gfget(m->p)) != nil) {
++	p = m->p;
++	if((newg = gfget(p)) != nil) {
+ 		if(newg->stackguard - StackGuard != newg->stack0)
+ 			runtime·throw("invalid stack in newg");
+ 	} else {
+@@ -1790,11 +1799,15 @@
+ 	runtime·gostartcallfn(&newg->sched, fn);
+ 	newg->gopc = (uintptr)callerpc;
+ 	newg->status = Grunnable;
+-	newg->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
++	if(p->goidcache == p->goidcacheend) {
++		p->goidcache = runtime·xadd64(&runtime·sched.goidgen, GoidCacheBatch);
++		p->goidcacheend = p->goidcache + GoidCacheBatch;
++	}
++	newg->goid = p->goidcache++;
+ 	newg->panicwrap = 0;
+ 	if(raceenabled)
+ 		newg->racectx = runtime·racegostart((void*)callerpc);
+-	runqput(m->p, newg);
++	runqput(p, newg);
+ 
+ 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0 && fn->fn != runtime·main)  // TODO: fast atomic
+ 		wakep();
+Index: src/pkg/runtime/runtime.h
+===================================================================
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -385,6 +385,10 @@
+ 	MCache*	mcache;
+ 	Defer*	deferpool[5];	// pool of available Defer structs of different sizes (see panic.c)
+ 
++	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
++	uint64	goidcache;
++	uint64	goidcacheend;
++
+ 	// Queue of runnable goroutines.
+ 	uint32	runqhead;
+ 	uint32	runqtail;

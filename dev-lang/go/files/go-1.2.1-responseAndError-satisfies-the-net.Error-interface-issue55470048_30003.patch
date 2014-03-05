@@ -1,0 +1,62 @@
+Index: src/pkg/net/http/transport.go
+===================================================================
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -869,6 +869,18 @@
+ 	ch  chan<- error
+ }
+ 
++type httpError struct {
++	err     string
++	timeout bool
++}
++
++func (e *httpError) Error() string   { return e.err }
++func (e *httpError) Timeout() bool   { return e.timeout }
++func (e *httpError) Temporary() bool { return true }
++
++var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
++var errClosed error = &httpError{err: "net/http: transport closed before response was received"}
++
+ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
+ 	pc.t.setReqConn(req.Request, pc)
+ 	pc.lk.Lock()
+@@ -939,11 +951,11 @@
+ 			pconnDeadCh = nil                               // avoid spinning
+ 			failTicker = time.After(100 * time.Millisecond) // arbitrary time to wait for resc
+ 		case <-failTicker:
+-			re = responseAndError{err: errors.New("net/http: transport closed before response was received")}
++			re = responseAndError{err: errClosed}
+ 			break WaitResponse
+ 		case <-respHeaderTimer:
+ 			pc.close()
+-			re = responseAndError{err: errors.New("net/http: timeout awaiting response headers")}
++			re = responseAndError{err: errTimeout}
+ 			break WaitResponse
+ 		case re = <-resc:
+ 			break WaitResponse
+Index: src/pkg/net/http/transport_test.go
+===================================================================
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -1237,6 +1237,20 @@
+ 	for i, tt := range tests {
+ 		res, err := c.Get(ts.URL + tt.path)
+ 		if err != nil {
++			uerr, ok := err.(*url.Error)
++			if !ok {
++				t.Errorf("error is not an url.Error; got: %#v", err)
++				continue
++			}
++			nerr, ok := uerr.Err.(net.Error)
++			if !ok {
++				t.Errorf("error does not satisfy net.Error interface; got: %#v", err)
++				continue
++			}
++			if !nerr.Timeout() {
++				t.Errorf("want timeout error; got: %q", nerr)
++				continue
++			}
+ 			if strings.Contains(err.Error(), tt.wantErr) {
+ 				continue
+ 			}

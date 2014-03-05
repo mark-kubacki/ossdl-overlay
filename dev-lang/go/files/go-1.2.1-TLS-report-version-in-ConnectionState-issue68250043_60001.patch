@@ -1,0 +1,52 @@
+Index: src/pkg/crypto/tls/common.go
+===================================================================
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -155,6 +155,7 @@
+ 
+ // ConnectionState records basic TLS details about the connection.
+ type ConnectionState struct {
++	Version                    uint16                // TLS version used by the connection (e.g. VersionTLS12)
+ 	HandshakeComplete          bool                  // TLS handshake is complete
+ 	DidResume                  bool                  // connection resumes a previous TLS connection
+ 	CipherSuite                uint16                // cipher suite in use (TLS_RSA_WITH_RC4_128_SHA, ...)
+Index: src/pkg/crypto/tls/conn.go
+===================================================================
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -969,6 +969,7 @@
+ 	var state ConnectionState
+ 	state.HandshakeComplete = c.handshakeComplete
+ 	if c.handshakeComplete {
++		state.Version = c.vers
+ 		state.NegotiatedProtocol = c.clientProtocol
+ 		state.DidResume = c.didResume
+ 		state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
+Index: src/pkg/crypto/tls/handshake_server_test.go
+===================================================================
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -195,6 +195,23 @@
+ 	return
+ }
+ 
++func TestVersion(t *testing.T) {
++	serverConfig := &Config{
++		Certificates: testConfig.Certificates,
++		MaxVersion:   VersionTLS11,
++	}
++	clientConfig := &Config{
++		InsecureSkipVerify: true,
++	}
++	state, err := testHandshake(clientConfig, serverConfig)
++	if err != nil {
++		t.Fatalf("handshake failed: %s", err)
++	}
++	if state.Version != VersionTLS11 {
++		t.Fatalf("Incorrect version %x, should be %x", state.Version, VersionTLS11)
++	}
++}
++
+ func TestCipherSuitePreference(t *testing.T) {
+ 	serverConfig := &Config{
+ 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},

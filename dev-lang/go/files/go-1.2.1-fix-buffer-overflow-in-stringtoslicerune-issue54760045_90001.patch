@@ -1,0 +1,26 @@
+Index: src/pkg/runtime/malloc.goc
+===================================================================
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -224,6 +224,8 @@
+ 
+ 	// Allocate directly from heap.
+ 	size = *sizep;
++	if(size + PageSize < size)
++		runtime·throw("out of memory");
+ 	npages = size >> PageShift;
+ 	if((size & PageMask) != 0)
+ 		npages++;
+Index: src/pkg/runtime/string.goc
+===================================================================
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -334,6 +334,8 @@
+ 		n++;
+ 	}
+ 
++	if(n > MaxMem/sizeof(r[0]))
++		runtime·throw("out of memory");
+ 	mem = runtime·roundupsize(n*sizeof(r[0]));
+ 	b.array = runtime·mallocgc(mem, 0, FlagNoScan|FlagNoZero);
+ 	b.len = n;

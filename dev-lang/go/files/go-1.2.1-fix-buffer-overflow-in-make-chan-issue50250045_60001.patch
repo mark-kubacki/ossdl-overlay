@@ -1,0 +1,13 @@
+Index: src/pkg/runtime/chan.c
+===================================================================
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -104,7 +104,7 @@
+ 	if((sizeof(*c)%MAXALIGN) != 0 || elem->align > MAXALIGN)
+ 		runtime·throw("makechan: bad alignment");
+ 
+-	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > MaxMem / elem->size))
++	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > (MaxMem - sizeof(*c)) / elem->size))
+ 		runtime·panicstring("makechan: size out of range");
+ 
+ 	// allocate memory in one call

@@ -1,0 +1,115 @@
+Index: src/pkg/encoding/gob/codec_test.go
+===================================================================
+--- a/src/pkg/encoding/gob/codec_test.go
++++ b/src/pkg/encoding/gob/codec_test.go
+@@ -1364,11 +1364,7 @@
+ 	S     []string
+ }
+ 
+-func TestDebugStruct(t *testing.T) {
+-	if debugFunc == nil {
+-		return
+-	}
+-	Register(OnTheFly{})
++func newDT() DT {
+ 	var dt DT
+ 	dt.A = 17
+ 	dt.B = "hello"
+@@ -1379,6 +1375,15 @@
+ 	dt.M = map[string]int{"one": 1, "two": 2}
+ 	dt.T = [3]int{11, 22, 33}
+ 	dt.S = []string{"hi", "joe"}
++	return dt
++}
++
++func TestDebugStruct(t *testing.T) {
++	if debugFunc == nil {
++		return
++	}
++	Register(OnTheFly{})
++	dt := newDT()
+ 	b := new(bytes.Buffer)
+ 	err := NewEncoder(b).Encode(dt)
+ 	if err != nil {
+@@ -1458,3 +1463,44 @@
+ 		}
+ 	}
+ }
++
++// TestFuzzOneByte tries to decode corrupted input sequences
++// and checks that no panic occurs.
++func TestFuzzOneByte(t *testing.T) {
++	buf := new(bytes.Buffer)
++	Register(OnTheFly{})
++	dt := newDT()
++	if err := NewEncoder(buf).Encode(dt); err != nil {
++		t.Fatal(err)
++	}
++	s := buf.String()
++
++	indices := make([]int, 0, len(s))
++	for i := 0; i < len(s); i++ {
++		switch i {
++		case 14, 167, 231, 265: // a slice length, corruptions are not handled yet.
++			continue
++		}
++		indices = append(indices, i)
++	}
++	if testing.Short() {
++		indices = []int{1, 111, 178} // known fixed panics
++	}
++	for _, i := range indices {
++		for j := 0; j < 256; j += 3 {
++			b := []byte(s)
++			b[i] ^= byte(j)
++			var e DT
++			func() {
++				defer func() {
++					if p := recover(); p != nil {
++						t.Errorf("crash for b[%d] ^= 0x%x", i, j)
++						panic(p)
++					}
++				}()
++				err := NewDecoder(bytes.NewReader(b)).Decode(&e)
++				_ = err
++			}()
++		}
++	}
++}
+Index: src/pkg/encoding/gob/decode.go
+===================================================================
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -701,6 +701,9 @@
+ 	if nr < 0 || nr > 1<<31 { // zero is permissible for anonymous types
+ 		errorf("invalid type name length %d", nr)
+ 	}
++	if nr > uint64(state.b.Len()) {
++		errorf("invalid type name length %d: exceeds input size", nr)
++	}
+ 	b := make([]byte, nr)
+ 	state.b.Read(b)
+ 	name := string(b)
+@@ -1237,7 +1240,8 @@
+ 	}
+ 	engine := *enginePtr
+ 	if st := base; st.Kind() == reflect.Struct && ut.externalDec == 0 {
+-		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].StructT.Field) > 0 {
++		if engine.numInstr == 0 && st.NumField() > 0 &&
++			dec.wireType[wireId] != nil && len(dec.wireType[wireId].StructT.Field) > 0 {
+ 			name := base.Name()
+ 			errorf("type mismatch: no fields matched compiling decoder for %s", name)
+ 		}
+Index: src/pkg/encoding/gob/encoder_test.go
+===================================================================
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -129,6 +129,8 @@
+ 	corruptDataCheck("", io.EOF, t)
+ 	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t)
+ 	corruptDataCheck("\x03now is the time for all good men", errBadType, t)
++	// issue 6323.
++	corruptDataCheck("\x04\x24foo", errRange, t)
+ }
+ 
+ // Types not supported at top level by the Encoder.

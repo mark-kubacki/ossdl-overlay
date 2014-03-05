@@ -1,0 +1,58 @@
+Index: src/pkg/net/conn_test.go
+===================================================================
+--- a/src/pkg/net/conn_test.go
++++ b/src/pkg/net/conn_test.go
+@@ -53,7 +53,9 @@
+ 				os.Remove(addr)
+ 			}
+ 		}(ln, tt.net, addr)
+-		ln.Addr()
++		if ln.Addr().Network() != tt.net {
++			t.Fatalf("got %v; expected %v", ln.Addr().Network(), tt.net)
++		}
+ 
+ 		done := make(chan int)
+ 		go transponder(t, ln, done)
+@@ -63,8 +65,9 @@
+ 			t.Fatalf("Dial failed: %v", err)
+ 		}
+ 		defer c.Close()
+-		c.LocalAddr()
+-		c.RemoteAddr()
++		if c.LocalAddr().Network() != tt.net || c.LocalAddr().Network() != tt.net {
++			t.Fatalf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), tt.net, tt.net)
++		}
+ 		c.SetDeadline(time.Now().Add(someTimeout))
+ 		c.SetReadDeadline(time.Now().Add(someTimeout))
+ 		c.SetWriteDeadline(time.Now().Add(someTimeout))
+@@ -96,8 +99,11 @@
+ 		return
+ 	}
+ 	defer c.Close()
+-	c.LocalAddr()
+-	c.RemoteAddr()
++	network := ln.Addr().Network()
++	if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
++		t.Errorf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
++		return
++	}
+ 	c.SetDeadline(time.Now().Add(someTimeout))
+ 	c.SetReadDeadline(time.Now().Add(someTimeout))
+ 	c.SetWriteDeadline(time.Now().Add(someTimeout))
+Index: src/pkg/net/unixsock_posix.go
+===================================================================
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -280,7 +280,11 @@
+ 	if l == nil || l.fd == nil {
+ 		return nil, syscall.EINVAL
+ 	}
+-	fd, err := l.fd.accept(sockaddrToUnix)
++	toAddr := sockaddrToUnix
++	if l.fd.sotype == syscall.SOCK_SEQPACKET {
++		toAddr = sockaddrToUnixpacket
++	}
++	fd, err := l.fd.accept(toAddr)
+ 	if err != nil {
+ 		return nil, err
+ 	}

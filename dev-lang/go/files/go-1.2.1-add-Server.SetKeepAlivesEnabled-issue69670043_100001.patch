@@ -1,0 +1,114 @@
+Index: src/pkg/net/http/serve_test.go
+===================================================================
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -2358,6 +2358,22 @@
+ 	}
+ }
+ 
++func TestServerKeepAlivesEnabled(t *testing.T) {
++	defer afterTest(t)
++	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
++	ts.Config.SetKeepAlivesEnabled(false)
++	ts.Start()
++	defer ts.Close()
++	res, err := Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	if !res.Close {
++		t.Errorf("Body.Close == false; want true")
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+Index: src/pkg/net/http/server.go
+===================================================================
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -22,6 +22,7 @@
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ 	"time"
+ )
+ 
+@@ -703,6 +704,7 @@
+ 	cw.wroteHeader = true
+ 
+ 	w := cw.res
++	keepAlivesEnabled := w.conn.server.doKeepAlives()
+ 	isHEAD := w.req.Method == "HEAD"
+ 
+ 	// header is written out to w.conn.buf below. Depending on the
+@@ -750,7 +752,7 @@
+ 
+ 	// If this was an HTTP/1.0 request with keep-alive and we sent a
+ 	// Content-Length back, we can make this a keep-alive response ...
+-	if w.req.wantsHttp10KeepAlive() {
++	if w.req.wantsHttp10KeepAlive() && keepAlivesEnabled {
+ 		sentLength := header.get("Content-Length") != ""
+ 		if sentLength && header.get("Connection") == "keep-alive" {
+ 			w.closeAfterReply = false
+@@ -769,7 +771,7 @@
+ 		w.closeAfterReply = true
+ 	}
+ 
+-	if header.get("Connection") == "close" {
++	if header.get("Connection") == "close" || !keepAlivesEnabled {
+ 		w.closeAfterReply = true
+ 	}
+ 
+@@ -851,7 +853,7 @@
+ 		return
+ 	}
+ 
+-	if w.closeAfterReply && !hasToken(cw.header.get("Connection"), "close") {
++	if w.closeAfterReply && (!keepAlivesEnabled || !hasToken(cw.header.get("Connection"), "close")) {
+ 		delHeader("Connection")
+ 		if w.req.ProtoAtLeast(1, 1) {
+ 			setHeader.connection = "close"
+@@ -1579,6 +1581,7 @@
+ }
+ 
+ // A Server defines parameters for running an HTTP server.
++// The zero value for Server is a valid configuration.
+ type Server struct {
+ 	Addr           string        // TCP address to listen on, ":http" if empty
+ 	Handler        Handler       // handler to invoke, http.DefaultServeMux if nil
+@@ -1600,6 +1603,8 @@
+ 	// called when a client connection changes state. See the
+ 	// ConnState type and associated constants for details.
+ 	ConnState func(net.Conn, ConnState)
++
++	disableKeepAlives int32 // accessed atomically.
+ }
+ 
+ // A ConnState represents the state of a client connection to a server.
+@@ -1714,6 +1719,22 @@
+ 	}
+ }
+ 
++func (s *Server) doKeepAlives() bool {
++	return atomic.LoadInt32(&s.disableKeepAlives) == 0
++}
++
++// SetKeepAlivesEnabled controls whether HTTP keep-alives are enabled.
++// By default, keep-alives are always enabled. Only very
++// resource-constrained environments or servers in the process of
++// shutting down should disable them.
++func (s *Server) SetKeepAlivesEnabled(v bool) {
++	if v {
++		atomic.StoreInt32(&s.disableKeepAlives, 0)
++	} else {
++		atomic.StoreInt32(&s.disableKeepAlives, 1)
++	}
++}
++
+ // ListenAndServe listens on the TCP network address addr
+ // and then calls Serve with handler to handle requests
+ // on incoming connections.  Handler is typically nil,

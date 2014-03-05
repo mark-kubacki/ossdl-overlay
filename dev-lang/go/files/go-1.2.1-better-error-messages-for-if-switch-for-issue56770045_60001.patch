@@ -1,0 +1,84 @@
+Index: src/pkg/go/parser/parser.go
+===================================================================
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1762,14 +1762,14 @@
+ 	return &ast.BranchStmt{TokPos: pos, Tok: tok, Label: label}
+ }
+ 
+-func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
++func (p *parser) makeExpr(s ast.Stmt, kind string) ast.Expr {
+ 	if s == nil {
+ 		return nil
+ 	}
+ 	if es, isExpr := s.(*ast.ExprStmt); isExpr {
+ 		return p.checkExpr(es.X)
+ 	}
+-	p.error(s.Pos(), "expected condition, found simple statement (missing parentheses around composite literal?)")
++	p.error(s.Pos(), fmt.Sprintf("expected %s, found simple statement (missing parentheses around composite literal?)", kind))
+ 	return &ast.BadExpr{From: s.Pos(), To: s.End()}
+ }
+ 
+@@ -1796,7 +1796,7 @@
+ 				p.next()
+ 				x = p.parseRhs()
+ 			} else {
+-				x = p.makeExpr(s)
++				x = p.makeExpr(s, "boolean expression")
+ 				s = nil
+ 			}
+ 		}
+@@ -1927,7 +1927,7 @@
+ 		return &ast.TypeSwitchStmt{Switch: pos, Init: s1, Assign: s2, Body: body}
+ 	}
+ 
+-	return &ast.SwitchStmt{Switch: pos, Init: s1, Tag: p.makeExpr(s2), Body: body}
++	return &ast.SwitchStmt{Switch: pos, Init: s1, Tag: p.makeExpr(s2, "switch expression"), Body: body}
+ }
+ 
+ func (p *parser) parseCommClause() *ast.CommClause {
+@@ -2072,7 +2072,7 @@
+ 	return &ast.ForStmt{
+ 		For:  pos,
+ 		Init: s1,
+-		Cond: p.makeExpr(s2),
++		Cond: p.makeExpr(s2, "boolean or range expression"),
+ 		Post: s3,
+ 		Body: body,
+ 	}
+Index: src/pkg/go/parser/short_test.go
+===================================================================
+--- a/src/pkg/go/parser/short_test.go
++++ b/src/pkg/go/parser/short_test.go
+@@ -48,14 +48,14 @@
+ 	`package p; func f() { if { /* ERROR "expected operand" */ } };`,
+ 	`package p; func f() { if ; { /* ERROR "expected operand" */ } };`,
+ 	`package p; func f() { if f(); { /* ERROR "expected operand" */ } };`,
+-	`package p; func f() { if _ /* ERROR "expected condition" */ = range x; true {} };`,
+-	`package p; func f() { switch _ /* ERROR "expected condition" */ = range x; true {} };`,
++	`package p; func f() { if _ /* ERROR "expected boolean expression" */ = range x; true {} };`,
++	`package p; func f() { switch _ /* ERROR "expected switch expression" */ = range x; true {} };`,
+ 	`package p; func f() { for _ = range x ; /* ERROR "expected '{'" */ ; {} };`,
+ 	`package p; func f() { for ; ; _ = range /* ERROR "expected operand" */ x {} };`,
+-	`package p; func f() { for ; _ /* ERROR "expected condition" */ = range x ; {} };`,
+-	`package p; func f() { switch t /* ERROR "expected condition" */ = t.(type) {} };`,
+-	`package p; func f() { switch t /* ERROR "expected condition" */ , t = t.(type) {} };`,
+-	`package p; func f() { switch t /* ERROR "expected condition" */ = t.(type), t {} };`,
++	`package p; func f() { for ; _ /* ERROR "expected boolean or range expression" */ = range x ; {} };`,
++	`package p; func f() { switch t /* ERROR "expected switch expression" */ = t.(type) {} };`,
++	`package p; func f() { switch t /* ERROR "expected switch expression" */ , t = t.(type) {} };`,
++	`package p; func f() { switch t /* ERROR "expected switch expression" */ = t.(type), t {} };`,
+ 	`package p; var a = [ /* ERROR "expected expression" */ 1]int;`,
+ 	`package p; var a = [ /* ERROR "expected expression" */ ...]int;`,
+ 	`package p; var a = struct /* ERROR "expected expression" */ {}`,
+@@ -82,6 +82,10 @@
+ 	`package p; func f() { var s []int; _ = s[: /* ERROR "2nd index required" */ :] };`,
+ 	`package p; func f() { var s []int; _ = s[: /* ERROR "2nd index required" */ ::] };`,
+ 	`package p; func f() { var s []int; _ = s[i:j:k: /* ERROR "expected ']'" */ l] };`,
++	`package p; func f() { for x /* ERROR "boolean or range expression" */ = []string {} }`,
++	`package p; func f() { for x /* ERROR "boolean or range expression" */ := []string {} }`,
++	`package p; func f() { for i /* ERROR "boolean or range expression" */ , x = []string {} }`,
++	`package p; func f() { for i /* ERROR "boolean or range expression" */ , x := []string {} }`,
+ }
+ 
+ func TestInvalid(t *testing.T) {

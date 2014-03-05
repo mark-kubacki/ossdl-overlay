@@ -1,0 +1,265 @@
+Index: src/pkg/crypto/tls/common.go
+===================================================================
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -82,12 +82,14 @@
+ 	scsvRenegotiation uint16 = 0x00ff
+ )
+ 
+-// TLS Elliptic Curves
++// CurveID is the type of a TLS identifier for an elliptic curve. See
+ // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
++type CurveID uint16
++
+ const (
+-	curveP256 uint16 = 23
+-	curveP384 uint16 = 24
+-	curveP521 uint16 = 25
++	CurveP256 CurveID = 23
++	CurveP384 CurveID = 24
++	CurveP521 CurveID = 25
+ )
+ 
+ // TLS Elliptic Curve Point Formats
+@@ -290,6 +292,11 @@
+ 	// which is currently TLS 1.2.
+ 	MaxVersion uint16
+ 
++	// CurvePreferences contains the elliptic curves that will be used in
++	// an ECDHE handshake, in preference order. If empty, the default will
++	// be used.
++	CurvePreferences []CurveID
++
+ 	serverInitOnce sync.Once // guards calling (*Config).serverInit
+ }
+ 
+@@ -348,6 +355,15 @@
+ 	return c.MaxVersion
+ }
+ 
++var defaultCurvePreferences = []CurveID{CurveP256, CurveP384, CurveP521}
++
++func (c *Config) curvePreferences() []CurveID {
++	if c == nil || len(c.CurvePreferences) == 0 {
++		return defaultCurvePreferences
++	}
++	return c.CurvePreferences
++}
++
+ // mutualVersion returns the protocol version to use given the advertised
+ // version of the peer.
+ func (c *Config) mutualVersion(vers uint16) (uint16, bool) {
+Index: src/pkg/crypto/tls/handshake_client.go
+===================================================================
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -43,7 +43,7 @@
+ 		random:              make([]byte, 32),
+ 		ocspStapling:        true,
+ 		serverName:          c.config.ServerName,
+-		supportedCurves:     []uint16{curveP256, curveP384, curveP521},
++		supportedCurves:     c.config.curvePreferences(),
+ 		supportedPoints:     []uint8{pointFormatUncompressed},
+ 		nextProtoNeg:        len(c.config.NextProtos) > 0,
+ 		secureRenegotiation: true,
+Index: src/pkg/crypto/tls/handshake_messages.go
+===================================================================
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -16,7 +16,7 @@
+ 	nextProtoNeg        bool
+ 	serverName          string
+ 	ocspStapling        bool
+-	supportedCurves     []uint16
++	supportedCurves     []CurveID
+ 	supportedPoints     []uint8
+ 	ticketSupported     bool
+ 	sessionTicket       []uint8
+@@ -39,7 +39,7 @@
+ 		m.nextProtoNeg == m1.nextProtoNeg &&
+ 		m.serverName == m1.serverName &&
+ 		m.ocspStapling == m1.ocspStapling &&
+-		eqUint16s(m.supportedCurves, m1.supportedCurves) &&
++		eqCurveIDs(m.supportedCurves, m1.supportedCurves) &&
+ 		bytes.Equal(m.supportedPoints, m1.supportedPoints) &&
+ 		m.ticketSupported == m1.ticketSupported &&
+ 		bytes.Equal(m.sessionTicket, m1.sessionTicket) &&
+@@ -357,10 +357,10 @@
+ 				return false
+ 			}
+ 			numCurves := l / 2
+-			m.supportedCurves = make([]uint16, numCurves)
++			m.supportedCurves = make([]CurveID, numCurves)
+ 			d := data[2:]
+ 			for i := 0; i < numCurves; i++ {
+-				m.supportedCurves[i] = uint16(d[0])<<8 | uint16(d[1])
++				m.supportedCurves[i] = CurveID(d[0])<<8 | CurveID(d[1])
+ 				d = d[2:]
+ 			}
+ 		case extensionSupportedPoints:
+@@ -1294,6 +1294,18 @@
+ 	return true
+ }
+ 
++func eqCurveIDs(x, y []CurveID) bool {
++	if len(x) != len(y) {
++		return false
++	}
++	for i, v := range x {
++		if y[i] != v {
++			return false
++		}
++	}
++	return true
++}
++
+ func eqStrings(x, y []string) bool {
+ 	if len(x) != len(y) {
+ 		return false
+Index: src/pkg/crypto/tls/handshake_messages_test.go
+===================================================================
+--- a/src/pkg/crypto/tls/handshake_messages_test.go
++++ b/src/pkg/crypto/tls/handshake_messages_test.go
+@@ -125,9 +125,9 @@
+ 	}
+ 	m.ocspStapling = rand.Intn(10) > 5
+ 	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)
+-	m.supportedCurves = make([]uint16, rand.Intn(5)+1)
++	m.supportedCurves = make([]CurveID, rand.Intn(5)+1)
+ 	for i := range m.supportedCurves {
+-		m.supportedCurves[i] = uint16(rand.Intn(30000))
++		m.supportedCurves[i] = CurveID(rand.Intn(30000))
+ 	}
+ 	if rand.Intn(10) > 5 {
+ 		m.ticketSupported = true
+Index: src/pkg/crypto/tls/handshake_server.go
+===================================================================
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -117,12 +117,14 @@
+ 	hs.hello = new(serverHelloMsg)
+ 
+ 	supportedCurve := false
++	preferredCurves := config.curvePreferences()
+ Curves:
+ 	for _, curve := range hs.clientHello.supportedCurves {
+-		switch curve {
+-		case curveP256, curveP384, curveP521:
+-			supportedCurve = true
+-			break Curves
++		for _, supported := range preferredCurves {
++			if supported == curve {
++				supportedCurve = true
++				break Curves
++			}
+ 		}
+ 	}
+ 
+Index: src/pkg/crypto/tls/handshake_server_test.go
+===================================================================
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -121,7 +121,7 @@
+ 			TLS_RSA_WITH_RC4_128_SHA,
+ 		},
+ 		compressionMethods: []uint8{compressionNone},
+-		supportedCurves:    []uint16{curveP256, curveP384, curveP521},
++		supportedCurves:    []CurveID{CurveP256, CurveP384, CurveP521},
+ 		supportedPoints:    []uint8{pointFormatUncompressed},
+ 	}
+ 
+Index: src/pkg/crypto/tls/key_agreement.go
+===================================================================
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -163,6 +163,20 @@
+ 	return 0, errors.New("tls: client doesn't support any common hash functions")
+ }
+ 
++func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
++	switch id {
++	case CurveP256:
++		return elliptic.P256(), true
++	case CurveP384:
++		return elliptic.P384(), true
++	case CurveP521:
++		return elliptic.P521(), true
++	default:
++		return nil, false
++	}
++
++}
++
+ // ecdheRSAKeyAgreement implements a TLS key agreement where the server
+ // generates a ephemeral EC public/private key pair and signs it. The
+ // pre-master secret is then calculated using ECDH. The signature may
+@@ -176,23 +190,16 @@
+ }
+ 
+ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
+-	var curveid uint16
++	var curveid CurveID
++	preferredCurves := config.curvePreferences()
+ 
+-Curve:
+-	for _, c := range clientHello.supportedCurves {
+-		switch c {
+-		case curveP256:
+-			ka.curve = elliptic.P256()
+-			curveid = c
+-			break Curve
+-		case curveP384:
+-			ka.curve = elliptic.P384()
+-			curveid = c
+-			break Curve
+-		case curveP521:
+-			ka.curve = elliptic.P521()
+-			curveid = c
+-			break Curve
++NextCandidate:
++	for _, candidate := range preferredCurves {
++		for _, c := range clientHello.supportedCurves {
++			if candidate == c {
++				curveid = c
++				break NextCandidate
++			}
+ 		}
+ 	}
+ 
+@@ -200,6 +207,11 @@
+ 		return nil, errors.New("tls: no supported elliptic curves offered")
+ 	}
+ 
++	var ok bool
++	if ka.curve, ok = curveForCurveID(curveid); !ok {
++		return nil, errors.New("tls: preferredCurves includes unsupported curve")
++	}
++
+ 	var x, y *big.Int
+ 	var err error
+ 	ka.privateKey, x, y, err = elliptic.GenerateKey(ka.curve, config.rand())
+@@ -293,19 +305,13 @@
+ 		return errServerKeyExchange
+ 	}
+ 	if skx.key[0] != 3 { // named curve
+-		return errors.New("server selected unsupported curve")
++		return errors.New("tls: server selected unsupported curve")
+ 	}
+-	curveid := uint16(skx.key[1])<<8 | uint16(skx.key[2])
++	curveid := CurveID(skx.key[1])<<8 | CurveID(skx.key[2])
+ 
+-	switch curveid {
+-	case curveP256:
+-		ka.curve = elliptic.P256()
+-	case curveP384:
+-		ka.curve = elliptic.P384()
+-	case curveP521:
+-		ka.curve = elliptic.P521()
+-	default:
+-		return errors.New("server selected unsupported curve")
++	var ok bool
++	if ka.curve, ok = curveForCurveID(curveid); !ok {
++		return errors.New("tls: server selected unsupported curve")
+ 	}
+ 
+ 	publicLen := int(skx.key[3])

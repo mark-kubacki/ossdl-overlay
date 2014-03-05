@@ -1,0 +1,153 @@
+Index: src/pkg/time/zoneinfo.go
+===================================================================
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -101,7 +101,7 @@
+ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start, end int64) {
+ 	l = l.get()
+ 
+-	if len(l.tx) == 0 {
++	if len(l.zone) == 0 {
+ 		name = "UTC"
+ 		offset = 0
+ 		isDST = false
+@@ -119,6 +119,20 @@
+ 		return
+ 	}
+ 
++	if len(l.tx) == 0 || sec < l.tx[0].when {
++		zone := &l.zone[l.lookupFirstZone()]
++		name = zone.name
++		offset = zone.offset
++		isDST = zone.isDST
++		start = -1 << 63
++		if len(l.tx) > 0 {
++			end = l.tx[0].when
++		} else {
++			end = 1<<63 - 1
++		}
++		return
++	}
++
+ 	// Binary search for entry with largest time <= sec.
+ 	// Not using sort.Search to avoid dependencies.
+ 	tx := l.tx
+@@ -144,6 +158,58 @@
+ 	return
+ }
+ 
++// lookupFirstZone returns the index of the time zone to use for times
++// before the first transition time, or when there are no transition
++// times.
++//
++// The reference implementation in localtime.c from
++// http://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
++// implements the following algorithm for these cases:
++// 1) If the first zone is unused by the transitions, use it.
++// 2) Otherwise, if there are transition times, and the first
++//    transition is to a zone in daylight time, find the first
++//    non-daylight-time zone before and closest to the first transition
++//    zone.
++// 3) Otherwise, use the first zone that is not daylight time, if
++//    there is one.
++// 4) Otherwise, use the first zone.
++func (l *Location) lookupFirstZone() int {
++	// Case 1.
++	if !l.firstZoneUsed() {
++		return 0
++	}
++
++	// Case 2.
++	if len(l.tx) > 0 && l.zone[l.tx[0].index].isDST {
++		for zi := int(l.tx[0].index) - 1; zi >= 0; zi-- {
++			if !l.zone[zi].isDST {
++				return zi
++			}
++		}
++	}
++
++	// Case 3.
++	for zi := range l.zone {
++		if !l.zone[zi].isDST {
++			return zi
++		}
++	}
++
++	// Case 4.
++	return 0
++}
++
++// firstZoneUsed returns whether the first zone is used by some
++// transition.
++func (l *Location) firstZoneUsed() bool {
++	for _, tx := range l.tx {
++		if tx.index == 0 {
++			return true
++		}
++	}
++	return false
++}
++
+ // lookupName returns information about the time zone with
+ // the given name (such as "EST") at the given pseudo-Unix time
+ // (what the given time of day would be in UTC).
+Index: src/pkg/time/zoneinfo_test.go
+===================================================================
+new file mode 100644
+--- /dev/null
++++ b/src/pkg/time/zoneinfo_test.go
+@@ -0,0 +1,54 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time_test
++
++import (
++	"testing"
++	"time"
++)
++
++// Test that we get the correct results for times before the first
++// transition time.  To do this we explicitly check early dates in a
++// couple of specific timezones.
++func TestFirstZone(t *testing.T) {
++	time.ForceZipFileForTesting(true)
++	defer time.ForceZipFileForTesting(false)
++
++	const format = "Mon, 02 Jan 2006 15:04:05 -0700 (MST)"
++	var tests = []struct {
++		zone  string
++		unix  int64
++		want1 string
++		want2 string
++	}{
++		{
++			"PST8PDT",
++			-1633269601,
++			"Sun, 31 Mar 1918 01:59:59 -0800 (PST)",
++			"Sun, 31 Mar 1918 03:00:00 -0700 (PDT)",
++		},
++		{
++			"Pacific/Fakaofo",
++			1325242799,
++			"Thu, 29 Dec 2011 23:59:59 -1100 (TKT)",
++			"Sat, 31 Dec 2011 00:00:00 +1300 (TKT)",
++		},
++	}
++
++	for _, test := range tests {
++		z, err := time.LoadLocation(test.zone)
++		if err != nil {
++			t.Fatal(err)
++		}
++		s := time.Unix(test.unix, 0).In(z).Format(format)
++		if s != test.want1 {
++			t.Errorf("for %s %d got %q want %q", test.zone, test.unix, s, test.want1)
++		}
++		s = time.Unix(test.unix+1, 0).In(z).Format(format)
++		if s != test.want2 {
++			t.Errorf("for %s %d got %q want %q", test.zone, test.unix, s, test.want2)
++		}
++	}
++}
