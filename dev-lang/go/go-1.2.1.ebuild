@@ -115,6 +115,8 @@ src_prepare()
 	epatch "${FILESDIR}"/go-1.2.1-fix-location-of-StateHijacked-and-StateActive-issue69860049_110001.patch
 	epatch "${FILESDIR}"/go-1.2.1-SMTP-set-ServerName-in-StartTLS-issue70380043_260001.patch
 
+	epatch "${FILESDIR}"/go-1.2.1-fix-empty-string-handling-in-garbage-collector-issue74250043_80001.patch
+
 	if [[ ${PV} != 9999 ]]; then
 		epatch "${FILESDIR}"/${PN}-1.2-no-Werror.patch
 	fi
