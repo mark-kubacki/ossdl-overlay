@@ -5,7 +5,7 @@ EAPI=4
 inherit linux-mod multilib toolchain-funcs
 
 DESCRIPTION="e1000e Intel NIC kernel module driver"
-HOMEPAGE="https://downloadcenter.intel.com/Detail_Desc.aspx?agr=Y&DwnldID=15817&lang=eng&wapkw=e1000e"
+HOMEPAGE="https://downloadcenter.intel.com/Detail_Desc.aspx?agr=Y&DwnldID=15817&lang=eng&wapkw=e1000e http://sourceforge.net/projects/e1000/files/e1000e%20stable/"
 SRC_URI="mirror://sourceforge/project/e1000/e1000e%20stable/${PV}/${P}.tar.gz"
 LICENSE="GPL-2"
 SLOT="0"
