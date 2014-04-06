@@ -6,7 +6,7 @@ inherit linux-mod multilib toolchain-funcs
 
 DESCRIPTION="IGB kernel module driver"
 HOMEPAGE="http://www.intel.com/support/network/adapter/pro100/sb/CS-032498.htm"
-SRC_URI="https://binhost.ossdl.de/distfiles/${P}.tar.gz"
+SRC_URI="mirror://sourceforge/project/e1000/igb%20stable/${PV}/${P}.tar.gz"
 
 LICENSE="GPL-2"
 SLOT="0"
