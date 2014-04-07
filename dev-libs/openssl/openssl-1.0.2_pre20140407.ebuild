@@ -1,5 +1,5 @@
 # Copyright 1999-2013 Gentoo Foundation
-# Copyright 2013 W. Mark Kubacki
+# Copyright 2013–2014 W. Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI="4"
@@ -23,8 +23,8 @@ SRC_URI="mirror://openssl/snapshot/${MY_P}.tar.gz
 
 LICENSE="openssl"
 SLOT="0"
-KEYWORDS="~amd64 ~arm ~x86 ~amd64-fbsd ~x86-fbsd ~arm-linux ~x86-linux"
-IUSE="bindist +cryptodev gmp kerberos rfc3779 sse2 static-libs test +tls-heartbeat vanilla zlib"
+KEYWORDS="amd64 ~arm ~x86 ~amd64-fbsd ~x86-fbsd ~arm-linux ~x86-linux"
+IUSE="bindist +cryptodev gmp kerberos rfc3779 sse2 static-libs test -tls-heartbeat vanilla zlib"
 
 # Have the sub-libs in RDEPEND with [static-libs] since, logically,
 # our libssl.a depends on libz.a/etc... at runtime.
@@ -72,6 +72,8 @@ src_prepare() {
 		epatch "${FILESDIR}"/${PN}-1.0.1e-s_client-verify.patch #472584
 		epatch_user #332661
 	fi
+
+	epatch "${FILESDIR}"/openssl-1.0.1-heartbleed-bug.patch
 
 	# raises minimum DH group size, from 'any' to '1024 bits or greater'
 	epatch "${FILESDIR}"/0001-require-DH-group-of-1024-bits.patch
@@ -159,7 +161,7 @@ src_configure() {
 		$(use_ssl gmp gmp -lgmp) \
 		$(use_ssl kerberos krb5 --with-krb5-flavor=${krb5}) \
 		$(use_ssl rfc3779) \
-		$(use_ssl tls-heartbeat heartbeats) \
+		$(use_ssl tls-heartbeat heartbeats -DOPENSSL_NO_HEARTBEATS) \
 		$(use_ssl zlib) \
 		--prefix="${EPREFIX}"/usr \
 		--openssldir="${EPREFIX}"${SSL_CNF_DIR} \
