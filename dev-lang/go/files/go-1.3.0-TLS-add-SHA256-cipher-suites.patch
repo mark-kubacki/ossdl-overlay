@@ -1,0 +1,69 @@
+exporting patch:
+# HG changeset patch
+# User W-Mark Kubacki <wmark@hurrikane.de>
+# Date 1396991903 -7200
+#      Tue Apr 08 23:18:23 2014 +0200
+# Node ID 2eeb02760c800f89666df9ce53220691a1038679
+# Parent  337f8859f5be18d66ca958aeac8e2f7067101f4a
+tls: add cipher suites with SHA256
+
+Internet Explorer does currently not support AES-GCM.
+Adding suites with SHA256 gives alternatives to SHA1 as MAC.
+
+diff -r 337f8859f5be -r 2eeb02760c80 src/pkg/crypto/tls/cipher_suites.go
+--- a/src/pkg/crypto/tls/cipher_suites.go	Tue Apr 08 11:12:51 2014 -0400
++++ b/src/pkg/crypto/tls/cipher_suites.go	Tue Apr 08 23:18:23 2014 +0200
+@@ -11,6 +11,7 @@
+ 	"crypto/hmac"
+ 	"crypto/rc4"
+ 	"crypto/sha1"
++	"crypto/sha256"
+ 	"crypto/x509"
+ 	"hash"
+ )
+@@ -73,11 +74,15 @@
+ 	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM},
+ 	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE, cipherRC4, macSHA1, nil},
+ 	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherRC4, macSHA1, nil},
++	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, 16, 32, 16, ecdheRSAKA, suiteECDHE | suiteTLS12, cipherAES, macSHA256, nil},
++	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, 16, 32, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, cipherAES, macSHA256, nil},
+ 	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
+ 	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
+ 	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
+ 	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
+ 	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, 0, cipherRC4, macSHA1, nil},
++	{TLS_RSA_WITH_AES_128_CBC_SHA256, 16, 32, 16, rsaKA, suiteTLS12, cipherAES, macSHA256, nil},
++	{TLS_RSA_WITH_AES_256_CBC_SHA256, 32, 32, 16, rsaKA, suiteTLS12, cipherAES, macSHA256, nil},
+ 	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
+ 	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
+ 	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, suiteECDHE, cipher3DES, macSHA1, nil},
+@@ -118,6 +123,11 @@
+ 	return tls10MAC{hmac.New(sha1.New, key)}
+ }
+ 
++// SHA256 as mac is used in TLS 1.2 and later
++func macSHA256(version uint16, key []byte) macFunction {
++	return tls10MAC{hmac.New(sha256.New, key)}
++}
++
+ type macFunction interface {
+ 	Size() int
+ 	MAC(digestBuf, seq, header, data []byte) []byte
+@@ -258,6 +268,8 @@
+ 	TLS_RSA_WITH_3DES_EDE_CBC_SHA           uint16 = 0x000a
+ 	TLS_RSA_WITH_AES_128_CBC_SHA            uint16 = 0x002f
+ 	TLS_RSA_WITH_AES_256_CBC_SHA            uint16 = 0x0035
++	TLS_RSA_WITH_AES_128_CBC_SHA256         uint16 = 0x003c
++	TLS_RSA_WITH_AES_256_CBC_SHA256         uint16 = 0x003d
+ 	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA        uint16 = 0xc007
+ 	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA    uint16 = 0xc009
+ 	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA    uint16 = 0xc00a
+@@ -265,6 +277,8 @@
+ 	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA     uint16 = 0xc012
+ 	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA      uint16 = 0xc013
+ 	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA      uint16 = 0xc014
++	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256   uint16 = 0xc027
+ 	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256   uint16 = 0xc02f
++	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 uint16 = 0xc023
+ 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 uint16 = 0xc02b
+ )
