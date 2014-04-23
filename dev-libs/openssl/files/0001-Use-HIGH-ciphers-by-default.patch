@@ -1,0 +1,25 @@
+From c4bdb00ea52ed3d104ab95dc18be3d2de891de11 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Wed, 23 Apr 2014 21:24:42 +0200
+Subject: [PATCH] Use HIGH ciphers by default.
+
+---
+ ssl/ssl.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ssl/ssl.h b/ssl/ssl.h
+index 18ac65c..1adbc91 100644
+--- a/ssl/ssl.h
++++ b/ssl/ssl.h
+@@ -331,7 +331,7 @@ extern "C" {
+ /* The following cipher list is used by default.
+  * It also is substituted when an application-defined cipher list string
+  * starts with 'DEFAULT'. */
+-#define SSL_DEFAULT_CIPHER_LIST	"ALL:!aNULL:!eNULL:!SSLv2"
++#define SSL_DEFAULT_CIPHER_LIST	"ECDH+HIGH:DH+HIGH:-3DES:HIGH:!aNULL:!MD5:!RC4"
+ /* As of OpenSSL 1.0.0, ssl_create_cipher_list() in ssl/ssl_ciph.c always
+  * starts with a reasonable order, and all we have to do for DEFAULT is
+  * throwing out anonymous and unencrypted ciphersuites!
+-- 
+1.9.2
+

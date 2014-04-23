@@ -73,10 +73,13 @@ src_prepare() {
 		epatch_user #332661
 	fi
 
-	epatch "${FILESDIR}"/openssl-1.0.1-heartbleed-bug.patch
-
 	# raises minimum DH group size, from 'any' to '1024 bits or greater'
 	epatch "${FILESDIR}"/0001-require-DH-group-of-1024-bits.patch
+
+	# limits usage of RC4 to TLS 1.0 and older; from CloudFlare
+	epatch "${FILESDIR}"/0001-Disable-RC4-for-TLS-v1.1-server-side.patch
+
+	epatch "${FILESDIR}"/0001-Use-HIGH-ciphers-by-default.patch
 
 	# disable fips in the build
 	# make sure the man pages are suffixed #302165

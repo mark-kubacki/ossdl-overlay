@@ -1,0 +1,28 @@
+From fe35d63e7a084bc2d96e7d2f33b1a2649ee3cbe0 Mon Sep 17 00:00:00 2001
+From: Piotr Sikora <piotr@cloudflare.com>
+Date: Tue, 21 Jan 2014 19:58:04 -0800
+Subject: [PATCH] Disable RC4 for TLS v1.1+ (server-side).
+
+---
+ ssl/s3_lib.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/ssl/s3_lib.c b/ssl/s3_lib.c
+index f02bb76..f7efa10 100644
+--- a/ssl/s3_lib.c
++++ b/ssl/s3_lib.c
+@@ -4127,6 +4127,11 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
+ 			!SSL_USE_TLS1_2_CIPHERS(s))
+ 			continue;
+ 
++		/* Disable RC4 for TLS v1.1+ */
++		if ((c->algorithm_enc == SSL_RC4) &&
++			(TLS1_get_version(s) >= TLS1_1_VERSION))
++			continue;
++
+ 		ssl_set_cert_masks(cert,c);
+ 		mask_k = cert->mask_k;
+ 		mask_a = cert->mask_a;
+-- 
+1.9.2
+
