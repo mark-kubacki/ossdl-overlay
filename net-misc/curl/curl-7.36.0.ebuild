@@ -12,7 +12,7 @@ SRC_URI="http://curl.haxx.se/download/${P}.tar.bz2"
 LICENSE="MIT"
 SLOT="0"
 KEYWORDS="alpha amd64 arm ~arm64 hppa ia64 ~m68k ~mips ppc ppc64 ~s390 ~sh sparc x86 ~ppc-aix ~amd64-fbsd ~sparc-fbsd ~x86-fbsd ~x64-freebsd ~x86-freebsd ~hppa-hpux ~ia64-hpux ~x86-interix amd64-linux ~arm-linux ~x86-linux ~ppc-macos ~x64-macos ~x86-macos ~m68k-mint ~sparc-solaris ~sparc64-solaris ~x64-solaris ~x86-solaris"
-IUSE="adns idn ipv6 kerberos ldap metalink rtmp ssh ssl static-libs test threads"
+IUSE="adns idn ipv6 kerberos ldap metalink rtmp ssh ssl static-libs test threads rc4"
 IUSE="${IUSE} curl_ssl_axtls curl_ssl_cyassl curl_ssl_gnutls curl_ssl_nss +curl_ssl_openssl curl_ssl_polarssl"
 
 #lead to lots of false negatives, bug #285669
@@ -83,8 +83,12 @@ src_prepare() {
 	epatch \
 		"${FILESDIR}"/${PN}-7.30.0-prefix.patch \
 		"${FILESDIR}"/${PN}-respect-cflags-3.patch \
-		"${FILESDIR}"/${PN}-7.35.0-deselect-weak-ciphers.patch \
 		"${FILESDIR}"/${PN}-fix-gnutls-nettle.patch
+	if use rc4 ; then
+		epatch "${FILESDIR}"/${PN}-7.36.0-demote-weak-ciphers.patch
+	else
+		epatch "${FILESDIR}"/${PN}-7.35.0-deselect-weak-ciphers.patch
+	fi
 	sed -i '/LD_LIBRARY_PATH=/d' configure.ac || die #382241
 
 	epatch_user

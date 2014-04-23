@@ -1,0 +1,26 @@
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Wed, 23 Apr 2014 20:47:00 +0100
+Subject: [PATCH] OpenSSL: demote weak ciphers by default
+
+RC4 cannot be disabled yet because some servers use it exclusively.
+The most prominent bad example is Google's gvs server, used for Youtube.
+---
+ lib/vtls/openssl.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/vtls/openssl.h b/lib/vtls/openssl.h
+index 07448b5..1701e68 100644
+--- a/lib/vtls/openssl.h
++++ b/lib/vtls/openssl.h
+@@ -95,7 +95,7 @@ void Curl_ossl_md5sum(unsigned char *tmp, /* input */
+ #define curlssl_random(x,y,z) Curl_ossl_random(x,y,z)
+ #define curlssl_md5sum(a,b,c,d) Curl_ossl_md5sum(a,b,c,d)
+ 
+-#define DEFAULT_CIPHER_SELECTION "ALL!EXPORT!EXPORT40!EXPORT56!aNULL!LOW!RC4"
++#define DEFAULT_CIPHER_SELECTION "ECDH+HIGH:DH+HIGH:-3DES:-RC4:HIGH:RC4:!aNULL:!MD5"
+ 
+ #endif /* USE_SSLEAY */
+ #endif /* HEADER_CURL_SSLUSE_H */
+-- 
+1.9.0
+
