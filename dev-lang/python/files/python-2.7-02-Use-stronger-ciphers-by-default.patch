@@ -1,0 +1,25 @@
+From 17eb3571983ecd6e28616f56b594565186eac944 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Wed, 23 Apr 2014 14:45:52 +0200
+Subject: [PATCH 2/3] Use stronger ciphers by default.
+
+---
+ Lib/ssl.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Lib/ssl.py b/Lib/ssl.py
+index d03e60d..855c3de 100644
+--- a/Lib/ssl.py
++++ b/Lib/ssl.py
+@@ -107,7 +107,7 @@ import errno
+ 
+ # Disable weak or insecure ciphers by default
+ # (OpenSSL's default setting is 'DEFAULT:!aNULL:!eNULL')
+-_DEFAULT_CIPHERS = 'DEFAULT:!aNULL:!eNULL:!LOW:!EXPORT:!SSLv2'
++_DEFAULT_CIPHERS = 'ECDH+HIGH:DH+HIGH:-3DES:HIGH:!aNULL:!MD5:!RC4'
+ 
+ 
+ class SSLSocket(socket):
+-- 
+1.9.2
+

@@ -1,5 +1,103 @@
+From 2c31c42616ef2f8606a49d4912b2e68f821d8367 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Wed, 23 Apr 2014 14:15:23 +0200
+Subject: [PATCH 1/5] TLS SNI support
+
+---
+ Lib/ftplib.py  |  8 ++++++--
+ Lib/httplib.py |  4 +++-
+ Lib/poplib.py  |  4 +++-
+ Lib/smtplib.py |  8 ++++++--
+ Lib/ssl.py     | 10 ++++++++--
+ Modules/_ssl.c | 19 ++++++++++++++-----
+ 6 files changed, 40 insertions(+), 13 deletions(-)
+
+diff --git a/Lib/ftplib.py b/Lib/ftplib.py
+index c98290c..5b1c963 100644
+--- a/Lib/ftplib.py
++++ b/Lib/ftplib.py
+@@ -660,8 +660,10 @@ else:
+                 resp = self.voidcmd('AUTH TLS')
+             else:
+                 resp = self.voidcmd('AUTH SSL')
++            server_hostname = self.host if ssl.HAS_SNI else None
+             self.sock = ssl.wrap_socket(self.sock, self.keyfile, self.certfile,
+-                                        ssl_version=self.ssl_version)
++                                        ssl_version=self.ssl_version,
++                                        server_hostname=server_hostname)
+             self.file = self.sock.makefile(mode='rb')
+             return resp
+ 
+@@ -692,8 +694,10 @@ else:
+         def ntransfercmd(self, cmd, rest=None):
+             conn, size = FTP.ntransfercmd(self, cmd, rest)
+             if self._prot_p:
++                server_hostname = self.host if ssl.HAS_SNI else None
+                 conn = ssl.wrap_socket(conn, self.keyfile, self.certfile,
+-                                       ssl_version=self.ssl_version)
++                                       ssl_version=self.ssl_version,
++                                       server_hostname=server_hostname)
+             return conn, size
+ 
+         def retrbinary(self, cmd, callback, blocksize=8192, rest=None):
+diff --git a/Lib/httplib.py b/Lib/httplib.py
+index 5c919d2..c51d4af 100644
+--- a/Lib/httplib.py
++++ b/Lib/httplib.py
+@@ -1173,7 +1173,9 @@ else:
+             if self._tunnel_host:
+                 self.sock = sock
+                 self._tunnel()
+-            self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file)
++            server_hostname = self.host if ssl.HAS_SNI else None
++            self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file,
++                                        server_hostname=server_hostname)
+ 
+     __all__.append("HTTPSConnection")
+ 
+diff --git a/Lib/poplib.py b/Lib/poplib.py
+index dc7cbdf..8031834 100644
+--- a/Lib/poplib.py
++++ b/Lib/poplib.py
+@@ -349,7 +349,9 @@ else:
+             if not self.sock:
+                 raise socket.error, msg
+             self.file = self.sock.makefile('rb')
+-            self.sslobj = ssl.wrap_socket(self.sock, self.keyfile, self.certfile)
++            server_hostname = self.host if ssl.HAS_SNI else None
++            self.sslobj = ssl.wrap_socket(self.sock, self.keyfile, self.certfile,
++                                          server_hostname=server_hostname)
+             self._debugging = 0
+             self.welcome = self._getresp()
+ 
+diff --git a/Lib/smtplib.py b/Lib/smtplib.py
+index 7f07840..a780bc1 100755
+--- a/Lib/smtplib.py
++++ b/Lib/smtplib.py
+@@ -639,7 +639,9 @@ class SMTP:
+         if resp == 220:
+             if not _have_ssl:
+                 raise RuntimeError("No SSL support included in this Python")
+-            self.sock = ssl.wrap_socket(self.sock, keyfile, certfile)
++            server_hostname = self.host if ssl.HAS_SNI else None
++            self.sock = ssl.wrap_socket(self.sock, keyfile, certfile,
++                                        server_hostname=server_hostname)
+             self.file = SSLFakeFile(self.sock)
+             # RFC 3207:
+             # The client MUST discard any knowledge obtained from
+@@ -784,7 +786,9 @@ if _have_ssl:
+             if self.debuglevel > 0:
+                 print>>stderr, 'connect:', (host, port)
+             new_socket = socket.create_connection((host, port), timeout)
+-            new_socket = ssl.wrap_socket(new_socket, self.keyfile, self.certfile)
++            server_hostname = self.host if (ssl.HAS_SNI and self.host) else None
++            new_socket = ssl.wrap_socket(new_socket, self.keyfile, self.certfile,
++                                         server_hostname=server_hostname)
+             self.file = SSLFakeFile(new_socket)
+             return new_socket
+ 
 diff --git a/Lib/ssl.py b/Lib/ssl.py
-index 329b9d1..fa77b47 100644
+index 329b9d1..16d0ce6 100644
 --- a/Lib/ssl.py
 +++ b/Lib/ssl.py
 @@ -106,6 +106,7 @@ class SSLSocket(socket):
@@ -43,7 +141,23 @@ index 329b9d1..fa77b47 100644
                                ciphers=self.ciphers,
                                do_handshake_on_connect=self.do_handshake_on_connect,
                                suppress_ragged_eofs=self.suppress_ragged_eofs),
-@@ -466,7 +470,7 @@ def sslwrap_simple(sock, keyfile=None, certfile=None):
+@@ -376,6 +380,7 @@ class SSLSocket(socket):
+ def wrap_socket(sock, keyfile=None, certfile=None,
+                 server_side=False, cert_reqs=CERT_NONE,
+                 ssl_version=PROTOCOL_SSLv23, ca_certs=None,
++                server_hostname=None,
+                 do_handshake_on_connect=True,
+                 suppress_ragged_eofs=True, ciphers=None):
+ 
+@@ -384,6 +389,7 @@ def wrap_socket(sock, keyfile=None, certfile=None,
+                      ssl_version=ssl_version, ca_certs=ca_certs,
+                      do_handshake_on_connect=do_handshake_on_connect,
+                      suppress_ragged_eofs=suppress_ragged_eofs,
++                     server_hostname=server_hostname,
+                      ciphers=ciphers)
+ 
+ 
+@@ -466,7 +472,7 @@ def sslwrap_simple(sock, keyfile=None, certfile=None):
          sock = sock._sock
  
      ssl_sock = _ssl.sslwrap(sock, 0, keyfile, certfile, CERT_NONE,
@@ -53,10 +167,10 @@ index 329b9d1..fa77b47 100644
          sock.getpeername()
      except socket_error:
 diff --git a/Modules/_ssl.c b/Modules/_ssl.c
-index 195e5b6..d7dd5d3 100644
+index ba64555..cd417d0 100644
 --- a/Modules/_ssl.c
 +++ b/Modules/_ssl.c
-@@ -265,7 +265,7 @@ newPySSLObject(PySocketSockObject *Sock, char *key_file, char *cert_file,
+@@ -267,7 +267,7 @@ newPySSLObject(PySocketSockObject *Sock, char *key_file, char *cert_file,
                 enum py_ssl_server_or_client socket_type,
                 enum py_ssl_cert_requirements certreq,
                 enum py_ssl_version proto_version,
@@ -65,7 +179,7 @@ index 195e5b6..d7dd5d3 100644
  {
      PySSLObject *self;
      char *errstr = NULL;
-@@ -383,6 +383,14 @@ newPySSLObject(PySocketSockObject *Sock, char *key_file, char *cert_file,
+@@ -386,6 +386,14 @@ newPySSLObject(PySocketSockObject *Sock, char *key_file, char *cert_file,
  
      PySSL_BEGIN_ALLOW_THREADS
      self->ssl = SSL_new(self->ctx); /* New ssl struct */
@@ -80,7 +194,7 @@ index 195e5b6..d7dd5d3 100644
      PySSL_END_ALLOW_THREADS
      SSL_set_fd(self->ssl, Sock->sock_fd);       /* Set the socket for SSL */
  #ifdef SSL_MODE_AUTO_RETRY
-@@ -425,15 +433,16 @@ PySSL_sslwrap(PyObject *self, PyObject *args)
+@@ -428,15 +436,16 @@ PySSL_sslwrap(PyObject *self, PyObject *args)
      char *key_file = NULL;
      char *cert_file = NULL;
      char *cacerts_file = NULL;
@@ -99,7 +213,7 @@ index 195e5b6..d7dd5d3 100644
          return NULL;
  
      /*
-@@ -446,13 +455,13 @@ PySSL_sslwrap(PyObject *self, PyObject *args)
+@@ -449,13 +458,13 @@ PySSL_sslwrap(PyObject *self, PyObject *args)
  
      return (PyObject *) newPySSLObject(Sock, key_file, cert_file,
                                         server_side, verification_mode,
@@ -115,3 +229,6 @@ index 195e5b6..d7dd5d3 100644
  
  /* SSL object methods */
  
+-- 
+1.9.2
+

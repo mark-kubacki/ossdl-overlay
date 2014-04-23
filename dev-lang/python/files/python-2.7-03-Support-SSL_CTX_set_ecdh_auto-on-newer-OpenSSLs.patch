@@ -1,0 +1,54 @@
+From 8fe8b1a0703adbebb2eb877b469c0707265f80eb Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Wed, 23 Apr 2014 18:51:15 +0200
+Subject: [PATCH 3/3] Support SSL_CTX_set_ecdh_auto on newer OpenSSLs.
+
+---
+ Modules/_ssl.c | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/Modules/_ssl.c b/Modules/_ssl.c
+index fc7a95e..a9a78ea 100644
+--- a/Modules/_ssl.c
++++ b/Modules/_ssl.c
+@@ -374,6 +374,37 @@ newPySSLObject(PySocketSockObject *Sock, char *key_file, char *cert_file,
+         }
+     }
+ 
++#if OPENSSL_VERSION_NUMBER >= 0x0090800fL
++#ifndef OPENSSL_NO_ECDH
++#if defined(SSL_CTX_set_ecdh_auto)
++    if (socket_type == PY_SSL_SERVER) {
++        // offering a conservative list of curves is the responsibility
++        // of the server
++        if (SSL_CTX_set1_curves_list(self->ctx, "K-283:prime256v1") == 0) {
++            errstr = ERRSTR("Unknown curves: K-283 or prime256v1.");
++            goto fail;
++        }
++    } else {
++        if (SSL_CTX_set1_curves_list(self->ctx, "K-571:K-409:P-521:P-384:K-283:prime256v1") == 0) {
++            errstr = ERRSTR("Unknown curves: K-571, K-409, P-521, P-384, K-283 or prime256v1.");
++            goto fail;
++        }
++    }
++
++    if (SSL_CTX_set_ecdh_auto(self->ctx, 1) == 0) {
++        errstr = ERRSTR("Automatic curve selection is not possible or available.");
++        goto fail;
++    }
++#else // not defined(SSL_CTX_set_ecdh_auto)
++    { // fall back to prime256v1
++        EC_KEY *ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
++        SSL_CTX_set_tmp_ecdh(self->ctx, ecdh);
++        EC_KEY_free(ecdh);
++    }
++#endif
++#endif
++#endif
++
+     if (certreq != PY_SSL_CERT_NONE) {
+         if (cacerts_file == NULL) {
+             errstr = ERRSTR("No root certificates specified for "
+-- 
+1.9.2
+
