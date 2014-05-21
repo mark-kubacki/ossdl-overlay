@@ -19,6 +19,10 @@ RDEPEND=""
 MODULE_NAMES="cryptodev()"
 BUILD_TARGETS="build"
 
+src_prepare() {
+	epatch "${FILESDIR}"/${PN}-1.6-Replace_INIT_COMPLETION_with_reinit_completion.patch
+}
+
 src_install() {
 	linux-mod_src_install
 
