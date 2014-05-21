@@ -50,7 +50,7 @@ HTTP_ECHO_MODULE_PV="0.52"
 HTTP_ECHO_MODULE_SHA1="b2d5e04"
 HTTP_ECHO_MODULE_PN="agentzh-echo-nginx-module"
 HTTP_ECHO_MODULE_P="${HTTP_ECHO_MODULE_PN}-${HTTP_ECHO_MODULE_PV}"
-HTTP_ECHO_MODULE_S="${HTTP_ECHO_MODULE_PN}-${HTTP_ECHO_MODULE_SHA1}"
+HTTP_ECHO_MODULE_S="openresty-echo-nginx-module-${HTTP_ECHO_MODULE_SHA1}"
 HTTP_ECHO_MODULE_URI="https://github.com/${HTTP_ECHO_MODULE_PN/-//}/tarball/v${HTTP_ECHO_MODULE_PV}"
 
 # http_set_misc (https://github.com/agentzh/set-misc-nginx-module)
