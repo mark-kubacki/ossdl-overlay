@@ -50,10 +50,10 @@ gen_cnf() {
 
 	# These can be overridden in the ebuild
 	SSL_DAYS="${SSL_DAYS:-730}"
-	SSL_BITS="${SSL_BITS:-1024}"
-	SSL_COUNTRY="${SSL_COUNTRY:-US}"
-	SSL_STATE="${SSL_STATE:-California}"
-	SSL_LOCALITY="${SSL_LOCALITY:-Santa Barbara}"
+	SSL_BITS="${SSL_BITS:-2048}"
+	SSL_COUNTRY="${SSL_COUNTRY:-DE}"
+	SSL_STATE="${SSL_STATE:-Niedersachsen}"
+	SSL_LOCALITY="${SSL_LOCALITY:-Hannover}"
 	SSL_ORGANIZATION="${SSL_ORGANIZATION:-SSL Server}"
 	SSL_UNIT="${SSL_UNIT:-For Testing Purposes Only}"
 	SSL_COMMONNAME="${SSL_COMMONNAME:-localhost}"
@@ -68,6 +68,7 @@ gen_cnf() {
 		[ req ]
 		prompt             = no
 		default_bits       = ${SSL_BITS}
+		default_md         = sha256
 		distinguished_name = req_dn
 		[ req_dn ]
 		C                  = ${SSL_COUNTRY}
