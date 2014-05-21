@@ -10,7 +10,7 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="A column-store based (R)DBMS."
 HOMEPAGE="https://www.monetdb.org/"
-SRC_URI="https://dev.monetdb.org/downloads/sources/Feb2013-SP6/${MY_P}.tar.xz"
+SRC_URI="https://dev.monetdb.org/downloads/sources/Jan2014-SP1/${MY_P}.tar.xz"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
