@@ -31,6 +31,10 @@ HTTP_UPLOAD_PROGRESS_MODULE_URI="https://github.com/masterzen/nginx-upload-progr
 # http_redis (http://wiki.nginx.org/HttpRedis)
 HTTP_REDIS_MODULE_P="ngx_http_redis-0.3.7"
 
+# nginx-statsd (https://github.com/zebrafishlabs/nginx-statsd)
+HTTP_STATSD_MODULE_P="nginx-statsd-20130318"
+HTTP_STATSD_MODULE_PN="nginx-statsd"
+
 # http_headers_more (http://github.com/agentzh/headers-more-nginx-module, BSD license)
 HTTP_HEADERS_MORE_MODULE_PV="0.25"
 HTTP_HEADERS_MORE_MODULE_SHA1="0c6e05d"
@@ -100,6 +104,7 @@ SRC_URI="http://nginx.org/download/${P}.tar.gz
 	nginx_modules_http_headers_more? ( ${HTTP_HEADERS_MORE_MODULE_URI} -> ${HTTP_HEADERS_MORE_MODULE_P}.tar.gz )
 	nginx_modules_http_lua? ( ${HTTP_LUA_MODULE_URI} -> ${HTTP_LUA_MODULE_P}.tar.gz )
 	nginx_modules_http_redis? ( http://people.freebsd.org/~osa/${HTTP_REDIS_MODULE_P}.tar.gz )
+	nginx_modules_http_statsd? ( https://binhost.ossdl.de/distfiles/${HTTP_STATSD_MODULE_P}.tar.xz )
 	nginx_modules_http_echo? ( ${HTTP_ECHO_MODULE_URI} -> ${HTTP_ECHO_MODULE_P}.tar.gz )
 	nginx_modules_http_redis2? ( ${HTTP_REDIS2_MODULE_URI} -> ${HTTP_REDIS2_MODULE_P}.tar.gz )
 	nginx_modules_http_push? ( ${HTTP_PUSH_MODULE_URI} -> ${HTTP_PUSH_MODULE_P}.tar.gz )
@@ -134,6 +139,7 @@ NGINX_MODULES_3RD="
 	http_push
 	http_cache_purge
 	http_slowfs_cache
+	http_statsd
 	"
 #	http_set_misc
 
@@ -326,6 +332,11 @@ src_configure() {
 	if use nginx_modules_http_concat; then
 		http_enabled=1
 		myconf+=" --add-module=${WORKDIR}/${HTTP_CONCAT_MODULE_P}"
+	fi
+
+	if use nginx_modules_http_statsd; then
+		http_enabled=1
+		myconf+=" --add-module=${WORKDIR}/${HTTP_STATSD_MODULE_PN}"
 	fi
 
 	if use http || use http-cache; then
