@@ -12,9 +12,9 @@ if [[ ${PV} = 9999 ]]; then
 	EHG_REPO_URI="https://go.googlecode.com/hg"
 	inherit mercurial
 else
-	SRC_URI="http://go.googlecode.com/files/go${PV}.src.tar.gz"
+	SRC_URI="https://storage.googleapis.com/golang/go${PV/_/}.src.tar.gz"
 	# Upstream only supports go on amd64, arm and x86 architectures.
-	KEYWORDS="-* amd64 arm x86 ~x86-fbsd ~x64-macos"
+	KEYWORDS="-* amd64 arm x86 ~amd64-fbsd ~x86-fbsd ~x64-macos"
 fi
 
 DESCRIPTION="A concurrent garbage collected and typesafe programming language"
@@ -35,7 +35,7 @@ QA_MULTILIB_PATHS="usr/lib/go/pkg/tool/.*/.*"
 
 # The go language uses *.a files which are _NOT_ libraries and should not be
 # stripped.
-STRIP_MASK="/usr/lib/go/pkg/linux*/*.a"
+STRIP_MASK="/usr/lib/go/pkg/linux*/*.a /usr/lib/go/pkg/freebsd*/*.a"
 
 if [[ ${PV} != 9999 ]]; then
 	S="${WORKDIR}"/go
@@ -43,34 +43,12 @@ fi
 
 src_prepare()
 {
-	epatch "${FILESDIR}"/go-1.2-json_speedup-issue13894045_107001.patch
-	epatch "${FILESDIR}"/go-1.2-more-efficient-byte-arrays-issue15930045_40001.patch
-	epatch "${FILESDIR}"/go-1.2-TCP_fastopen-issue27150044_2060001.patch
-	epatch "${FILESDIR}"/go-1.2-SHA256_assembly_for_amd64-issue28460043_80001.patch
-	epatch "${FILESDIR}"/go-1.2-SHA_use_copy-issue35840044_140001.patch
-	epatch "${FILESDIR}"/go-1.2-ASN1_non_printable_strings-issue22460043_50001.patch
-	epatch "${FILESDIR}"/go-1.2-set_default_signature_hash_to_SHA256-issue40720047_100001.patch
-	epatch "${FILESDIR}"/go-1.2-x509_import_SHA256-issue44010047_120001.patch
-	epatch "${FILESDIR}"/go-1.2-syncpool-issue41860043_250001.patch
-	epatch "${FILESDIR}"/go-1.2-http_use_syncpool-issue44080043_10002.patch
-
-	# this one contains "copy from" and "copy to" which some version of patch don't understand
-	sed \
-		-e 's:crypto/sha256/sha256block:crypto/sha512/sha512block:g' \
-		"${FILESDIR}"/go-1.2-SHA512_assembly_for_amd64-issue37150044_100001.patch \
-		> go-1.2-SHA512_assembly_for_amd64.patch
-	cp src/pkg/crypto/sha256/sha256block_amd64.s src/pkg/crypto/sha512/sha512block_amd64.s
-	cp src/pkg/crypto/sha256/sha256block_decl.go src/pkg/crypto/sha512/sha512block_decl.go
-	epatch go-1.2-SHA512_assembly_for_amd64.patch
-
-	epatch "${FILESDIR}"/go-1.2-RSA_support_unpadded_signatures-issue44400043_80001.diff.patch
-	epatch "${FILESDIR}"/go-1.2-use_TCP_keepalive-issue48300043_80001.patch
-	epatch "${FILESDIR}"/go-1.2-TLS_support_renegotiation_extension-issue48580043_80001.patch
-	epatch "${FILESDIR}"/go-1.2-speed_up_xop_ops-issue24250044_160001.patch
-	epatch "${FILESDIR}"/go-1.2-improved_cbc_performance-issue50900043_200001.patch
+	epatch "${FILESDIR}"/go-1.3.0-net-implement-TCP-fast-open.patch
+	epatch "${FILESDIR}"/go-1.3.0-net-improve-behavior-of-native-Go-DNS-queries.patch
+	epatch "${FILESDIR}"/go-1.3.0-TLS-add-SHA256-cipher-suites.patch
 
 	if [[ ${PV} != 9999 ]]; then
-		epatch "${FILESDIR}"/${P}-no-Werror.patch
+		epatch "${FILESDIR}"/${PN}-1.2-no-Werror.patch
 	fi
 	epatch_user
 }

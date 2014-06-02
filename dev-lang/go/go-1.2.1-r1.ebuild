@@ -117,6 +117,8 @@ src_prepare()
 
 	epatch "${FILESDIR}"/go-1.2.1-fix-empty-string-handling-in-garbage-collector-issue74250043_80001.patch
 
+	epatch "${FILESDIR}"/go-1.3.0-TLS-add-SHA256-cipher-suites.patch
+
 	if [[ ${PV} != 9999 ]]; then
 		epatch "${FILESDIR}"/${PN}-1.2-no-Werror.patch
 	fi

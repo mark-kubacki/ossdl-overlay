@@ -1,0 +1,357 @@
+From 91bcccd8dd60e3814574e59b524718a4a656d253 Mon Sep 17 00:00:00 2001
+From: alex@lx.lc
+Date: Mon, 2 Jun 2014 23:52:28 +0200
+Subject: [PATCH] net: improve behavior of native Go DNS queries
+
+See https://groups.google.com/forum/#!topic/golang-dev/lV-0aHqxVeo
+
+Fixes issue 6579.
+
+Benchmark results on linux/amd64:
+
+benchmark                                  old ns/op    new ns/op    delta
+BenchmarkGoLookupIP                         59284398     35349632  -40.37%
+BenchmarkGoLookupIPNoSuchHost              131102584     34241062  -73.88%
+BenchmarkGoLookupIPWithBrokenNameServer  20048604097   5024381059  -74.94%
+
+benchmark                                 old allocs   new allocs    delta
+BenchmarkGoLookupIP                              107          112    4.67%
+BenchmarkGoLookupIPNoSuchHost                    212          110  -48.11%
+BenchmarkGoLookupIPWithBrokenNameServer          165          161   -2.42%
+
+benchmark                                  old bytes    new bytes    delta
+BenchmarkGoLookupIP                            11416        11863    3.92%
+BenchmarkGoLookupIPNoSuchHost                  23331        12053  -48.34%
+BenchmarkGoLookupIPWithBrokenNameServer        25696        21728  -15.44%
+
+see https://codereview.appspot.com/75180043/
+---
+ src/pkg/net/dnsclient_unix.go      | 194 ++++++++++++++++++-------------------
+ src/pkg/net/dnsclient_unix_test.go |  48 +++++++++
+ 2 files changed, 141 insertions(+), 101 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index 3713efd..5dc2c87 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -26,7 +26,6 @@ import (
+ // Send a request on the connection and hope for a reply.
+ // Up to cfg.attempts attempts.
+ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error) {
+-	_, useTCP := c.(*TCPConn)
+ 	if len(name) >= 256 {
+ 		return nil, &DNSError{Err: "name too long", Name: name}
+ 	}
+@@ -40,55 +39,47 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
+ 	if !ok {
+ 		return nil, &DNSError{Err: "internal error - cannot pack message", Name: name}
+ 	}
++	_, useTCP := c.(*TCPConn)
+ 	if useTCP {
+ 		mlen := uint16(len(msg))
+ 		msg = append([]byte{byte(mlen >> 8), byte(mlen)}, msg...)
+ 	}
+-	for attempt := 0; attempt < cfg.attempts; attempt++ {
+-		n, err := c.Write(msg)
+-		if err != nil {
+-			return nil, err
+-		}
+-
+-		if cfg.timeout == 0 {
+-			c.SetReadDeadline(noDeadline)
+-		} else {
+-			c.SetReadDeadline(time.Now().Add(time.Duration(cfg.timeout) * time.Second))
+-		}
+-		buf := make([]byte, 2000)
+-		if useTCP {
+-			n, err = io.ReadFull(c, buf[:2])
+-			if err != nil {
+-				if e, ok := err.(Error); ok && e.Timeout() {
+-					continue
+-				}
+-			}
+-			mlen := int(buf[0])<<8 | int(buf[1])
+-			if mlen > len(buf) {
+-				buf = make([]byte, mlen)
+-			}
+-			n, err = io.ReadFull(c, buf[:mlen])
+-		} else {
+-			n, err = c.Read(buf)
+-		}
++	n, err := c.Write(msg)
++	if err != nil {
++		return nil, err
++	}
++	if cfg.timeout == 0 {
++		c.SetReadDeadline(noDeadline)
++	} else {
++		c.SetReadDeadline(time.Now().Add(time.Duration(cfg.timeout) * time.Second))
++	}
++	buf := make([]byte, 2000)
++	if useTCP {
++		n, err = io.ReadFull(c, buf[:2])
+ 		if err != nil {
+-			if e, ok := err.(Error); ok && e.Timeout() {
+-				continue
+-			}
+ 			return nil, err
+ 		}
+-		buf = buf[:n]
+-		in := new(dnsMsg)
+-		if !in.Unpack(buf) || in.id != out.id {
+-			continue
++		mlen := int(buf[0])<<8 | int(buf[1])
++		if mlen > len(buf) {
++			buf = make([]byte, mlen)
+ 		}
+-		return in, nil
++		n, err = io.ReadFull(c, buf[:mlen])
++	} else {
++		n, err = c.Read(buf)
++	}
++	if err != nil {
++		return nil, err
+ 	}
+-	var server string
+-	if a := c.RemoteAddr(); a != nil {
+-		server = a.String()
++	buf = buf[:n]
++	in := new(dnsMsg)
++	if !in.Unpack(buf) || in.id != out.id {
++		var server string
++		if a := c.RemoteAddr(); a != nil {
++			server = a.String()
++		}
++		return nil, &DNSError{Err: "bad answer from server", Name: name, Server: server, IsTimeout: false}
+ 	}
+-	return nil, &DNSError{Err: "no answer from server", Name: name, Server: server, IsTimeout: true}
++	return in, nil
+ }
+ 
+ // Do a lookup for a single name, which must be rooted
+@@ -97,41 +88,43 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs
+ 	if len(cfg.servers) == 0 {
+ 		return "", nil, &DNSError{Err: "no DNS servers", Name: name}
+ 	}
+-	for i := 0; i < len(cfg.servers); i++ {
+-		// Calling Dial here is scary -- we have to be sure
+-		// not to dial a name that will require a DNS lookup,
+-		// or Dial will call back here to translate it.
+-		// The DNS config parser has already checked that
+-		// all the cfg.servers[i] are IP addresses, which
+-		// Dial will use without a DNS lookup.
+-		server := cfg.servers[i] + ":53"
+-		c, cerr := Dial("udp", server)
+-		if cerr != nil {
+-			err = cerr
+-			continue
+-		}
+-		msg, merr := exchange(cfg, c, name, qtype)
+-		c.Close()
+-		if merr != nil {
+-			err = merr
+-			continue
+-		}
+-		if msg.truncated { // see RFC 5966
+-			c, cerr = Dial("tcp", server)
++	for attempt := 0; attempt < cfg.attempts; attempt++ {
++		for i := 0; i < len(cfg.servers); i++ {
++			// Calling Dial here is scary -- we have to be sure
++			// not to dial a name that will require a DNS lookup,
++			// or Dial will call back here to translate it.
++			// The DNS config parser has already checked that
++			// all the cfg.servers[i] are IP addresses, which
++			// Dial will use without a DNS lookup.
++			server := cfg.servers[i] + ":53"
++			c, cerr := Dial("udp", server)
+ 			if cerr != nil {
+ 				err = cerr
+ 				continue
+ 			}
+-			msg, merr = exchange(cfg, c, name, qtype)
++			msg, merr := exchange(cfg, c, name, qtype)
+ 			c.Close()
+ 			if merr != nil {
+ 				err = merr
+ 				continue
+ 			}
+-		}
+-		cname, addrs, err = answer(name, server, msg, qtype)
+-		if err == nil || err.(*DNSError).Err == noSuchHost {
+-			break
++			if msg.truncated { // see RFC 5966
++				c, cerr = Dial("tcp", server)
++				if cerr != nil {
++					err = cerr
++					continue
++				}
++				msg, merr = exchange(cfg, c, name, qtype)
++				c.Close()
++				if merr != nil {
++					err = merr
++					continue
++				}
++			}
++			cname, addrs, err = answer(name, server, msg, qtype)
++			if err == nil || err.(*DNSError).Err == noSuchHost {
++				return
++			}
+ 		}
+ 	}
+ 	return
+@@ -240,13 +233,10 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error)
+ 		}
+ 		// Can try as ordinary name.
+ 		cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
+-		if err == nil {
++		if rooted || err == nil {
+ 			return
+ 		}
+ 	}
+-	if rooted {
+-		return
+-	}
+ 
+ 	// Otherwise, try suffixes.
+ 	for i := 0; i < len(cfg.dnsConfig.search); i++ {
+@@ -259,15 +249,16 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error)
+ 			return
+ 		}
+ 	}
+-
+ 	// Last ditch effort: try unsuffixed.
+-	rname := name
+-	if !rooted {
+-		rname += "."
+-	}
+-	cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
+-	if err == nil {
+-		return
++	if count(name, '.') < cfg.dnsConfig.ndots {
++		rname := name
++		if !rooted {
++			rname += "."
++		}
++		cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
++		if err == nil {
++			return
++		}
+ 	}
+ 	if e, ok := err.(*DNSError); ok {
+ 		// Show original name passed to lookup, not suffixed one.
+@@ -320,32 +311,33 @@ func goLookupIP(name string) (addrs []IP, err error) {
+ 			return
+ 		}
+ 	}
+-	var records []dnsRR
+-	var cname string
+-	var err4, err6 error
+-	cname, records, err4 = lookup(name, dnsTypeA)
+-	addrs = convertRR_A(records)
+-	if cname != "" {
+-		name = cname
+-	}
+-	_, records, err6 = lookup(name, dnsTypeAAAA)
+-	if err4 != nil && err6 == nil {
+-		// Ignore A error because AAAA lookup succeeded.
+-		err4 = nil
+-	}
+-	if err6 != nil && len(addrs) > 0 {
+-		// Ignore AAAA error because A lookup succeeded.
+-		err6 = nil
+-	}
+-	if err4 != nil {
++	err4chan := make(chan error)
++	err6chan := make(chan error)
++	ipv4chan := make(chan []dnsRR)
++	ipv6chan := make(chan []dnsRR)
++	go goLookupConcurrent(name, dnsTypeA, ipv4chan, err4chan)
++	go goLookupConcurrent(name, dnsTypeAAAA, ipv6chan, err6chan)
++	addrs = append(convertRR_A(<-ipv4chan), convertRR_AAAA(<-ipv6chan)...)
++	err4 := <-err4chan
++	err6 := <-err6chan
++	if err4 != nil && err6 != nil {
++		return nil, err4
++	} else if len(addrs) > 0 {
++		return addrs, nil
++	} else if err4 != nil {
+ 		return nil, err4
+ 	}
+-	if err6 != nil {
+-		return nil, err6
+-	}
++	return nil, err6
++}
+ 
+-	addrs = append(addrs, convertRR_AAAA(records)...)
+-	return addrs, nil
++// goLookupConcurrent is used by the native Go implementation of goLookupIP.
++// Since address lookups require two queries(A and AAAA), we send them
++// concurrently using 'go goLookupConcurrent' and passing channels to receive
++// from rather than waiting for return values.
++func goLookupConcurrent(name string, rrtype uint16, addrchan chan []dnsRR, errchan chan error) {
++	_, records, err := lookup(name, rrtype)
++	addrchan <- records
++	errchan <- err
+ }
+ 
+ // goLookupCNAME is the native Go implementation of LookupCNAME.
+diff --git a/src/pkg/net/dnsclient_unix_test.go b/src/pkg/net/dnsclient_unix_test.go
+index 2350142..7f43c16 100644
+--- a/src/pkg/net/dnsclient_unix_test.go
++++ b/src/pkg/net/dnsclient_unix_test.go
+@@ -157,3 +157,51 @@ func TestReloadResolvConfChange(t *testing.T) {
+ 	r.SetConf("nameserver 8.8.4.4")
+ 	r.WantServers([]string{"[8.8.4.4]"})
+ }
++
++func BenchmarkGoLookupIP(b *testing.B) {
++	if testing.Short() || !*testExternal {
++		b.Skip("skipping test to avoid external network")
++	}
++
++	r := newResolvConfTest(nil)
++	defer r.Close()
++
++	r.SetConf("nameserver 8.8.8.8")
++	r.Start()
++
++	for i := 0; i < b.N; i++ {
++		goLookupIP("golang.org")
++	}
++}
++
++func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
++	if testing.Short() || !*testExternal {
++		b.Skip("skipping test to avoid external network")
++	}
++
++	r := newResolvConfTest(nil)
++	defer r.Close()
++
++	r.SetConf("nameserver 8.8.8.8")
++	r.Start()
++
++	for i := 0; i < b.N; i++ {
++		goLookupIP("some.nonexistent")
++	}
++}
++
++func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
++	if testing.Short() || !*testExternal {
++		b.Skip("skipping test to avoid external network")
++	}
++
++	r := newResolvConfTest(nil)
++	defer r.Close()
++
++	r.SetConf("nameserver 203.0.113.254\nnameserver 8.8.8.8") // use TEST-NET-3 block, see RFC 5737
++	r.Start()
++
++	for i := 0; i < b.N; i++ {
++		goLookupIP("golang.org")
++	}
++}
+-- 
+1.9.3
+
