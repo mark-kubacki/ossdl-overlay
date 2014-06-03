@@ -45,7 +45,12 @@ src_prepare()
 {
 	epatch "${FILESDIR}"/go-1.3.0-net-implement-TCP-fast-open.patch
 	epatch "${FILESDIR}"/go-1.3.0-net-improve-behavior-of-native-Go-DNS-queries.patch
+	epatch "${FILESDIR}"/go-1.3.0-net-mail-Decode-RFC2047-encoded-headers.patch
 	epatch "${FILESDIR}"/go-1.3.0-TLS-add-SHA256-cipher-suites.patch
+
+	# hotfixes
+	epatch "${FILESDIR}"/go-1.3_rc1-hotfix-issue102080043_20001.diff
+	epatch "${FILESDIR}"/go-1.3_rc1-hotfix-issue96690043_40001.diff
 
 	if [[ ${PV} != 9999 ]]; then
 		epatch "${FILESDIR}"/${PN}-1.2-no-Werror.patch

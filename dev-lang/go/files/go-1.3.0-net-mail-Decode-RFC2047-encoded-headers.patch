@@ -1,0 +1,118 @@
+From a364ea77e6be3fbcaaf13658f9fdd14d381c2be9 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Tue, 3 Jun 2014 14:30:05 +0200
+Subject: [PATCH] net/mail: Decode RFC2047 encoded headers
+
+Removes spaces between 'encoded-word's as per RFC 2047 sec. 6.
+
+Decodes one or more 'encoded-word's if present in the same header.
+
+Based on the works of Adrien Abustany.
+---
+ src/pkg/go/build/deps_test.go    |  2 +-
+ src/pkg/net/mail/message.go      | 23 ++++++++++++++++++++++-
+ src/pkg/net/mail/message_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 7421e14..94f5bfc 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -252,7 +252,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// Uses of networking.
+ 	"log/syslog":    {"L4", "OS", "net"},
+-	"net/mail":      {"L4", "NET", "OS"},
++	"net/mail":      {"L4", "NET", "OS", "regexp"},
+ 	"net/textproto": {"L4", "OS", "net"},
+ 
+ 	// Core crypto.
+diff --git a/src/pkg/net/mail/message.go b/src/pkg/net/mail/message.go
+index ba0778c..00bbffc 100644
+--- a/src/pkg/net/mail/message.go
++++ b/src/pkg/net/mail/message.go
+@@ -25,6 +25,7 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"net/textproto"
++	"regexp"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -104,10 +105,30 @@ func parseDate(date string) (time.Time, error) {
+ // A Header represents the key-value pairs in a mail message header.
+ type Header map[string][]string
+ 
++var rfc2047TermRegex = regexp.MustCompile(`=\?[\w\-]+\?[bBqQ]\?[^?]+\?=`)
++var rfc2047SpaceTerm = regexp.MustCompile(`\?\=\s+=\?`)
++
++func decodePartiallyRFC2047Encoded(s string) string {
++	n := rfc2047SpaceTerm.ReplaceAllLiteralString(s, "?==?")
++	return rfc2047TermRegex.ReplaceAllStringFunc(n, func(n string) string {
++		dec, err := decodeRFC2047Word(n)
++
++		if err != nil {
++			return n
++		}
++
++		return dec
++	})
++}
++
+ // Get gets the first value associated with the given key.
+ // If there are no values associated with the key, Get returns "".
+ func (h Header) Get(key string) string {
+-	return textproto.MIMEHeader(h).Get(key)
++	v := textproto.MIMEHeader(h).Get(key)
++	if strings.Contains(v, "=?") {
++		return decodePartiallyRFC2047Encoded(v)
++	}
++	return v
+ }
+ 
+ var ErrHeaderNotPresent = errors.New("mail: header not in message")
+diff --git a/src/pkg/net/mail/message_test.go b/src/pkg/net/mail/message_test.go
+index eb9c8cb..d3e4f62 100644
+--- a/src/pkg/net/mail/message_test.go
++++ b/src/pkg/net/mail/message_test.go
+@@ -302,3 +302,37 @@ func TestAddressFormatting(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestHeaderParsing(t *testing.T) {
++	tests := []struct {
++		rawMail string
++		exp     string
++	}{
++		// Bare subject
++		{
++			`Subject: Go is lang
++
++xoxo`,
++			"Go is lang",
++		},
++		// RFC2047 decoding
++		{
++			`Subject: [PATCH] =?UTF-8?q?generate-command-parser:=20support=20<number>s,=20?=
++ =?UTF-8?q?state=20ID=20replacing=20and=E2=80=A6?=
++
++xoxo`,
++			"[PATCH] generate-command-parser: support <number>s, state ID replacing and…",
++		},
++	}
++	for _, test := range tests {
++		m, err := ReadMessage(strings.NewReader(test.rawMail))
++		if err != nil {
++			t.Errorf("Failed parsing (rawMail string) %s: %v", test.rawMail, err)
++			continue
++		}
++		subj := m.Header.Get("Subject")
++		if !reflect.DeepEqual(subj, test.exp) {
++			t.Errorf("Parse (header) of %s: got %+v, want %+v", test.rawMail, subj, test.exp)
++		}
++	}
++}
+-- 
+1.9.3
+
