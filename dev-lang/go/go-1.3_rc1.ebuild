@@ -12,13 +12,16 @@ if [[ ${PV} = 9999 ]]; then
 	EHG_REPO_URI="https://go.googlecode.com/hg"
 	inherit mercurial
 else
-	SRC_URI="https://storage.googleapis.com/golang/go${PV/_/}.src.tar.gz"
+	TOOLS_PV="eb49a6e58ac3"
+	SRC_URI="https://storage.googleapis.com/golang/go${PV/_/}.src.tar.gz
+		https://binhost.ossdl.de/distfiles/go.tools-${TOOLS_PV}.tar.xz"
 	# Upstream only supports go on amd64, arm and x86 architectures.
 	KEYWORDS="-* amd64 arm x86 ~amd64-fbsd ~x86-fbsd ~x64-macos"
 fi
 
 DESCRIPTION="A concurrent garbage collected and typesafe programming language"
 HOMEPAGE="http://www.golang.org"
+RESTRICT="primaryuri"
 
 LICENSE="BSD"
 SLOT="0"
@@ -56,6 +59,13 @@ src_prepare()
 		epatch "${FILESDIR}"/${PN}-1.2-no-Werror.patch
 	fi
 	epatch_user
+
+	# copy go.tools to a directory which Go will recognize
+	if [ -d "${WORKDIR}"/go.tools ]; then
+		ebegin "Copy go.tools to scratch directory"
+		mkdir -p "${T}"/src/code.google.com/p
+		cp -ra "${WORKDIR}"/go.tools "${T}"/src/code.google.com/p/
+	fi
 }
 
 src_compile()
@@ -75,6 +85,28 @@ src_compile()
 	if use emacs; then
 		elisp-compile misc/emacs/*.el
 	fi
+
+	ebegin "Compiling some go.tools"
+	# the tools are listed in go/misc/makerelease/makerelease.go: toolPaths
+	# not listed there and optional: goimports godex
+	PATH="${GOBIN}:${PATH}" \
+	GOPATH="${T}" \
+	GOROOT="${EPREFIX}$(${GOBIN}/go env GOROOT)" \
+	GOTOOLDIR="${EPREFIX}$(${GOBIN}/go env GOTOOLDIR)" \
+		go install -v \
+			code.google.com/p/go.tools/cmd/cover \
+			code.google.com/p/go.tools/cmd/godoc \
+			code.google.com/p/go.tools/cmd/vet \
+			code.google.com/p/go.tools/cmd/goimports \
+			code.google.com/p/go.tools/cmd/godex \
+		|| die "cannot install go.tools"
+
+	ebegin 'go.tools: rewriting "package main" to "package documentation"'
+	# see go/misc/makerelease/makerelease.go: tools()
+	for CMD in cover godoc vet goimports godex; do
+		sed -i -e 's:^package main$:package documentation:' \
+			"${T}"/src/code.google.com/p/go.tools/cmd/${CMD}/doc.go
+	done
 }
 
 src_test()
@@ -97,6 +129,13 @@ src_install()
 	# installing the doc and src directories.
 	# [1] http://code.google.com/p/go/issues/detail?id=2775
 	doins -r doc include lib pkg src
+
+	# see go/misc/makerelease/makerelease.go: tools()
+	for CMD in cover godoc vet goimports godex; do
+		dodir /usr/lib/go/src/cmd/${CMD}
+		insinto /usr/lib/go/src/cmd/${CMD}
+		doins "${T}"/src/code.google.com/p/go.tools/cmd/${CMD}/doc.go
+	done
 
 	if use bash-completion; then
 		dobashcomp misc/bash/go
