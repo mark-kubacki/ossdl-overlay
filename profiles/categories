@@ -1,6 +1,7 @@
 app-accessibility
 app-arch
 app-crypt
+app-shells
 app-text
 dev-cpp
 dev-db

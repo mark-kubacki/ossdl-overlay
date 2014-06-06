@@ -1,0 +1,41 @@
+From 14b6d32fe659d11fb3acf18b012b7ff6207ca84a Mon Sep 17 00:00:00 2001
+From: David Adam <zanchey@ucc.gu.uwa.edu.au>
+Date: Wed, 13 Nov 2013 11:20:59 +0800
+Subject: [PATCH] add bindings for PuTTY's I-can't-believe-it's-xterm keyboard
+
+(see #170)
+---
+ share/functions/fish_default_key_bindings.fish | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/share/functions/fish_default_key_bindings.fish b/share/functions/fish_default_key_bindings.fish
+index b22d769..a46d3f9 100644
+--- a/share/functions/fish_default_key_bindings.fish
++++ b/share/functions/fish_default_key_bindings.fish
+@@ -32,6 +32,12 @@ function fish_default_key_bindings -d "Default (Emacs-like) key bindings for fis
+ 	bind \e\[H beginning-of-line
+ 	bind \e\[F end-of-line
+ 
++	# for PuTTY
++	# https://github.com/fish-shell/fish-shell/issues/180
++	bind \e\[1~ beginning-of-line
++	bind \e\[3~ delete-char
++	bind \e\[4~ end-of-line
++
+ 	# OS X SnowLeopard doesn't have these keys. Don't show an annoying error message.
+ 	bind -k home beginning-of-line 2> /dev/null
+ 	bind -k end end-of-line 2> /dev/null
+@@ -79,8 +85,8 @@ function fish_default_key_bindings -d "Default (Emacs-like) key bindings for fis
+ 	bind \ef forward-word
+ 	bind \e\[1\;5C forward-word
+ 	bind \e\[1\;5D backward-word
+-        bind \e\[1\;9A history-token-search-backward # iTerm2
+-        bind \e\[1\;9B history-token-search-forward # iTerm2
++	bind \e\[1\;9A history-token-search-backward # iTerm2
++	bind \e\[1\;9B history-token-search-forward # iTerm2
+ 	bind \e\[1\;9C forward-word #iTerm2
+ 	bind \e\[1\;9D backward-word #iTerm2
+ 	bind \ed forward-kill-word
+-- 
+1.9.3
+
