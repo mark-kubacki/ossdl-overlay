@@ -30,6 +30,8 @@ src_prepare() {
 	epatch "${DISTDIR}"/${P}-docdir.patch #489934
 	epatch "${FILESDIR}"/${P}-tinfo.patch #459768
 	epatch "${FILESDIR}"/${P}-putty-xterm.patch
+	mv share/functions/fish_prompt.fish share/tools/web_config/sample_prompts/
+	cp "${FILESDIR}"/fish_prompt_mark.fish share/functions/fish_prompt.fish
 
 	eautoreconf
 }
@@ -55,6 +57,9 @@ pkg_postinst() {
 	elog "fish is now installed on your system."
 	elog "To run fish, type 'fish' in your terminal."
 	elog
+	elog "To suppress fish's intro message on this machine type, using fish:"
+	elog "  set -U fish_greeting \"\""
+	elog
 	elog "To use fish as your login shell:"
 	elog "* add the line '${EPREFIX}/bin/${PN}'"
 	elog "* to the file '${EPREFIX}/etc/shells'."
@@ -74,4 +79,5 @@ pkg_postinst() {
 	elog "  >=dev-lang/python-3.3"
 	elog
 	elog "Have fun!"
+	elog
 }
