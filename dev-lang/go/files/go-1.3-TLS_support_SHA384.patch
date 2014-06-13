@@ -1,0 +1,70 @@
+From f9478f7a8823ee3acaed3cafd5817e2fe23cc3cb Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Tue, 10 Jun 2014 11:00:00 +0200
+Subject: [PATCH] tls: accept SHA384 as hash
+
+---
+ src/pkg/crypto/tls/common.go        |  3 +++
+ src/pkg/crypto/tls/key_agreement.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index fca98bd..13c084d 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -122,6 +122,7 @@ const (
+ const (
+ 	hashSHA1   uint8 = 2
+ 	hashSHA256 uint8 = 4
++	hashSHA384 uint8 = 5
+ )
+ 
+ // Signature algorithms for TLS 1.2 (See RFC 5246, section A.4.1)
+@@ -143,6 +144,8 @@ var supportedSKXSignatureAlgorithms = []signatureAndHash{
+ 	{hashSHA256, signatureECDSA},
+ 	{hashSHA1, signatureRSA},
+ 	{hashSHA1, signatureECDSA},
++	{hashSHA384, signatureRSA},
++	{hashSHA384, signatureECDSA},
+ }
+ 
+ // supportedClientCertSignatureAlgorithms contains the signature and hash
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index f38b701..1931f6c 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -12,6 +12,7 @@ import (
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
++	"crypto/sha512"
+ 	"crypto/x509"
+ 	"encoding/asn1"
+ 	"errors"
+@@ -119,12 +120,23 @@ func sha256Hash(slices [][]byte) []byte {
+ 	return h.Sum(nil)
+ }
+ 
++// sha384Hash implements TLS 1.2's hash function.
++func sha384Hash(slices [][]byte) []byte {
++	h := sha512.New384()
++	for _, slice := range slices {
++		h.Write(slice)
++	}
++	return h.Sum(nil)
++}
++
+ // hashForServerKeyExchange hashes the given slices and returns their digest
+ // and the identifier of the hash function used. The hashFunc argument is only
+ // used for >= TLS 1.2 and precisely identifies the hash function to use.
+ func hashForServerKeyExchange(sigType, hashFunc uint8, version uint16, slices ...[]byte) ([]byte, crypto.Hash, error) {
+ 	if version >= VersionTLS12 {
+ 		switch hashFunc {
++		case hashSHA384:
++			return sha384Hash(slices), crypto.SHA384, nil
+ 		case hashSHA256:
+ 			return sha256Hash(slices), crypto.SHA256, nil
+ 		case hashSHA1:
+-- 
+1.9.3
+
