@@ -19,15 +19,17 @@ fi
 LICENSE="MIT"
 SLOT="0"
 KEYWORDS="amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~sparc ~x86"
-IUSE=""
-# examples are always built
+IUSE="+examples +xml"
 
-RDEPEND=">=dev-libs/openssl-1.0.1
-	>=dev-libs/libevent-2.0.8[ssl]
-	>=dev-libs/libxml2-2.7.7
-	>=sys-libs/zlib-1.2.3"
+REQUIRED_USE="xml? ( examples )"
+RDEPEND=">=sys-libs/zlib-1.2.3
+	examples? (
+		>=dev-libs/openssl-1.0.1
+		>=dev-libs/libevent-2.0.8[ssl]
+		xml? ( >=dev-libs/libxml2-2.7.7 )
+	)"
 DEPEND="${RDEPEND}
-	>=dev-util/pkgconfig-0.28
+	>=dev-util/pkgconfig-0.20
 	test? (
 		=dev-lang/python-2*
 		>=dev-util/cunit-2.1
@@ -44,7 +46,8 @@ src_prepare() {
 src_configure() {
 	econf \
 		--disable-dependency-tracking \
-		--enable-examples
+		$(use_enable examples) \
+		$(use_with xml libxml2) $(use !xml && echo --disable-xmltest --without-libxml2)
 }
 
 src_test() {

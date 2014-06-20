@@ -6,7 +6,7 @@ EAPI="4"
 inherit eutils autotools
 
 DESCRIPTION="Implementation of Hypertext Transfer Protocol version 2 in C"
-HOMEPAGE="http://tatsuhiro-t.github.io/spdylay/index.html"
+HOMEPAGE="https://nghttp2.org/"
 if [[ ${PV} == "9999" ]] ; then
 	EGIT_REPO_URI="https://github.com/tatsuhiro-t/${PN}.git
 			git://github.com/tatsuhiro-t/${PN}.git"
@@ -21,6 +21,8 @@ SLOT="0"
 KEYWORDS="amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~sparc ~x86"
 IUSE="+alpn +apps +examples python +spdy +xml"
 
+REQUIRED_USE="xml? ( apps )
+	alpn? ( apps )"
 RDEPEND=">=dev-libs/jansson-2.5
 	apps? (
 		dev-libs/jemalloc
@@ -57,7 +59,7 @@ src_configure() {
 		$(use_enable examples) \
 		$(use_enable python python-bindings) \
 		$(use_with spdy spdylay) \
-		$(use_with xml libxml2 "--disable-xmltest --without-libxml2")
+		$(use_with xml libxml2) $(use !xml && echo --disable-xmltest --without-libxml2)
 }
 
 src_test() {
