@@ -23,10 +23,11 @@ Packages
 Some packages are masked in Gentoo's main tree. If you want to unmask only the tested ones of this
 overlay you can do so by adding to your ``/etc/portage/package.unmask``::
 
-    # category/package::overlay-name
-    
-    www-servers/apache::OSSDL
-    app-admin/apache-tools::OSSDL
+    dev-db/mariadb::OSSDL
+    dev-libs/openssl::OSSDL
+    net-misc/curl::OSSDL
+    sys-devel/gcc::OSSDL
+    www-servers/nginx::OSSDL
 
 Policies
 --------
