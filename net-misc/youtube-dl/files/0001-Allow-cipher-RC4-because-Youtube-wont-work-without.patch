@@ -1,0 +1,26 @@
+From d63d26f27cbcf58fd6ea3bcc25bc7425e6283053 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Wed, 2 Jul 2014 14:37:32 +0200
+Subject: [PATCH] Allow cipher RC4, because Youtube won't work without.
+
+---
+ youtube_dl/utils.py | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/youtube_dl/utils.py b/youtube_dl/utils.py
+index b97e62a..7ab28dd 100644
+--- a/youtube_dl/utils.py
++++ b/youtube_dl/utils.py
+@@ -28,6 +28,9 @@ import traceback
+ import xml.etree.ElementTree
+ import zlib
+ 
++if 'RC4' not in ssl._DEFAULT_CIPHERS or '!RC4' in ssl._DEFAULT_CIPHERS:
++    ssl._DEFAULT_CIPHERS = 'ECDHE+HIGH:DHE+HIGH:-3DES:-RC4:HIGH:RC4:!aNULL:!MD5'
++
+ try:
+     import urllib.request as compat_urllib_request
+ except ImportError: # Python 2
+-- 
+1.9.3
+
