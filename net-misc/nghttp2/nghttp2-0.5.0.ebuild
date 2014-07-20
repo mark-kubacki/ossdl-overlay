@@ -1,9 +1,11 @@
 # Copyright 2014 W. Mark Kubacki
 # Distributed under the terms of the OSI Reciprocal Public License
 
-EAPI="4"
+EAPI="5"
+PYTHON_DEPEND="2"
+RESTRICT_PYTHON_ABIS="3.*"
 
-inherit eutils autotools
+inherit eutils autotools python
 
 DESCRIPTION="Implementation of Hypertext Transfer Protocol version 2 in C"
 HOMEPAGE="https://nghttp2.org/"
@@ -18,8 +20,8 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-KEYWORDS="amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~sparc ~x86"
-IUSE="+alpn +apps +examples python +spdy +xml"
+KEYWORDS="amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~sparc x86"
+IUSE="+alpn +apps +examples python +spdy test +xml"
 
 REQUIRED_USE="xml? ( apps )
 	alpn? ( apps )"
@@ -43,6 +45,13 @@ DEPEND="${RDEPEND}
 		=dev-lang/python-2*
 		>=dev-util/cunit-2.1
 	)"
+
+pkg_setup() {
+	if use python; then
+		python_set_active_version 2
+		python_pkg_setup
+	fi
+}
 
 src_prepare() {
 	if [[ ${PV} == "9999" ]] ; then
