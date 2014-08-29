@@ -8,7 +8,8 @@ inherit autotools eutils prefix
 
 DESCRIPTION="A Client that groks URLs"
 HOMEPAGE="http://curl.haxx.se/"
-SRC_URI="http://curl.haxx.se/download/${P}.tar.bz2"
+SRC_URI="http://curl.haxx.se/download/${P/_*}.tar.bz2"
+S="${WORKDIR}/${P/_*}"
 
 LICENSE="MIT"
 SLOT="0"
@@ -36,7 +37,7 @@ RDEPEND="ldap? ( net-nds/openldap )
 		curl_ssl_nss? ( dev-libs/nss app-misc/ca-certificates )
 		curl_ssl_polarssl? ( net-libs/polarssl:= app-misc/ca-certificates )
 	)
-	http2? ( =net-misc/nghttp2-0.5* )
+	http2? ( >=net-misc/nghttp2-0.6.0:= )
 	idn? ( net-dns/libidn[static-libs?] )
 	adns? ( net-dns/c-ares )
 	kerberos? ( virtual/krb5 )
@@ -89,6 +90,11 @@ src_prepare() {
 		"${FILESDIR}"/${PN}-7.30.0-prefix.patch \
 		"${FILESDIR}"/${PN}-respect-cflags-3.patch \
 		"${FILESDIR}"/${PN}-fix-gnutls-nettle.patch
+	epatch "${FILESDIR}"/pre/7.37.1-compile-with-latest-nghttp2.patch
+	sed -i -e "s:${PV/_*}:${PV/_p/.}:" \
+		include/curl/curlver.h \
+		src/tool_version.h \
+		lib/libcurl.plist
 
 	sed -i '/LD_LIBRARY_PATH=/d' configure.ac || die #382241
 
