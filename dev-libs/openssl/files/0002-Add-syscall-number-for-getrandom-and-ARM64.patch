@@ -1,0 +1,27 @@
+From b20880cd875b8bfa0d3fbad85dadaf8ac830892e Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Thu, 25 Sep 2014 18:26:36 +0200
+Subject: [PATCH 2/2] Add syscall number for "getrandom" and ARM64.
+
+---
+ crypto/engine/eng_linux_getrandom.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/crypto/engine/eng_linux_getrandom.c b/crypto/engine/eng_linux_getrandom.c
+index 5a36655..63a127f 100644
+--- a/crypto/engine/eng_linux_getrandom.c
++++ b/crypto/engine/eng_linux_getrandom.c
+@@ -22,6 +22,10 @@
+ #endif // __LP64__
+ #endif // x86 or amd64
+ 
++#ifdef __aarch64__
++#define SYS_getrandom 384
++#endif
++
+ #endif // !defined(SYS_getrandom)
+ 
+ #if defined(OPENSSL_SYS_LINUX) && defined(SYS_getrandom)
+-- 
+1.9.3
+
