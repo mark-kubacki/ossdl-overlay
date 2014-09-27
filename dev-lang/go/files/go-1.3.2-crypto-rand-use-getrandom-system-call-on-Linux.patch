@@ -1,0 +1,168 @@
+exporting patch:
+# HG changeset patch
+# User Brad Fitzpatrick <bradfitz@golang.org>
+# Date 1407879327 25200
+#      Tue Aug 12 14:35:27 2014 -0700
+# Node ID a70c897599c4e6bbefade9e37345f9dee56810d7
+# Parent  c047b9e50307c2d04b650bf2b6beb235850df04e
+crypto/rand: use getrandom system call on Linux
+
+Adds internal/syscall package.
+
+Fixes Issue 8520
+
+LGTM=r, agl
+R=agl, rsc, r
+CC=golang-codereviews, iant
+https://codereview.appspot.com/123260044
+
+diff -r c047b9e50307 -r a70c897599c4 src/pkg/crypto/rand/rand_linux.go
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/src/pkg/crypto/rand/rand_linux.go	Tue Aug 12 14:35:27 2014 -0700
+@@ -0,0 +1,39 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++import (
++	"internal/syscall"
++	"sync"
++)
++
++func init() {
++	altGetRandom = getRandomLinux
++}
++
++var (
++	once       sync.Once
++	useSyscall bool
++)
++
++func pickStrategy() {
++	// Test whether we should use the system call or /dev/urandom.
++	// We'll fall back to urandom if:
++	// - the kernel is too old (before 3.17)
++	// - the machine has no entropy available (early boot + no hardware
++	//   entropy source?) and we want to avoid blocking later.
++	var buf [1]byte
++	n, err := syscall.GetRandom(buf[:], syscall.GRND_NONBLOCK)
++	useSyscall = n == 1 && err == nil
++}
++
++func getRandomLinux(p []byte) (ok bool) {
++	once.Do(pickStrategy)
++	if !useSyscall {
++		return false
++	}
++	n, err := syscall.GetRandom(p, 0)
++	return n == len(p) && err == nil
++}
+diff -r c047b9e50307 -r a70c897599c4 src/pkg/crypto/rand/rand_unix.go
+--- a/src/pkg/crypto/rand/rand_unix.go	Wed Aug 13 01:03:32 2014 +0400
++++ b/src/pkg/crypto/rand/rand_unix.go	Tue Aug 12 14:35:27 2014 -0700
+@@ -20,6 +20,8 @@
+ 	"time"
+ )
+ 
++const urandomDevice = "/dev/urandom"
++
+ // Easy implementation: read from /dev/urandom.
+ // This is sufficient on Linux, OS X, and FreeBSD.
+ 
+@@ -27,7 +29,7 @@
+ 	if runtime.GOOS == "plan9" {
+ 		Reader = newReader(nil)
+ 	} else {
+-		Reader = &devReader{name: "/dev/urandom"}
++		Reader = &devReader{name: urandomDevice}
+ 	}
+ }
+ 
+@@ -38,7 +40,14 @@
+ 	mu   sync.Mutex
+ }
+ 
++// altGetRandom if non-nil specifies an OS-specific function to get
++// urandom-style randomness.
++var altGetRandom func([]byte) (ok bool)
++
+ func (r *devReader) Read(b []byte) (n int, err error) {
++	if altGetRandom != nil && r.name == urandomDevice && altGetRandom(b) {
++		return len(b), nil
++	}
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
+ 	if r.f == nil {
+diff -r c047b9e50307 -r a70c897599c4 src/pkg/go/build/deps_test.go
+--- a/src/pkg/go/build/deps_test.go	Wed Aug 13 01:03:32 2014 +0400
++++ b/src/pkg/go/build/deps_test.go	Tue Aug 12 14:35:27 2014 -0700
+@@ -279,7 +279,7 @@
+ 	// Random byte, number generation.
+ 	// This would be part of core crypto except that it imports
+ 	// math/big, which imports fmt.
+-	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall"},
++	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "internal/syscall"},
+ 
+ 	// Mathematical crypto: dependencies on fmt (L4) and math/big.
+ 	// We could avoid some of the fmt, but math/big imports fmt anyway.
+diff -r c047b9e50307 -r a70c897599c4 src/pkg/internal/syscall/getrandom_linux.go
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/src/pkg/internal/syscall/getrandom_linux.go	Tue Aug 12 14:35:27 2014 -0700
+@@ -0,0 +1,55 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import (
++	"runtime"
++	"sync/atomic"
++	stdsyscall "syscall"
++	"unsafe"
++)
++
++var randomTrap = map[string]uintptr{
++	"amd64": 318,
++	"386":   355,
++}[runtime.GOARCH]
++
++var randomUnsupported int32 // atomic
++
++// GetRandomFlag is a flag supported by the getrandom system call.
++type GetRandomFlag uintptr
++
++const (
++	// GRND_NONBLOCK means return EAGAIN rather than blocking.
++	GRND_NONBLOCK GetRandomFlag = 0x0001
++
++	// GRND_RANDOM means use the /dev/random pool instead of /dev/urandom.
++	GRND_RANDOM GetRandomFlag = 0x0002
++)
++
++// GetRandom calls the Linux getrandom system call.
++// See https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=c6e9d6f38894798696f23c8084ca7edbf16ee895
++func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
++	if randomTrap == 0 {
++		return 0, stdsyscall.ENOSYS
++	}
++	if len(p) == 0 {
++		return 0, nil
++	}
++	if atomic.LoadInt32(&randomUnsupported) != 0 {
++		return 0, stdsyscall.ENOSYS
++	}
++	r1, _, errno := stdsyscall.Syscall(randomTrap,
++		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(len(p)),
++		uintptr(flags))
++	if errno != 0 {
++		if errno == stdsyscall.ENOSYS {
++			atomic.StoreInt32(&randomUnsupported, 1)
++		}
++		return 0, errno
++	}
++	return int(r1), nil
++}

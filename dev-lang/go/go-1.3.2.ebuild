@@ -51,6 +51,7 @@ src_prepare()
 	epatch "${FILESDIR}"/go-1.3.0-net-mail-Decode-RFC2047-encoded-headers.patch
 	epatch "${FILESDIR}"/go-1.3.0-TLS-add-SHA256-cipher-suites.patch
 	epatch "${FILESDIR}"/go-1.3-TLS_support_SHA384.patch
+	epatch "${FILESDIR}"/go-1.3.2-crypto-rand-use-getrandom-system-call-on-Linux.patch
 
 	if [[ ${PV} != 9999 ]]; then
 		epatch "${FILESDIR}"/${PN}-1.2-no-Werror.patch
