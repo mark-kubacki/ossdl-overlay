@@ -89,7 +89,14 @@ src_prepare() {
 	epatch "${FILESDIR}"/${PN}-4.3-append-process-segfault.patch
 	epatch "${FILESDIR}"/${PN}-4.3-term-cleanup.patch
 
-	epatch "${FILESDIR}"/${PN}-4.3-remove-importing-of-functions-from-variables.patch
+	# removes importing of functions from variables
+	sed_prefix='\(if (privmode[^\n]*STREQN ("() {"[^\n]*\n\s*{\)'
+	sed_suffix='\(}\s*\n\s*#if defined (ARRAY_VARS)\s*\n#\s*if ARRAY_EXPORT\)'
+	display_err='report_error (_("importing of functions has been removed completely"))\;'
+	#sed -i -n '1h;1!H;${g;s:'${sed_prefix}'.*'${sed_suffix}':\1'${display_err}'\2:;p;}' \
+	sed -i -n '1h;1!H;${g;s:\(if (privmode[^\n]*STREQN ("() {"[^\n]*\n\s*{\).*\(}\s*\n\s*#if defined (ARRAY_VARS)\s*\n#\s*if ARRAY_EXPORT\):\1report_error (_("importing of functions has been removed completely"))\;\2:;p;}' \
+		variables.c \
+	|| die
 
 	epatch_user
 }
