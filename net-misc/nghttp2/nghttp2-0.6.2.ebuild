@@ -20,7 +20,7 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-KEYWORDS="~amd64 ~arm ~arm64 ~hppa ppc ppc64 ~sparc ~x86"
+KEYWORDS="amd64 ~arm ~arm64 ~hppa ppc ppc64 ~sparc x86"
 IUSE="+alpn +apps +examples python +spdy test +xml"
 
 REQUIRED_USE="xml? ( apps )
