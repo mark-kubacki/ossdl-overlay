@@ -1,0 +1,34 @@
+From 18bd32a600d3de7a45d44c137054413a0957bb07 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Thu, 27 Mar 2014 23:13:18 +0100
+Subject: [PATCH 3/5] IPv6: use tempaddr by default
+
+---
+ net/ipv6/addrconf.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/net/ipv6/addrconf.c b/net/ipv6/addrconf.c
+index 9c05d77..973a6ba 100644
+--- a/net/ipv6/addrconf.c
++++ b/net/ipv6/addrconf.c
+@@ -177,7 +177,7 @@ static struct ipv6_devconf ipv6_devconf __read_mostly = {
+ 	.rtr_solicits		= MAX_RTR_SOLICITATIONS,
+ 	.rtr_solicit_interval	= RTR_SOLICITATION_INTERVAL,
+ 	.rtr_solicit_delay	= MAX_RTR_SOLICITATION_DELAY,
+-	.use_tempaddr 		= 0,
++	.use_tempaddr 		= 2,
+ 	.temp_valid_lft		= TEMP_VALID_LIFETIME,
+ 	.temp_prefered_lft	= TEMP_PREFERRED_LIFETIME,
+ 	.regen_max_retry	= REGEN_MAX_RETRY,
+@@ -213,7 +213,7 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
+ 	.rtr_solicits		= MAX_RTR_SOLICITATIONS,
+ 	.rtr_solicit_interval	= RTR_SOLICITATION_INTERVAL,
+ 	.rtr_solicit_delay	= MAX_RTR_SOLICITATION_DELAY,
+-	.use_tempaddr		= 0,
++	.use_tempaddr		= 2,
+ 	.temp_valid_lft		= TEMP_VALID_LIFETIME,
+ 	.temp_prefered_lft	= TEMP_PREFERRED_LIFETIME,
+ 	.regen_max_retry	= REGEN_MAX_RETRY,
+-- 
+1.9.1
+

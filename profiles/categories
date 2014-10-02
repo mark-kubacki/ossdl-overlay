@@ -20,8 +20,9 @@ net-misc
 sys-apps
 sys-auth
 sys-devel
-sys-meta
+sys-kernel
 sys-libs
+sys-meta
 www-apache
 www-apps
 www-servers

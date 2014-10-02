@@ -1,0 +1,31 @@
+From 287f1ec8d72bda0dabdf03eeb3675557a9d71f59 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Thu, 27 Mar 2014 23:15:54 +0100
+Subject: [PATCH 5/5] prevent signing keys from being accidentally overwritten
+
+---
+ kernel/Makefile | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/Makefile b/kernel/Makefile
+index bc010ee..2bac7f6 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -190,10 +190,10 @@ signing_key.priv signing_key.x509: x509.genkey
+ 	@echo "### needs to be run as root, and uses a hardware random"
+ 	@echo "### number generator if one is available."
+ 	@echo "###"
+-	openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
+-		-batch -x509 -config x509.genkey \
+-		-outform DER -out signing_key.x509 \
+-		-keyout signing_key.priv 2>&1
++	#openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
++	#	-batch -x509 -config x509.genkey \
++	#	-outform DER -out signing_key.x509 \
++	#	-keyout signing_key.priv 2>&1
+ 	@echo "###"
+ 	@echo "### Key pair generated."
+ 	@echo "###"
+-- 
+1.9.1
+

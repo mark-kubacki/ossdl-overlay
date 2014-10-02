@@ -1,0 +1,25 @@
+From ce754468b5d4cba36d9cb6c3c0bed81a62ffef83 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Fri, 28 Mar 2014 00:25:51 +0100
+Subject: [PATCH 3/3] ocf: add missing dependency for hifn driver
+
+---
+ crypto/ocf/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/ocf/Kconfig b/crypto/ocf/Kconfig
+index 65a4461..c783c16 100644
+--- a/crypto/ocf/Kconfig
++++ b/crypto/ocf/Kconfig
+@@ -54,7 +54,7 @@ config OCF_IXP4XX_SHA1_MD5
+ 
+ config OCF_HIFN
+ 	tristate "hifn (HW crypto engine)"
+-	depends on OCF_OCF
++	depends on OCF_OCF && PCI
+ 	help
+ 	  OCF driver for various HIFN based crypto accelerators.
+ 	  (7951, 7955, 7956, 7751, 7811)
+-- 
+1.9.1
+
