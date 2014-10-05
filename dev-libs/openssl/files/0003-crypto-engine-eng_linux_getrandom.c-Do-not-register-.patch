@@ -1,0 +1,25 @@
+From 7fd381011f4f76b8351053bf59428660fe2870b3 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Sun, 5 Oct 2014 23:43:54 +0200
+Subject: [PATCH] crypto/engine/eng_linux_getrandom.c: Do not register as
+ default.
+
+---
+ crypto/engine/eng_linux_getrandom.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/crypto/engine/eng_linux_getrandom.c b/crypto/engine/eng_linux_getrandom.c
+index 0d97972..ef1a9ed 100644
+--- a/crypto/engine/eng_linux_getrandom.c
++++ b/crypto/engine/eng_linux_getrandom.c
+@@ -113,6 +113,7 @@ static int bind_helper(ENGINE *e)
+ 	{
+ 	if (!ENGINE_set_id(e, engine_e_linux_getrandom_id) ||
+ 	    !ENGINE_set_name(e, engine_e_linux_getrandom_name) ||
++	    !ENGINE_set_flags(e, ENGINE_FLAGS_NO_REGISTER_ALL) ||
+ 	    !ENGINE_set_init_function(e, linux_getrandom_init) ||
+ 	    !ENGINE_set_RAND(e, &linux_getrandom_meth) )
+ 		return 0;
+-- 
+1.9.3
+

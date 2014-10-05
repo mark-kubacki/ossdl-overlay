@@ -77,7 +77,9 @@ src_prepare() {
 	fi
 
 	epatch  "${FILESDIR}"/0001-Add-RAND-engine-for-Linux-syscall-getrandom.patch \
-		"${FILESDIR}"/0002-Add-syscall-number-for-getrandom-and-ARM64.patch
+		"${FILESDIR}"/0002-Add-syscall-number-for-getrandom-and-ARM64.patch \
+		"${FILESDIR}"/0003-crypto-engine-eng_linux_getrandom.c-Do-not-register-.patch
+	epatch	"${FILESDIR}"/0001-x86-_64-cpuid.pl-rdrand-to-fill-a-buffer.patch
 
 	# raises minimum DH group size, from 'any' to '1024 bits or greater'
 	epatch "${FILESDIR}"/0001-require-DH-group-of-1024-bits.patch

@@ -1,0 +1,216 @@
+From 60a8f498e460eed7b36733fa7cfd8e078c989535 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Sun, 5 Oct 2014 20:48:14 +0200
+Subject: [PATCH] x86[_64]cpuid.pl: fix potential bias of
+ OPENSSL_ia32_{rdrand,rdseed}
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The previous implementations of OPENSSL_ia32_{rdrand,rdseed} returned an 8 if
+RDRAND generated successfully a 0, or values between 0–8 if some RDRAND calls
+found no entropy (carry flag not set) and a 0 was returned (or kept).
+
+This change splits output from exit status.
+
+Based on the observation that RDRAND failures are at least rare (the author
+did not experience a single one generating GB on Sandy Bridge) the loop to
+fill a buffer with random values, similar to Linux' getrandom(), has been
+moved into OPENSSL_ia32_{rdrand,rdseed} and handling failures as well as
+retries is the responsibility of the caller.
+---
+ crypto/engine/eng_rdrand.c | 36 ++++++++++++++++++++--------------
+ crypto/x86_64cpuid.pl      | 48 ++++++++++++++++++++++++++++++++--------------
+ crypto/x86cpuid.pl         | 44 ++++++++++++++++++++++++++++--------------
+ 3 files changed, 86 insertions(+), 42 deletions(-)
+
+diff --git a/crypto/engine/eng_rdrand.c b/crypto/engine/eng_rdrand.c
+index 4e9e91d..c4d4ae9 100644
+--- a/crypto/engine/eng_rdrand.c
++++ b/crypto/engine/eng_rdrand.c
+@@ -59,24 +59,32 @@
+      defined(__x86_64) || defined(__x86_64__) || \
+      defined(_M_AMD64) || defined (_M_X64)) && defined(OPENSSL_CPUID_OBJ)
+ 
+-size_t OPENSSL_ia32_rdrand(void);
++size_t OPENSSL_ia32_rdrand(size_t* buf, size_t num);
+ 
+ static int get_random_bytes (unsigned char *buf, int num)
+ 	{
+-	size_t rnd;
++	size_t ret = 0; // ret < wanted_qwords as soon as rdrand fails
++	size_t num_qwords = num/sizeof(size_t);
++	num = num % sizeof(size_t);
++	size_t *p = (size_t *)buf;
+ 
+-	while (num>=(int)sizeof(size_t)) {
+-		if ((rnd = OPENSSL_ia32_rdrand()) == 0) return 0;
+-
+-		*((size_t *)buf) = rnd;
+-		buf += sizeof(size_t);
+-		num -= sizeof(size_t);
+-	}
+-	if (num) {
+-		if ((rnd = OPENSSL_ia32_rdrand()) == 0) return 0;
+-
+-		memcpy (buf,&rnd,num);
+-	}
++	while (num_qwords)
++		{
++		ret = OPENSSL_ia32_rdrand((size_t*)buf, num_qwords);
++		p += ret;
++		num_qwords -= ret;
++		}
++	// due to num < sizeof(size_t) a single size_t suffices
++	while (num)
++		{
++		size_t rnd;
++		ret = OPENSSL_ia32_rdrand(&rnd, 1);
++		if (ret)
++			{
++			memcpy((void *)p, &rnd, num);
++			num -= 1;
++			}
++		}
+ 
+ 	return 1;
+ 	}
+diff --git a/crypto/x86_64cpuid.pl b/crypto/x86_64cpuid.pl
+index db5aa4a..5e31058 100644
+--- a/crypto/x86_64cpuid.pl
++++ b/crypto/x86_64cpuid.pl
+@@ -364,19 +364,31 @@
+ ___
+ }
+ 
++{
++my $buf="%rdx";
++my $num="%rcx";
++my $redzone=win64?8:-8;
++
+ print<<___;
+ .globl	OPENSSL_ia32_rdrand
+ .type	OPENSSL_ia32_rdrand,\@abi-omnipotent
+ .align	16
+ OPENSSL_ia32_rdrand:
+-	mov	\$8,%ecx
+-.Loop_rdrand:
++	mov	$arg1,$buf				# buffer to be filled
++	mov	$arg2,$num				# num, will be decreased
++	mov	$arg2,$redzone(%rsp)	# num, to compute total
++
++	jecxz	.Ldone_rand_filling	# nothing to do if $num == 0
++.align	16
++.Loop_rand_fill_buffer:
+ 	rdrand	%rax
+-	jc	.Lbreak_rdrand
+-	loop	.Loop_rdrand
+-.Lbreak_rdrand:
+-	cmp	\$0,%rax
+-	cmove	%rcx,%rax
++	jnc	.Ldone_rand_filling		# bail out on first failure
++	mov	%rax,($buf)				# indirect store into buffer pos
++	add	\$8,$buf				# move to next size_t in buffer
++	loop	.Loop_rand_fill_buffer	# --$num (num is "remaining")
++.Ldone_rand_filling:
++	mov	$redzone(%rsp),%rax
++	sub	$num,%rax				# filled = num - remaining
+ 	ret
+ .size	OPENSSL_ia32_rdrand,.-OPENSSL_ia32_rdrand
+ 
+@@ -384,16 +396,24 @@
+ .type	OPENSSL_ia32_rdseed,\@abi-omnipotent
+ .align	16
+ OPENSSL_ia32_rdseed:
+-	mov	\$8,%ecx
+-.Loop_rdseed:
++	mov	$arg1,$buf
++	mov	$arg2,$num
++	mov	$arg2,$redzone(%rsp)
++
++	jecxz	.Ldone_rdseed_filling
++.align	16
++.Loop_rdseed_fill_buffer:
+ 	rdseed	%rax
+-	jc	.Lbreak_rdseed
+-	loop	.Loop_rdseed
+-.Lbreak_rdseed:
+-	cmp	\$0,%rax
+-	cmove	%rcx,%rax
++	jnc	.Ldone_rdseed_filling
++	mov	%rax,($buf)
++	add	\$8,$buf
++	loop	.Loop_rdseed_fill_buffer
++.Ldone_rdseed_filling:
++	mov	$redzone(%rsp),%rax
++	sub	$num,%rax
+ 	ret
+ .size	OPENSSL_ia32_rdseed,.-OPENSSL_ia32_rdseed
+ ___
++}
+ 
+ close STDOUT;	# flush
+diff --git a/crypto/x86cpuid.pl b/crypto/x86cpuid.pl
+index 8677232..6de2bf4 100644
+--- a/crypto/x86cpuid.pl
++++ b/crypto/x86cpuid.pl
+@@ -457,29 +457,45 @@
+ &function_end("OPENSSL_instrument_bus2");
+ }
+ 
++{
++my $buf="%edi";
++my $num="%ecx";
++my $redzone=win64?8:-8;
++
+ &function_begin_B("OPENSSL_ia32_rdrand");
+-	&mov	("ecx",8);
+-&set_label("loop");
++	&mov	($buf,&wparam(0));	# buffer to be filled
++	&mov	($num,&wparam(1));
++
++	&jecxz	(&label("done_rand_filling"))	# nothing to do if $num == 0
++&set_label("rand_fill_buffer", 16);
+ 	&rdrand	("eax");
+-	&jc	(&label("break"));
+-	&loop	(&label("loop"));
+-&set_label("break");
+-	&cmp	("eax",0);
+-	&cmove	("eax","ecx");
++	&jnc	(&label("done_rand_filling"));	# bail out on first failure
++	&mov	(&DWP(0,$buf),"eax");		# indirect store into buffer pos
++	&add	($buf,4)					# move to next site_t in buffer
++	&loop	(&label("rand_fill_buffer"));	# --$num (cnt is "remaining")
++&set_label("done_rand_filling");
++	&mov	("eax",&wparam(1));
++	&sub	("eax",$num);				# filled = num - remaining
+ 	&ret	();
+ &function_end_B("OPENSSL_ia32_rdrand");
+ 
+ &function_begin_B("OPENSSL_ia32_rdseed");
+-	&mov	("ecx",8);
+-&set_label("loop");
++	&mov	($buf,&wparam(0));	# buffer to be filled
++	&mov	($num,&wparam(1));
++
++	&jecxz	(&label("done_rdseed_filling"))
++&set_label("rdseed_fill_buffer", 16);
+ 	&rdseed	("eax");
+-	&jc	(&label("break"));
+-	&loop	(&label("loop"));
+-&set_label("break");
+-	&cmp	("eax",0);
+-	&cmove	("eax","ecx");
++	&jnc	(&label("done_rdseed_filling"));
++	&mov	(&DWP(0,$buf),"eax");
++	&add	($buf,4)
++	&loop	(&label("rdseed_fill_buffer"));
++&set_label("done_rdseed_filling");
++	&mov	("eax",&wparam(1));
++	&sub	("eax",$num);
+ 	&ret	();
+ &function_end_B("OPENSSL_ia32_rdseed");
++}
+ 
+ &initseg("OPENSSL_cpuid_setup");
+ 
