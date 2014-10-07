@@ -1,0 +1,171 @@
+# HG changeset patch
+# User Russ Cox <rsc@golang.org>
+# Date 1411756886 14400
+#      Fri Sep 26 14:41:26 2014 -0400
+# Node ID 6364b071649cb3ce63cbd1df3e60237d0de10e01
+# Parent  a7921c02a8ab6be1c35a9acb3c87308c21377346
+cmd/go: make build -a skip standard packages in Go releases
+
+Today, 'go build -a my/pkg' and 'go install -a my/pkg'
+recompile not just my/pkg and all its dependencies that
+you wrote but also the standard library packages.
+Recompiling the standard library is problematic on
+some systems because the installed copy is not writable.
+
+The -a behavior means that you can't use 'go install -a all'
+or 'go install -a my/...' to rebuild everything after a Go
+release - the rebuild stops early when it cannot overwrite
+the installed standard library.
+
+During development work, however, you do want install -a
+to rebuild everything, because anything might have changed.
+
+Resolve the conflict by making the behavior of -a depend
+on whether we are using a released copy of Go or a devel copy.
+In the release copies, -a no longer applies to the standard library.
+In the devel copies, it still does.
+
+This is the latest in a long line of refinements to the
+"do I build this or not" logic. It is surely not the last.
+
+Fixes issue 8290.
+
+LGTM=r
+R=golang-codereviews, r, tracey.brendan
+CC=adg, golang-codereviews, iant
+https://codereview.appspot.com/151730045
+
+diff -r a7921c02a8ab -r 6364b071649c src/cmd/go/build.go
+--- a/src/cmd/go/build.go	Fri Sep 26 14:37:38 2014 -0400
++++ b/src/cmd/go/build.go	Fri Sep 26 14:41:26 2014 -0400
+@@ -57,6 +57,7 @@
+ 
+ 	-a
+ 		force rebuilding of packages that are already up-to-date.
++		In Go releases, does not apply to the standard library.
+ 	-n
+ 		print the commands but do not run them.
+ 	-p n
+diff -r a7921c02a8ab -r 6364b071649c src/cmd/go/doc.go
+--- a/src/cmd/go/doc.go	Fri Sep 26 14:37:38 2014 -0400
++++ b/src/cmd/go/doc.go	Fri Sep 26 14:41:26 2014 -0400
+@@ -76,6 +76,7 @@
+ 
+ 	-a
+ 		force rebuilding of packages that are already up-to-date.
++		In Go releases, does not apply to the standard library.
+ 	-n
+ 		print the commands but do not run them.
+ 	-p n
+diff -r a7921c02a8ab -r 6364b071649c src/cmd/go/pkg.go
+--- a/src/cmd/go/pkg.go	Fri Sep 26 14:37:38 2014 -0400
++++ b/src/cmd/go/pkg.go	Fri Sep 26 14:41:26 2014 -0400
+@@ -14,6 +14,7 @@
+ 	"os"
+ 	pathpkg "path"
+ 	"path/filepath"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"time"
+@@ -685,6 +686,12 @@
+ 	}
+ }
+ 
++// The runtime version string takes one of two forms:
++// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
++// Determine whether we are in a released copy by
++// inspecting the version.
++var isGoRelease = !strings.HasPrefix(runtime.Version(), "go1")
++
+ // isStale reports whether package p needs to be rebuilt.
+ func isStale(p *Package, topRoot map[string]bool) bool {
+ 	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
+@@ -705,7 +712,16 @@
+ 		return false
+ 	}
+ 
+-	if buildA || p.target == "" || p.Stale {
++	// If we are running a release copy of Go, do not rebuild the standard packages.
++	// They may not be writable anyway, but they are certainly not changing.
++	// This makes 'go build -a' skip the standard packages when using an official release.
++	// See issue 4106 and issue 8290.
++	pkgBuildA := buildA
++	if p.Standard && isGoRelease {
++		pkgBuildA = false
++	}
++
++	if pkgBuildA || p.target == "" || p.Stale {
+ 		return true
+ 	}
+ 
+diff -r a7921c02a8ab -r 6364b071649c src/cmd/go/test.bash
+--- a/src/cmd/go/test.bash	Fri Sep 26 14:37:38 2014 -0400
++++ b/src/cmd/go/test.bash	Fri Sep 26 14:41:26 2014 -0400
+@@ -4,7 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-go build -o testgo
++go build -tags testgo -o testgo
+ go() {
+ 	echo TEST ERROR: ran go, not testgo: go "$@" >&2
+ 	exit 2
+@@ -71,6 +71,32 @@
+ fi
+ rm -r $d
+ 
++TEST 'go build -a in dev branch'
++./testgo install math || ok=false # should be up to date already but just in case
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++if ! TESTGO_IS_GO_RELEASE=0 ./testgo build -v -a math 2>$d/err.out; then
++	cat $d/err.out
++	ok=false
++elif ! grep -q runtime $d/err.out; then
++	echo "testgo build -a math in dev branch DID NOT build runtime, but should have"
++	cat $d/err.out
++	ok=false
++fi
++rm -r $d
++
++TEST 'go build -a in release branch'
++./testgo install math || ok=false # should be up to date already but just in case
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++if ! TESTGO_IS_GO_RELEASE=1 ./testgo build -v -a math 2>$d/err.out; then
++	cat $d/err.out
++	ok=false
++elif grep -q runtime $d/err.out; then
++	echo "testgo build -a math in dev branch DID build runtime, but should NOT have"
++	cat $d/err.out
++	ok=false
++fi
++rm -r $d
++
+ # Test local (./) imports.
+ testlocal() {
+ 	local="$1"
+diff -r a7921c02a8ab -r 6364b071649c src/cmd/go/testgo.go
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/src/cmd/go/testgo.go	Fri Sep 26 14:41:26 2014 -0400
+@@ -0,0 +1,21 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains extra hooks for testing the go command.
++// It is compiled into the Go binary only when building the
++// test copy; it does not get compiled into the standard go
++// command, so these testing hooks are not present in the
++// go command that everyone uses.
++
++// +build testgo
++
++package main
++
++import "os"
++
++func init() {
++	if v := os.Getenv("TESTGO_IS_GO_RELEASE"); v != "" {
++		isGoRelease = v == "1"
++	}
++}

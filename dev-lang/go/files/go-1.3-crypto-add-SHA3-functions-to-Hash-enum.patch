@@ -1,0 +1,42 @@
+# HG changeset patch
+# User David Leon Gil <coruus@gmail.com>
+# Date 1409685829 25200
+#      Tue Sep 02 12:23:49 2014 -0700
+# Node ID a1d74ad863fbaddca9ea34c5e541c16cfcd4c437
+# Parent  96f6a0619015319ca25ab5a56dd75de4bc0cf0d8
+crypto: Add SHA3 functions in go.crypto/sha3 to the Hash enum.
+
+Reverse dependency of https://codereview.appspot.com/130950043/
+
+LGTM=agl
+R=golang-codereviews, agl
+CC=agl, golang-codereviews
+https://codereview.appspot.com/138800043
+
+Committer: Adam Langley <agl@golang.org>
+
+diff -r 96f6a0619015 -r a1d74ad863fb src/pkg/crypto/crypto.go
+--- a/src/pkg/crypto/crypto.go	Tue Sep 02 12:22:57 2014 -0700
++++ b/src/pkg/crypto/crypto.go	Tue Sep 02 12:23:49 2014 -0700
+@@ -30,6 +30,10 @@
+ 	SHA512                    // import crypto/sha512
+ 	MD5SHA1                   // no implementation; MD5+SHA1 used for TLS RSA
+ 	RIPEMD160                 // import code.google.com/p/go.crypto/ripemd160
++	SHA3_224                  // import code.google.com/p/go.crypto/sha3
++	SHA3_256                  // import code.google.com/p/go.crypto/sha3
++	SHA3_384                  // import code.google.com/p/go.crypto/sha3
++	SHA3_512                  // import code.google.com/p/go.crypto/sha3
+ 	maxHash
+ )
+ 
+@@ -41,6 +45,10 @@
+ 	SHA256:    32,
+ 	SHA384:    48,
+ 	SHA512:    64,
++	SHA3_224:  28,
++	SHA3_256:  32,
++	SHA3_384:  48,
++	SHA3_512:  64,
+ 	MD5SHA1:   36,
+ 	RIPEMD160: 20,
+ }

@@ -52,6 +52,9 @@ src_prepare()
 	epatch "${FILESDIR}"/go-1.3.0-TLS-add-SHA256-cipher-suites.patch
 	epatch "${FILESDIR}"/go-1.3-TLS_support_SHA384.patch
 	epatch "${FILESDIR}"/go-1.3.2-crypto-rand-use-getrandom-system-call-on-Linux.patch
+	epatch "${FILESDIR}"/go-1.3-syscall-fix-infinite-recursion-in-itoa.patch
+	epatch "${FILESDIR}"/go-1.3-make-build_-a_skip-standard-packages-in-Go-releases.patch
+	epatch "${FILESDIR}"/go-1.3-crypto-add-SHA3-functions-to-Hash-enum.patch
 
 	if [[ ${PV} != 9999 ]]; then
 		epatch "${FILESDIR}"/${PN}-1.2-no-Werror.patch
