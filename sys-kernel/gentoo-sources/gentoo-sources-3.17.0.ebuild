@@ -4,7 +4,7 @@
 EAPI="5"
 ETYPE="sources"
 K_WANT_GENPATCHES="base extras experimental"
-K_GENPATCHES_VER="4"
+K_GENPATCHES_VER="1"
 K_DEBLOB_AVAILABLE="1"
 inherit kernel-2
 detect_version
@@ -26,9 +26,6 @@ src_prepare() {
 		${FILESDIR}/3.16/0003-IPv6-use-tempaddr-by-default.patch \
 		${FILESDIR}/3.16/0004-prevent-signing-keys-from-being-accidentally-overwri.patch \
 		${FILESDIR}/3.16/tcp_stealth_3.16_1.diff
-
-	epatch \
-		${FILESDIR}/3.16/backports/*.patch
 }
 
 pkg_postinst() {
