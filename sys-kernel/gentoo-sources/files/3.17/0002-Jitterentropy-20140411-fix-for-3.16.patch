@@ -1,0 +1,25 @@
+From e0b339522c1ac73359b97175c57a23c2fc4574da Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Mon, 22 Sep 2014 22:57:03 +0200
+Subject: [PATCH] Jitterentropy 20140411: fix for 3.16
+
+---
+ drivers/char/random.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/char/random.c b/drivers/char/random.c
+index 1735edf..bdba7c1 100644
+--- a/drivers/char/random.c
++++ b/drivers/char/random.c
+@@ -746,7 +746,7 @@ static void add_jent_randomness(struct entropy_store *r, int bytes)
+ 	 * otherwise the Jitter RNG monopolizes the noise sources */
+ 	entropy_count = ACCESS_ONCE(r->entropy_count);
+ 	entropy_count = entropy_count >> (ENTROPY_SHIFT);
+-	if (entropy_count > random_read_wakeup_thresh)
++	if (entropy_count > random_read_wakeup_bits)
+ 		return;
+ 
+ 	memset(rand, 0, JENT_BUFFER);
+-- 
+1.9.3
+

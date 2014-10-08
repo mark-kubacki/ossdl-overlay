@@ -1,0 +1,39 @@
+From 39757529d307271628f9d7a1afded7af66f963de Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Wed, 8 Oct 2014 17:26:05 +0200
+Subject: [PATCH 3/6] Reduce cache pressure and swappiness.
+
+---
+ fs/dcache.c | 2 +-
+ mm/vmscan.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fs/dcache.c b/fs/dcache.c
+index cb25a1a..90a4415 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -79,7 +79,7 @@
+  *   dentry1->d_lock
+  *     dentry2->d_lock
+  */
+-int sysctl_vfs_cache_pressure __read_mostly = 100;
++int sysctl_vfs_cache_pressure __read_mostly = 50;
+ EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
+ 
+ __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2836b53..fbe428a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -136,7 +136,7 @@ struct scan_control {
+ /*
+  * From 0 .. 100.  Higher means more swappy.
+  */
+-int vm_swappiness = 60;
++int vm_swappiness = 10;
+ /*
+  * The total number of pages which are beyond the high watermark within all
+  * zones.
+-- 
+1.9.3
+

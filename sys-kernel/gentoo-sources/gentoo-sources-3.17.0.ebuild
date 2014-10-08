@@ -20,12 +20,12 @@ SRC_URI="${KERNEL_URI} ${GENPATCHES_URI} ${ARCH_URI}"
 src_prepare() {
         kernel-2_src_prepare
         epatch \
-		${FILESDIR}/3.16/0001-Jitterentropy-20140411.patch \
-		${FILESDIR}/3.16/0001-Jitterentropy-20140411-fix-for-3.16.patch \
-		${FILESDIR}/3.16/0002-reduce-cache-pressure-and-swappiness.patch \
-		${FILESDIR}/3.16/0003-IPv6-use-tempaddr-by-default.patch \
-		${FILESDIR}/3.16/0004-prevent-signing-keys-from-being-accidentally-overwri.patch \
-		${FILESDIR}/3.16/tcp_stealth_3.16_1.diff
+		${FILESDIR}/3.17/0001-Jitterentropy-20140411.patch \
+		${FILESDIR}/3.17/0002-Jitterentropy-20140411-fix-for-3.16.patch \
+		${FILESDIR}/3.17/0003-Reduce-cache-pressure-and-swappiness.patch \
+		${FILESDIR}/3.17/0004-IPv6-use-tempaddr-by-default.patch \
+		${FILESDIR}/3.17/0005-prevent-signing-keys-from-being-accidentally-overwri.patch \
+		${FILESDIR}/3.17/tcp_stealth_3.16_1.diff
 }
 
 pkg_postinst() {
