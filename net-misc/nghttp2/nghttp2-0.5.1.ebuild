@@ -16,6 +16,7 @@ if [[ ${PV} == "9999" ]] ; then
 	inherit git-2
 else
 	SRC_URI="https://github.com/tatsuhiro-t/${PN}/releases/download/v${PV}/${P}.tar.xz"
+	RESTRICT="primaryuri"
 fi
 
 LICENSE="MIT"
