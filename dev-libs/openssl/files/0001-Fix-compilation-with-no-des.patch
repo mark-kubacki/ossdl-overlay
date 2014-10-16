@@ -1,0 +1,30 @@
+From 54e354cab8beab5b44852eb1a4da1524b8a88909 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Thu, 16 Oct 2014 17:24:45 +0200
+Subject: [PATCH] Fix compilation with no-des.
+
+---
+ crypto/cms/cms_kari.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/crypto/cms/cms_kari.c b/crypto/cms/cms_kari.c
+index 2451f0f..f8fa697 100644
+--- a/crypto/cms/cms_kari.c
++++ b/crypto/cms/cms_kari.c
+@@ -413,9 +413,13 @@ static int cms_wrap_init(CMS_KeyAgreeRecipientInfo *kari,
+ 	 * DES3 use DES3 wrap otherwise use AES wrap similar to key
+ 	 * size.
+ 	 */
++#ifndef OPENSSL_NO_DES
+ 	if (EVP_CIPHER_type(cipher) == NID_des_ede3_cbc)
+ 		kekcipher = EVP_des_ede3_wrap();
+ 	else if (keylen <= 16)
++#else
++	if (keylen <= 16)
++#endif
+ 		kekcipher = EVP_aes_128_wrap();
+ 	else if (keylen <= 24)
+ 		kekcipher = EVP_aes_192_wrap();
+-- 
+1.9.3
+

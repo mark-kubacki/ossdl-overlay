@@ -4,7 +4,7 @@
 
 EAPI="4"
 
-inherit eutils flag-o-matic toolchain-funcs multilib
+inherit eutils flag-o-matic toolchain-funcs multilib multilib-minimal
 
 # MY_PV=1.0.2, MY_PRE=20131117, MY_P=openssl-1.0.2-stable-SNAP-20131117
 # G_P is Gentoo's equivalent P, openssl-1.0.2
@@ -18,24 +18,34 @@ S="${WORKDIR}/${MY_P}"
 REV="1.7"
 DESCRIPTION="full-strength general purpose cryptography library (including SSL and TLS)"
 HOMEPAGE="http://www.openssl.org/"
-SRC_URI="mirror://openssl/snapshot/${MY_P}.tar.gz
+SRC_URI="mirror://openssl-snapshots/${MY_P}.tar.gz
 	http://cvs.pld-linux.org/cgi-bin/cvsweb.cgi/packages/${PN}/${PN}-c_rehash.sh?rev=${REV} -> ${PN}-c_rehash.sh.${REV}"
 
 LICENSE="openssl"
 SLOT="0"
 KEYWORDS="amd64 ~arm ~x86 ~amd64-fbsd ~x86-fbsd ~arm-linux ~x86-linux"
-IUSE="bindist +cryptodev gmp kerberos rfc3779 sse2 static-libs test tls-heartbeat vanilla zlib"
+IUSE="bindist +cryptodev +gmp kerberos rfc3779 smime sse2 static-libs test tls-heartbeat vanilla zlib"
+IUSE="${IUSE} +dsa dtls jpake +psk srp srtp ssl2 ssl3"
+IUSE="${IUSE} +camellia +des +rc4 rc5"
+IUSE="${IUSE} +blowfish +cast gost idea md4 mdc2 rc2 seed"
 
-# Have the sub-libs in RDEPEND with [static-libs] since, logically,
-# our libssl.a depends on libz.a/etc... at runtime.
-LIB_DEPEND="gmp? ( dev-libs/gmp[static-libs(+)] )
-	zlib? ( sys-libs/zlib[static-libs(+)] )
-	kerberos? ( app-crypt/mit-krb5 )"
+REQUIRED_USE="cryptodev? ( dsa )
+	ssl2? ( ssl3 )
+	ssl3? ( des )
+	srtp? ( dtls )
+	dtls? ( srtp )
+	smime? ( des md4 rc2 )"
+
 # The blocks are temporary just to make sure people upgrade to a
 # version that lack runtime version checking.  We'll drop them in
 # the future.
-RDEPEND="static-libs? ( ${LIB_DEPEND} )
-	!static-libs? ( ${LIB_DEPEND//\[static-libs(+)]} )
+RDEPEND="gmp? ( dev-libs/gmp[static-libs(+)?,${MULTILIB_USEDEP}] )
+	zlib? ( sys-libs/zlib[static-libs(+)?,${MULTILIB_USEDEP}] )
+	kerberos? ( app-crypt/mit-krb5 )
+	abi_x86_32? (
+		!<=app-emulation/emul-linux-x86-baselibs-20140508
+		!app-emulation/emul-linux-x86-baselibs[-abi_x86_32(-)]
+	)
 	!<net-misc/openssh-5.9_p1-r4
 	!<net-libs/neon-0.29.6-r1"
 DEPEND="${RDEPEND}
@@ -46,17 +56,23 @@ PDEPEND="app-misc/ca-certificates"
 # This is part of the kernel:
 #	cryptodev? ( app-crypt/cryptodev-linux )
 
-src_unpack() {
-	unpack ${MY_P}.tar.gz
+MULTILIB_WRAPPED_HEADERS=(
+	usr/include/openssl/opensslconf.h
+)
+
+src_prepare() {
+	if use bindist; then
+		# We have to retain the USE flag bindist for OpenSSH.
+		die "bindist has been removed from this ebuild."
+	fi
+
 	SSL_CNF_DIR="/etc/ssl"
 	sed \
 		-e "/^DIR=/s:=.*:=${EPREFIX}${SSL_CNF_DIR}:" \
 		-e "s:SSL_CMD=/usr:SSL_CMD=${EPREFIX}/usr:" \
 		"${DISTDIR}"/${PN}-c_rehash.sh.${REV} \
 		> "${WORKDIR}"/c_rehash || die #416717
-}
 
-src_prepare() {
 	# Make sure we only ever touch Makefile.org and avoid patching a file
 	# that gets blown away anyways by the Configure script in src_configure
 	rm -f Makefile
@@ -64,19 +80,33 @@ src_prepare() {
 	if ! use vanilla ; then
 		epatch "${FILESDIR}"/${PN}-1.0.0a-ldflags.patch #327421
 		epatch "${FILESDIR}"/${PN}-1.0.0d-windres.patch #373743
-		epatch "${FILESDIR}"/${PN}-1.0.0h-pkg-config.patch
+		sed -i -e "s:OpenSSL-libssl:OpenSSL:" Makefile.org
 		epatch "${FILESDIR}"/0001-Enable-parallel-builds-for-example-with-MAKEOPTS-j4.patch
 		epatch "${FILESDIR}"/0001-Make-the-assembly-syntax-compatible-with-x32-gcc.patch
-		epatch "${FILESDIR}"/0001-IPv6-support-for-s_client-s_server-and-DTLS.patch
-		epatch "${FILESDIR}"/${PN}-1.0.2_beta1-perl-5.18.patch #483820
+		epatch "${FILESDIR}"/0001-IPv6-support-for-s_client-s_server-and-DTLS.patch-v2
+		for F in $(find -name '*.pod' -type d); do
+			sed -i -E 's:=item ([0-9]+):=item C<\1>:' $F
+		done
 		epatch "${FILESDIR}"/${PN}-1.0.1e-s_client-verify.patch #472584
 		epatch_user #332661
 	fi
 
-	epatch "${FILESDIR}"/openssl-1.0.1-heartbleed-bug.patch
+	if ! use des ; then
+		epatch "${FILESDIR}"/0001-Fix-compilation-with-no-des.patch
+	fi
+
+	epatch  "${FILESDIR}"/0001-Add-RAND-engine-for-Linux-syscall-getrandom.patch \
+		"${FILESDIR}"/0002-Add-syscall-number-for-getrandom-and-ARM64.patch \
+		"${FILESDIR}"/0003-crypto-engine-eng_linux_getrandom.c-Do-not-register-.patch
+	epatch	"${FILESDIR}"/0001-x86-_64-cpuid.pl-rdrand-to-fill-a-buffer.patch
 
 	# raises minimum DH group size, from 'any' to '1024 bits or greater'
 	epatch "${FILESDIR}"/0001-require-DH-group-of-1024-bits.patch
+
+	# limits usage of RC4 to TLS 1.0 and older; from CloudFlare
+	epatch "${FILESDIR}"/0001-Disable-RC4-for-TLS-v1.1-server-side.patch
+
+	epatch "${FILESDIR}"/0001-Use-HIGH-ciphers-by-default.patch
 
 	# disable fips in the build
 	# make sure the man pages are suffixed #302165
@@ -99,6 +129,7 @@ src_prepare() {
 
 	append-flags -fno-strict-aliasing
 	append-flags $(test-flags-CC -Wa,--noexecstack)
+	append-cppflags -DOPENSSL_NO_BUF_FREELISTS
 
 	if use cryptodev; then
 		ewarn "If you have not compiled cryptodev into the kernel"
@@ -111,9 +142,11 @@ src_prepare() {
 	# The config script does stupid stuff to prompt the user.  Kill it.
 	sed -i '/stty -icanon min 0 time 50; read waste/d' config || die
 	./config --test-sanity || die "I AM NOT SANE"
+
+	multilib_copy_sources
 }
 
-src_configure() {
+multilib_src_configure() {
 	unset APPS #197996
 	unset SCRIPTS #312551
 	unset CROSS_COMPILE #311473
@@ -136,7 +169,7 @@ src_configure() {
 	# friendly and can use the nicely optimized code paths. #460790
 	local ec_nistp_64_gcc_128
 	# Disable it for now though #469976, except for amd64
-	if (use amd64 || use amd64-fbsd || use x86 || use x86-linux || use x86-fbsd) && ! use bindist ; then
+	if (use amd64 || use amd64-fbsd || use x86 || use x86-linux || use x86-fbsd) ; then
 		echo "__uint128_t i;" > "${T}"/128.c
 		if ${CC} ${CFLAGS} -c "${T}"/128.c -o /dev/null >&/dev/null ; then
 			ec_nistp_64_gcc_128="enable-ec_nistp_64_gcc_128"
@@ -147,19 +180,26 @@ src_configure() {
 	einfo "Use configuration ${sslout:-(openssl knows best)}"
 	local config="Configure"
 	[[ -z ${sslout} ]] && config="config"
+
 	echoit \
 	./${config} \
 		${sslout} \
 		$(use sse2 || echo "no-sse2") \
-		enable-camellia \
-		$(use_ssl !bindist ec) \
+		$(use_ssl camellia) \
+		$(use_ssl des) \
+		enable-ec \
 		${ec_nistp_64_gcc_128} \
-		enable-idea \
-		enable-mdc2 \
-		$(use_ssl !bindist rc5) \
+		$(use_ssl cast) \
+		$(use_ssl seed) \
+		$(use_ssl idea) \
+		$(use_ssl mdc2) \
+		$(use_ssl md4) \
+		$(use_ssl rc2) \
+		$(use_ssl rc4) \
+		$(use_ssl rc5) \
 		enable-tlsext \
 		$(use_ssl gmp gmp -lgmp) \
-		$(use_ssl kerberos krb5 --with-krb5-flavor=${krb5}) \
+		$(multilib_native_use_ssl kerberos krb5 --with-krb5-flavor=${krb5}) \
 		$(use_ssl rfc3779) \
 		$(use_ssl tls-heartbeat heartbeats -DOPENSSL_NO_HEARTBEATS) \
 		$(use_ssl zlib) \
@@ -168,6 +208,14 @@ src_configure() {
 		--libdir=$(get_libdir) \
 		$(use cryptodev && echo "-DHAVE_CRYPTODEV -DUSE_CRYPTODEV_DIGESTS -DHASH_MAX_LEN=64") \
 		shared threads \
+		$(use_ssl dsa) \
+		$(use_ssl ssl2) $(use_ssl ssl3) \
+		$(use_ssl dtls) $(use_ssl dtls dtls1) $(use_ssl dtls dtls1_2) $(use_ssl srtp) \
+		$(use_ssl blowfish bf) \
+		$(use_ssl jpake) \
+		$(use_ssl psk) \
+		$(use_ssl srp) \
+		$(use_ssl gost) \
 		${EXTRA_ECONF} \
 		|| die
 
@@ -186,7 +234,7 @@ src_configure() {
 		Makefile || die
 }
 
-src_compile() {
+multilib_src_compile() {
 	# depend is needed to use $confopts; it also doesn't matter
 	# that it's -j1 as the code itself serializes subdirs
 	emake -j1 depend
@@ -196,12 +244,15 @@ src_compile() {
 	emake rehash
 }
 
-src_test() {
+multilib_src_test() {
 	emake -j1 test
 }
 
-src_install() {
+multilib_src_install() {
 	emake INSTALL_PREFIX="${D}" install
+}
+
+multilib_src_install_all() {
 	dobin "${WORKDIR}"/c_rehash #333117
 	dodoc CHANGES* FAQ NEWS README doc/*.txt doc/c-indentation.el
 	dohtml -r doc/*
@@ -271,5 +322,25 @@ pkg_postinst() {
 		einfo "  shell:  openssl -evp -engine cryptodev ..."
 		einfo "  apache: SSLCryptoDevice cryptodev"
 		einfo "  nginx:  main {ssl_engine cryptodev; ...}"
+	fi
+
+	if use cast || use idea || use rc2 || use seed || use md4 || use mdc2; then
+		elog "You are building OpenSSL with some archaic ciphers or hash functions."
+	fi
+
+	if ! use des; then
+		ewarn
+		ewarn "Your OpenSSL installation has no support for DES and 3DES."
+		ewarn "The latter is a mandatory cipher according to specs in TLS 1.0 and S/MIME."
+	fi
+	if ! use rc2; then
+		ewarn
+		ewarn "RC2 is a mandatory cipher in S/MIME, which is still used e.g. with MS Outlook"
+		ewarn "unless you enable support for 'alternate ciphers' (= AES, SHA2) there."
+	fi
+
+	if ! (use dsa && use des && use blowfish && use cast); then
+		ewarn
+		ewarn "Old versions of OpenSSH will not compile and will not work."
 	fi
 }
