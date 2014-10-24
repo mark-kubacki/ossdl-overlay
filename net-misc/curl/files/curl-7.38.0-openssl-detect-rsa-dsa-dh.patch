@@ -1,0 +1,62 @@
+From 99db3f93746064878b2c8966d464c664c66a94fa Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Fri, 24 Oct 2014 22:06:15 +0200
+Subject: [PATCH] openssl: take into account compilations without RSA, DSA, or
+ DH
+
+---
+ lib/vtls/openssl.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/lib/vtls/openssl.c b/lib/vtls/openssl.c
+index da92854..affbbd5 100644
+--- a/lib/vtls/openssl.c
++++ b/lib/vtls/openssl.c
+@@ -58,7 +58,11 @@
+ #ifdef USE_OPENSSL
+ #include <openssl/rand.h>
+ #include <openssl/x509v3.h>
++# ifndef OPENSSL_NO_DSA
+ #include <openssl/dsa.h>
++# endif
++# ifndef OPENSSL_NO_DH
+ #include <openssl/dh.h>
++# endif
+ #include <openssl/err.h>
+ #include <openssl/md5.h>
+@@ -2307,6 +2311,7 @@ static CURLcode get_cert_chain(struct connectdata *conn,
+       infof(data, "   Unable to load public key\n");
+     else {
+       switch(pubkey->type) {
++#ifndef OPENSSL_NO_RSA
+       case EVP_PKEY_RSA:
+         infof(data,  "   RSA Public Key (%d bits)\n",
+               BN_num_bits(pubkey->pkey.rsa->n));
+@@ -2322,6 +2327,8 @@ static CURLcode get_cert_chain(struct connectdata *conn,
+         print_pubkey_BN(rsa, dmq1, i);
+         print_pubkey_BN(rsa, iqmp, i);
+         break;
++#endif
++#ifndef OPENSSL_NO_DSA
+       case EVP_PKEY_DSA:
+         print_pubkey_BN(dsa, p, i);
+         print_pubkey_BN(dsa, q, i);
+@@ -2329,12 +2336,15 @@ static CURLcode get_cert_chain(struct connectdata *conn,
+         print_pubkey_BN(dsa, priv_key, i);
+         print_pubkey_BN(dsa, pub_key, i);
+         break;
++#endif
++#ifndef OPENSSL_NO_DH
+       case EVP_PKEY_DH:
+         print_pubkey_BN(dh, p, i);
+         print_pubkey_BN(dh, g, i);
+         print_pubkey_BN(dh, priv_key, i);
+         print_pubkey_BN(dh, pub_key, i);
+         break;
++#endif
+ #if 0
+       case EVP_PKEY_EC: /* symbol not present in OpenSSL 0.9.6 */
+         /* left TODO */
+-- 
+1.9.3
+
