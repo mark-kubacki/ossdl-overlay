@@ -20,7 +20,7 @@ else
 fi
 
 LICENSE="MIT"
-SLOT="0"
+SLOT="0/13" # as in h2-13
 KEYWORDS="amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~sparc x86"
 IUSE="+alpn +apps +examples python +spdy test +xml"
 
