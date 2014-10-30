@@ -23,9 +23,9 @@ DEVEL_KIT_MODULE_URI="https://github.com/simpl/ngx_devel_kit/archive/v${DEVEL_KI
 DEVEL_KIT_MODULE_WD="${WORKDIR}/ngx_devel_kit-${DEVEL_KIT_MODULE_PV}"
 
 # http_uploadprogress (https://github.com/masterzen/nginx-upload-progress-module, BSD-2 license)
-HTTP_UPLOAD_PROGRESS_MODULE_PV="0.9.0"
+HTTP_UPLOAD_PROGRESS_MODULE_PV="0.9.1"
 HTTP_UPLOAD_PROGRESS_MODULE_P="ngx_upload_progress-${HTTP_UPLOAD_PROGRESS_MODULE_PV}"
-HTTP_UPLOAD_PROGRESS_MODULE_SHA1="a788dea"
+HTTP_UPLOAD_PROGRESS_MODULE_SHA1="39e4d53"
 HTTP_UPLOAD_PROGRESS_MODULE_URI="https://github.com/masterzen/nginx-upload-progress-module/tarball/v${HTTP_UPLOAD_PROGRESS_MODULE_PV}"
 
 # http_redis (http://wiki.nginx.org/HttpRedis)
@@ -44,37 +44,37 @@ HTTP_HEADERS_MORE_MODULE_S="${HTTP_HEADERS_MORE_MODULE_PN}-${HTTP_HEADERS_MORE_M
 HTTP_HEADERS_MORE_MODULE_URI="https://github.com/${HTTP_HEADERS_MORE_MODULE_PN/-//}/tarball/v${HTTP_HEADERS_MORE_MODULE_PV}"
 
 # http_lua (https://github.com/chaoslawful/lua-nginx-module, BSD license)
-HTTP_LUA_MODULE_PV="0.9.7"
+HTTP_LUA_MODULE_PV="0.9.12"
 HTTP_LUA_MODULE_P="ngx_http_lua-${HTTP_LUA_MODULE_PV}"
 HTTP_LUA_MODULE_URI="https://github.com/chaoslawful/lua-nginx-module/archive/v${HTTP_LUA_MODULE_PV}.tar.gz"
 HTTP_LUA_MODULE_WD="${WORKDIR}/lua-nginx-module-${HTTP_LUA_MODULE_PV}"
 
 # http_echo (https://github.com/agentzh/echo-nginx-module)
-HTTP_ECHO_MODULE_PV="0.52"
-HTTP_ECHO_MODULE_SHA1="b2d5e04"
+HTTP_ECHO_MODULE_PV="0.56"
+HTTP_ECHO_MODULE_SHA1="8f28ddf"
 HTTP_ECHO_MODULE_PN="agentzh-echo-nginx-module"
 HTTP_ECHO_MODULE_P="${HTTP_ECHO_MODULE_PN}-${HTTP_ECHO_MODULE_PV}"
 HTTP_ECHO_MODULE_S="openresty-echo-nginx-module-${HTTP_ECHO_MODULE_SHA1}"
 HTTP_ECHO_MODULE_URI="https://github.com/${HTTP_ECHO_MODULE_PN/-//}/tarball/v${HTTP_ECHO_MODULE_PV}"
 
 # http_set_misc (https://github.com/agentzh/set-misc-nginx-module)
-HTTP_SET_MISC_MODULE_PV="0.24"
-HTTP_SET_MISC_MODULE_SHA1="36fd035"
+HTTP_SET_MISC_MODULE_PV="0.26"
+HTTP_SET_MISC_MODULE_SHA1="1680123"
 HTTP_SET_MISC_MODULE_PN="agentzh-set-misc-nginx-module"
 HTTP_SET_MISC_MODULE_P="${HTTP_SET_MISC_MODULE_PN}-${HTTP_SET_MISC_MODULE_PV}"
 HTTP_SET_MISC_MODULE_S="${HTTP_SET_MISC_MODULE_PN}-${HTTP_SET_MISC_MODULE_SHA1}"
 HTTP_SET_MISC_MODULE_URI="https://github.com/${HTTP_SET_MISC_MODULE_PN/-//}/tarball/v${HTTP_SET_MISC_MODULE_PV}"
 
 # http_redis2 (https://github.com/agentzh/redis2-nginx-module)
-HTTP_REDIS2_MODULE_PV="0.10"
-HTTP_REDIS2_MODULE_SHA1="78a7622"
+HTTP_REDIS2_MODULE_PV="0.11"
+HTTP_REDIS2_MODULE_SHA1="828803d"
 HTTP_REDIS2_MODULE_PN="agentzh-redis2-nginx-module"
 HTTP_REDIS2_MODULE_P="${HTTP_REDIS2_MODULE_PN}-${HTTP_REDIS2_MODULE_PV}"
 HTTP_REDIS2_MODULE_S="${HTTP_REDIS2_MODULE_PN}-${HTTP_REDIS2_MODULE_SHA1}"
 HTTP_REDIS2_MODULE_URI="https://github.com/${HTTP_REDIS2_MODULE_PN/-//}/tarball/v${HTTP_REDIS2_MODULE_PV}"
 
 # http_push (http://pushmodule.slact.net/, MIT license)
-HTTP_PUSH_MODULE_PV="0.712"
+HTTP_PUSH_MODULE_PV="0.73"
 HTTP_PUSH_MODULE_P="nginx_http_push_module-${HTTP_PUSH_MODULE_PV}"
 HTTP_PUSH_MODULE_URI="https://github.com/slact/nginx_http_push_module/archive/v${HTTP_PUSH_MODULE_PV}.tar.gz"
 HTTP_PUSH_MODULE_WD="${WORKDIR}/${HTTP_PUSH_MODULE_P}"
@@ -119,7 +119,7 @@ LICENSE="BSD-2 BSD SSLeay MIT GPL-2 GPL-2+
 	"
 
 SLOT="0"
-KEYWORDS="amd64 arm ~ppc x86 ~amd64-fbsd ~x86-fbsd ~amd64-linux ~x86-linux"
+KEYWORDS="amd64 arm arm64 ~ppc x86 ~amd64-fbsd ~x86-fbsd ~amd64-linux ~x86-linux"
 
 NGINX_MODULES_STD="access auth_basic autoindex browser charset empty_gif fastcgi
 geo gzip headers index limit_conn limit_req log map memcached proxy referer
@@ -166,7 +166,7 @@ CDEPEND="
 	pcre? ( >=dev-libs/libpcre-4.2 )
 	pcre-jit? ( >=dev-libs/libpcre-8.20[jit] )
 	selinux? ( sec-policy/selinux-nginx )
-	ssl? ( >=dev-libs/openssl-1.0.2_pre )
+	ssl? ( >=dev-libs/openssl-1.0.2_pre20140805 )
 	http-cache? ( userland_GNU? ( dev-libs/openssl ) )
 	nginx_modules_http_geoip? ( dev-libs/geoip )
 	nginx_modules_http_gzip? ( sys-libs/zlib )
@@ -175,7 +175,7 @@ CDEPEND="
 	nginx_modules_http_perl? ( >=dev-lang/perl-5.8 )
 	nginx_modules_http_rewrite? ( >=dev-libs/libpcre-4.2 )
 	nginx_modules_http_secure_link? ( userland_GNU? ( dev-libs/openssl ) )
-	nginx_modules_http_spdy? ( >=dev-libs/openssl-1.0.1c )
+	nginx_modules_http_spdy? ( >=dev-libs/openssl-1.0.1i )
 	nginx_modules_http_xslt? ( dev-libs/libxml2 dev-libs/libxslt )
 	nginx_modules_http_lua? ( || ( dev-lang/lua dev-lang/luajit ) )
 	"
@@ -187,7 +187,7 @@ DEPEND="${CDEPEND}
 PDEPEND="vim-syntax? ( app-vim/nginx-syntax )"
 
 REQUIRED_USE="pcre-jit? ( pcre )
-	nginx_modules_http_lua? ( nginx_modules_http_rewrite )
+	nginx_modules_http_lua? ( nginx_modules_http_rewrite ssl )
 	nginx_modules_http_spdy? ( ssl http )
 	"
 
@@ -243,6 +243,12 @@ src_prepare() {
 			sed -i -e "/${module}/d" auto/install || die
 		fi
 	done
+
+	if use nginx_modules_http_lua; then
+		cd "${HTTP_LUA_MODULE_WD}"
+		epatch "${FILESDIR}/lua-nginx-module-0.9.12-compat-1.7.15-patch"
+		cd - >/dev/null
+	fi
 
 	epatch_user
 }
