@@ -108,6 +108,7 @@ src_prepare() {
 	fi
 
 	if ! use ntlm; then
+		elog "Removing support for NTLM..."
 		sed -i -e "s:#define USE_NTLM::" \
 			lib/curl_setup.h
 	fi
