@@ -2,7 +2,7 @@
 # Copyright 2014 W-Mark Kubacki
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI="4"
+EAPI="5"
 inherit eutils user flag-o-matic multilib autotools pam systemd versionator
 
 # Make it more portable between straight releases
@@ -17,15 +17,19 @@ SRC_URI="http://ftp.fr.openbsd.org/pub/OpenBSD/OpenSSH/portable/${PARCH}.tar.gz
 LICENSE="BSD GPL-2"
 SLOT="0"
 KEYWORDS="~alpha amd64 ~arm ~arm64 ~hppa ~ia64 ~m68k ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc x86 ~amd64-fbsd ~sparc-fbsd ~x86-fbsd ~arm-linux ~x86-linux"
-IUSE="bindist kerberos ldns libedit pam selinux skey static tcpd X"
+IUSE="bindist kerberos ldns libedit pam selinux skey static X"
+IUSE="${IUSE} +blowfish +cast +des +rc4"
+# SSH1 cannot be removed yet
+#IUSE="${IUSE} ssh1"
 
 LIB_DEPEND="selinux? ( >=sys-libs/libselinux-1.28[static-libs(+)] )
 	skey? ( >=sys-auth/skey-1.1.5-r1[static-libs(+)] )
 	libedit? ( dev-libs/libedit[static-libs(+)] )
 	>=dev-libs/openssl-0.9.8:0[bindist=]
 	dev-libs/openssl[static-libs(+)]
+	dev-libs/openssl:=[blowfish(+)=,cast(+)=,des(+)=,rc4(+)=]
 	>=sys-libs/zlib-1.2.3[static-libs(+)]
-	tcpd? ( >=sys-apps/tcp-wrappers-7.6[static-libs(+)] )"
+	"
 RDEPEND="
 	!static? (
 		${LIB_DEPEND//\[static-libs(+)]}
@@ -101,6 +105,20 @@ src_prepare() {
 		printf '#define SSH_RELEASE SSH_VERSION SSH_PORTABLE %s\n' "${macros}"
 	) > version.h
 
+	epatch "${FILESDIR}"/6.6_p1-Make-Blowfish-CAST-DES-and-RC4-optional-with-OpenSSL.patch
+	if ! use blowfish; then
+		sed -i -e 's:cipher-bf1.o ::' \
+			Makefile.in
+	fi
+	if ! use des; then
+		sed -i -e 's:cipher-3des1.o ::' \
+			Makefile.in
+	fi
+	#if ! use ssh1; then
+	#	sed -i -e 's:[WITH_SSH1], [1]:[WITH_SSH1], [0]:' configure.ac
+	#	sed -i -e 's:#define WITH_SSH1 1::g' configure
+	#fi
+
 	eautoreconf
 }
 
@@ -148,7 +166,6 @@ src_configure() {
 		$(use_with libedit) \
 		$(use_with selinux) \
 		$(use_with skey) \
-		$(use_with tcpd tcp-wrappers) \
 		${myconf}
 }
 
