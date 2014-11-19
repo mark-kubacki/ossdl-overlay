@@ -1,0 +1,720 @@
+From c581aef046caa22ad39be5a2669437b7d4b47e79 Mon Sep 17 00:00:00 2001
+From: Petr Lautrbach <plautrba@fedoraproject.org>
+Date: Tue, 18 Nov 2014 16:48:38 +0100
+Subject: [PATCH] Support better hash algorithms for key fingerprints.
+
+---
+ auth-rsa.c        | 10 ++++++----
+ auth.c            |  8 +++++---
+ auth2-hostbased.c | 17 ++++++++++-------
+ auth2-pubkey.c    | 54 +++++++++++++++++++++++++++++++++---------------------
+ key.c             | 35 +++++++++++++++++++++++++++++++++++
+ key.h             |  6 ++++++
+ readconf.c        | 16 +++++++++++++++-
+ readconf.h        |  2 ++
+ servconf.c        | 16 +++++++++++++++-
+ servconf.h        |  3 +++
+ ssh_config        |  1 +
+ ssh_config.5      | 10 ++++++++++
+ sshconnect.c      | 36 +++++++++++++++++++++---------------
+ sshconnect2.c     | 16 ++++++++++------
+ sshd_config       |  2 ++
+ sshd_config.5     | 10 ++++++++++
+ sshkey.h          |  3 ++-
+ 17 files changed, 186 insertions(+), 59 deletions(-)
+
+diff --git a/auth-rsa.c b/auth-rsa.c
+index e9f4ede..0834470 100644
+--- a/auth-rsa.c
++++ b/auth-rsa.c
+@@ -169,7 +169,7 @@ static int
+ rsa_key_allowed_in_file(struct passwd *pw, char *file,
+     const BIGNUM *client_n, Key **rkey)
+ {
+-	char *fp, line[SSH_MAX_PUBKEY_BYTES];
++	char *fp, *fpt, line[SSH_MAX_PUBKEY_BYTES];
+ 	int allowed = 0, bits;
+ 	FILE *f;
+ 	u_long linenum = 0;
+@@ -236,9 +236,11 @@ rsa_key_allowed_in_file(struct passwd *pw, char *file,
+ 			    "actual %d vs. announced %d.",
+ 			    file, linenum, BN_num_bits(key->rsa->n), bits);
+ 
+-		fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+-		debug("matching key found: file %s, line %lu %s %s",
+-		    file, linenum, key_type(key), fp);
++		fp = key_fingerprint(key, options.fpt, SSH_FP_HEX);
++		fpt = fpt_name(options.fpt);
++		debug("matching key found: file %s, line %lu %s [%s]%s",
++		    file, linenum, key_type(key), fpt, fp);
++		free(fpt);
+ 		free(fp);
+ 
+ 		/* Never accept a revoked key */
+diff --git a/auth.c b/auth.c
+index 5e60682..43f89fe 100644
+--- a/auth.c
++++ b/auth.c
+@@ -674,7 +674,7 @@ int
+ auth_key_is_revoked(Key *key)
+ {
+ #ifdef WITH_OPENSSL
+-	char *key_fp;
++	char *key_fp, *key_fpt;
+ 
+ 	if (options.revoked_keys_file == NULL)
+ 		return 0;
+@@ -702,9 +702,11 @@ auth_key_is_revoked(Key *key)
+ 	case 1:
+  revoked:
+ 		/* Key revoked */
+-		key_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
++		key_fp = key_fingerprint(key, options.fpt, SSH_FP_HEX);
++		key_fpt = fpt_name(options.fpt);
+ 		error("WARNING: authentication attempt with a revoked "
+-		    "%s key %s ", key_type(key), key_fp);
++		    "%s key [%s]%s ", key_type(key), key_fpt, key_fp);
++		free(key_fpt);
+ 		free(key_fp);
+ 		return 1;
+ #endif
+diff --git a/auth2-hostbased.c b/auth2-hostbased.c
+index 6787e4c..ee9f402 100644
+--- a/auth2-hostbased.c
++++ b/auth2-hostbased.c
+@@ -155,7 +155,7 @@ hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
+ 	const char *resolvedname, *ipaddr, *lookup, *reason;
+ 	HostStatus host_status;
+ 	int len;
+-	char *fp;
++	char *fp, *fpt;
+ 
+ 	if (auth_key_is_revoked(key))
+ 		return 0;
+@@ -208,16 +208,19 @@ hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
+ 	if (host_status == HOST_OK) {
+ 		if (key_is_cert(key)) {
+ 			fp = key_fingerprint(key->cert->signature_key,
+-			    SSH_FP_MD5, SSH_FP_HEX);
++			    options.fpt, SSH_FP_HEX);
++			fpt = fpt_name(options.fpt);
+ 			verbose("Accepted certificate ID \"%s\" signed by "
+-			    "%s CA %s from %s@%s", key->cert->key_id,
+-			    key_type(key->cert->signature_key), fp,
++			    "%s CA [%s]%s from %s@%s", key->cert->key_id,
++			    key_type(key->cert->signature_key), fpt, fp,
+ 			    cuser, lookup);
+ 		} else {
+-			fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+-			verbose("Accepted %s public key %s from %s@%s",
+-			    key_type(key), fp, cuser, lookup);
++			fp = key_fingerprint(key, options.fpt, SSH_FP_HEX);
++			fpt = fpt_name(options.fpt);
++			verbose("Accepted %s public key [%s]%s from %s@%s",
++			    key_type(key), fpt, fp, cuser, lookup);
+ 		}
++		free(fpt);
+ 		free(fp);
+ 	}
+ 
+diff --git a/auth2-pubkey.c b/auth2-pubkey.c
+index f3ca965..910ada3 100644
+--- a/auth2-pubkey.c
++++ b/auth2-pubkey.c
+@@ -198,7 +198,7 @@ done:
+ void
+ pubkey_auth_info(Authctxt *authctxt, const Key *key, const char *fmt, ...)
+ {
+-	char *fp, *extra;
++	char *fp, *fpt, *extra;
+ 	va_list ap;
+ 	int i;
+ 
+@@ -213,17 +213,21 @@ pubkey_auth_info(Authctxt *authctxt, const Key *key, const char *fmt, ...)
+ 
+ 	if (key_is_cert(key)) {
+ 		fp = key_fingerprint(key->cert->signature_key,
+-		    SSH_FP_MD5, SSH_FP_HEX);
+-		auth_info(authctxt, "%s ID %s (serial %llu) CA %s %s%s%s", 
++		    options.fpt, SSH_FP_HEX);
++		fpt = fpt_name(options.fpt);
++		auth_info(authctxt, "%s ID %s (serial %llu) CA %s [%s]%s%s%s",
+ 		    key_type(key), key->cert->key_id,
+ 		    (unsigned long long)key->cert->serial,
+-		    key_type(key->cert->signature_key), fp,
++		    key_type(key->cert->signature_key), fpt, fp,
+ 		    extra == NULL ? "" : ", ", extra == NULL ? "" : extra);
++		free(fpt);
+ 		free(fp);
+ 	} else {
+-		fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+-		auth_info(authctxt, "%s %s%s%s", key_type(key), fp,
++		fp = key_fingerprint(key, options.fpt, SSH_FP_HEX);
++		fpt = fpt_name(options.fpt);
++		auth_info(authctxt, "%s [%s]%s%s%s", key_type(key), fpt, fp,
+ 		    extra == NULL ? "" : ", ", extra == NULL ? "" : extra);
++		free(fpt);
+ 		free(fp);
+ 	}
+ 	free(extra);
+@@ -319,7 +323,7 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
+ 	int found_key = 0;
+ 	u_long linenum = 0;
+ 	Key *found;
+-	char *fp;
++	char *fp, *fpt;
+ 
+ 	found_key = 0;
+ 
+@@ -365,10 +369,11 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
+ 				continue;
+ 			if (!key_is_cert_authority)
+ 				continue;
+-			fp = key_fingerprint(found, SSH_FP_MD5,
++			fp = key_fingerprint(found, options.fpt,
+ 			    SSH_FP_HEX);
+-			debug("matching CA found: file %s, line %lu, %s %s",
+-			    file, linenum, key_type(found), fp);
++			fpt = fpt_name(options.fpt);
++			debug("matching CA found: file %s, line %lu, %s [%s]%s",
++			    file, linenum, key_type(found), fpt, fp);
+ 			/*
+ 			 * If the user has specified a list of principals as
+ 			 * a key option, then prefer that list to matching
+@@ -380,6 +385,7 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
+ 				reason = "Certificate does not contain an "
+ 				    "authorized principal";
+  fail_reason:
++				free(fpt);
+ 				free(fp);
+ 				error("%s", reason);
+ 				auth_debug_add("%s", reason);
+@@ -390,12 +396,14 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
+ 			    &reason) != 0)
+ 				goto fail_reason;
+ 			if (auth_cert_options(key, pw) != 0) {
++				free(fpt);
+ 				free(fp);
+ 				continue;
+ 			}
+ 			verbose("Accepted certificate ID \"%s\" "
+-			    "signed by %s CA %s via %s", key->cert->key_id,
+-			    key_type(found), fp, file);
++			    "signed by %s CA [%s]%s via %s", key->cert->key_id,
++			    key_type(found), fpt, fp, file);
++			free(fpt);
+ 			free(fp);
+ 			found_key = 1;
+ 			break;
+@@ -406,9 +414,11 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
+ 			if (key_is_cert_authority)
+ 				continue;
+ 			found_key = 1;
+-			fp = key_fingerprint(found, SSH_FP_MD5, SSH_FP_HEX);
+-			debug("matching key found: file %s, line %lu %s %s",
+-			    file, linenum, key_type(found), fp);
++			fp = key_fingerprint(found, options.fpt, SSH_FP_HEX);
++			fpt = fpt_name(options.fpt);
++			debug("matching key found: file %s, line %lu %s [%s]%s",
++			    file, linenum, key_type(found), fpt, fp);
++			free(fpt);
+ 			free(fp);
+ 			break;
+ 		}
+@@ -424,7 +434,7 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
+ static int
+ user_cert_trusted_ca(struct passwd *pw, Key *key)
+ {
+-	char *ca_fp, *principals_file = NULL;
++	char *ca_fp, *ca_fpt, *principals_file = NULL;
+ 	const char *reason;
+ 	int ret = 0;
+ 
+@@ -432,12 +442,13 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
+ 		return 0;
+ 
+ 	ca_fp = key_fingerprint(key->cert->signature_key,
+-	    SSH_FP_MD5, SSH_FP_HEX);
++	    options.fpt, SSH_FP_HEX);
++	ca_fpt = fpt_name(options.fpt);
+ 
+ 	if (key_in_file(key->cert->signature_key,
+ 	    options.trusted_user_ca_keys, 1) != 1) {
+-		debug2("%s: CA %s %s is not listed in %s", __func__,
+-		    key_type(key->cert->signature_key), ca_fp,
++		debug2("%s: CA %s [%s]%s is not listed in %s", __func__,
++		    key_type(key->cert->signature_key), ca_fpt, ca_fp,
+ 		    options.trusted_user_ca_keys);
+ 		goto out;
+ 	}
+@@ -462,13 +473,14 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
+ 	if (auth_cert_options(key, pw) != 0)
+ 		goto out;
+ 
+-	verbose("Accepted certificate ID \"%s\" signed by %s CA %s via %s",
+-	    key->cert->key_id, key_type(key->cert->signature_key), ca_fp,
++	verbose("Accepted certificate ID \"%s\" signed by %s CA [%s]%s via %s",
++	    key->cert->key_id, key_type(key->cert->signature_key), ca_fpt, ca_fp,
+ 	    options.trusted_user_ca_keys);
+ 	ret = 1;
+ 
+  out:
+ 	free(principals_file);
++	free(ca_fpt);
+ 	free(ca_fp);
+ 	return ret;
+ }
+diff --git a/key.c b/key.c
+index 2060761..a048074 100644
+--- a/key.c
++++ b/key.c
+@@ -10,16 +10,33 @@
+ #include <errno.h>
+ #include <stdarg.h>
+ #include <stdio.h>
++#include <string.h>
++#ifdef HAVE_UTIL_H
++#include <util.h>
++#endif /* HAVE_UTIL_H */
+ 
+ #define SSH_KEY_NO_DEFINE
+ #include "key.h"
+ 
++#include "xmalloc.h"
+ #include "compat.h"
+ #include "sshkey.h"
+ #include "ssherr.h"
+ #include "log.h"
+ #include "authfile.h"
+ 
++struct FPT {
++	char	*name;
++	int	type;
++};
++
++static const struct FPT fpts[] = {
++	{ "md5",	SSH_FP_MD5},
++	{ "sha1",	SSH_FP_SHA1},
++	{ "sha256",	SSH_FP_SHA256},
++	{ NULL,		SSH_FP_INVALID},
++};
++
+ void
+ key_add_private(Key *k)
+ {
+@@ -69,6 +86,24 @@ key_write(const Key *key, FILE *f)
+ 	return sshkey_write(key, f) == 0 ? 1 : 0;
+ }
+ 
++int
++fpt_type(const char *name) {
++	const FPT *fpt;
++	for (fpt = fpts; fpt->name != NULL; fpt++)
++		if (strcmp(fpt->name, name) == 0)
++			return fpt->type;
++	return SSH_FP_INVALID;
++}
++
++char *
++fpt_name(const int type) {
++	const FPT *fpt;
++	for (fpt = fpts; fpt->name != NULL; fpt++)
++		if (fpt->type == type)
++			return xstrdup(fpt->name);
++	return NULL;
++}
++
+ Key *
+ key_generate(int type, u_int bits)
+ {
+diff --git a/key.h b/key.h
+index c6401a5..a41782a 100644
+--- a/key.h
++++ b/key.h
+@@ -63,6 +63,12 @@ typedef struct sshkey Key;
+ #define key_fingerprint		sshkey_fingerprint
+ #endif
+ 
++typedef struct FPT FPT;
++
++struct FPT;
++
++int	 fpt_type(const char *);
++char	*fpt_name(int);
+ void	 key_add_private(Key *);
+ Key	*key_new_private(int);
+ void	 key_free(Key *);
+diff --git a/readconf.c b/readconf.c
+index cc6b951..1ec89e3 100644
+--- a/readconf.c
++++ b/readconf.c
+@@ -150,7 +150,7 @@ typedef enum {
+ 	oVisualHostKey, oUseRoaming,
+ 	oKexAlgorithms, oIPQoS, oRequestTTY, oIgnoreUnknown, oProxyUseFdpass,
+ 	oCanonicalDomains, oCanonicalizeHostname, oCanonicalizeMaxDots,
+-	oCanonicalizeFallbackLocal, oCanonicalizePermittedCNAMEs,
++	oCanonicalizeFallbackLocal, oCanonicalizePermittedCNAMEs, oFingerprintType,
+ 	oStreamLocalBindMask, oStreamLocalBindUnlink,
+ 	oIgnoredUnknownOption, oDeprecated, oUnsupported
+ } OpCodes;
+@@ -266,6 +266,7 @@ static struct {
+ 	{ "canonicalizehostname", oCanonicalizeHostname },
+ 	{ "canonicalizemaxdots", oCanonicalizeMaxDots },
+ 	{ "canonicalizepermittedcnames", oCanonicalizePermittedCNAMEs },
++	{ "fingerprinttype", oFingerprintType },
+ 	{ "streamlocalbindmask", oStreamLocalBindMask },
+ 	{ "streamlocalbindunlink", oStreamLocalBindUnlink },
+ 	{ "ignoreunknown", oIgnoreUnknown },
+@@ -1440,6 +1441,16 @@ parse_int:
+ 		intptr = &options->fwd_opts.streamlocal_bind_unlink;
+ 		goto parse_flag;
+ 
++	case oFingerprintType:
++		arg = strdelim(&s);
++		value = fpt_type(arg);
++		if (value == SSH_FP_INVALID)
++			fatal("%.200s line %d: unsupported fingerprint type '%s'",
++			    filename, linenum, arg ? arg : "<NONE>");
++		if (*activep && options->fpt == SSH_FP_INVALID)
++			options->fpt = value;
++		break;
++
+ 	case oDeprecated:
+ 		debug("%s line %d: Deprecated option \"%s\"",
+ 		    filename, linenum, keyword);
+@@ -1617,6 +1628,7 @@ initialize_options(Options * options)
+ 	options->canonicalize_max_dots = -1;
+ 	options->canonicalize_fallback_local = -1;
+ 	options->canonicalize_hostname = -1;
++	options->fpt = SSH_FP_INVALID;
+ }
+ 
+ /*
+@@ -1796,6 +1808,8 @@ fill_default_options(Options * options)
+ 		options->canonicalize_fallback_local = 1;
+ 	if (options->canonicalize_hostname == -1)
+ 		options->canonicalize_hostname = SSH_CANONICALISE_NO;
++	if (options->fpt == SSH_FP_INVALID)
++		options->fpt = SSH_FP_MD5;
+ #define CLEAR_ON_NONE(v) \
+ 	do { \
+ 		if (option_clear_or_none(v)) { \
+diff --git a/readconf.h b/readconf.h
+index 65a98e5..72697c4 100644
+--- a/readconf.h
++++ b/readconf.h
+@@ -96,6 +96,8 @@ typedef struct {
+ 	int    identity_file_userprovided[SSH_MAX_IDENTITY_FILES];
+ 	Key    *identity_keys[SSH_MAX_IDENTITY_FILES];
+ 
++	int     fpt;	/* FingerprintType */
++
+ 	/* Local TCP/IP forward requests. */
+ 	int     num_local_forwards;
+ 	struct Forward *local_forwards;
+diff --git a/servconf.c b/servconf.c
+index b7f3294..b90c08e 100644
+--- a/servconf.c
++++ b/servconf.c
+@@ -157,6 +157,7 @@ initialize_server_options(ServerOptions *options)
+ 	options->ip_qos_interactive = -1;
+ 	options->ip_qos_bulk = -1;
+ 	options->version_addendum = NULL;
++	options->fpt = SSH_FP_INVALID;
+ }
+ 
+ void
+@@ -324,6 +325,8 @@ fill_default_server_options(ServerOptions *options)
+ 		options->compression = 0;
+ 	}
+ #endif
++	if (options->fpt == SSH_FP_INVALID)
++		options->fpt = SSH_FP_MD5;
+ 
+ }
+ 
+@@ -359,7 +362,7 @@ typedef enum {
+ 	sRevokedKeys, sTrustedUserCAKeys, sAuthorizedPrincipalsFile,
+ 	sKexAlgorithms, sIPQoS, sVersionAddendum,
+ 	sAuthorizedKeysCommand, sAuthorizedKeysCommandUser,
+-	sAuthenticationMethods, sHostKeyAgent, sPermitUserRC,
++	sAuthenticationMethods, sHostKeyAgent, sFingerprintType, sPermitUserRC,
+ 	sStreamLocalBindMask, sStreamLocalBindUnlink,
+ 	sAllowStreamLocalForwarding,
+ 	sDeprecated, sUnsupported
+@@ -489,6 +492,7 @@ static struct {
+ 	{ "authorizedkeyscommanduser", sAuthorizedKeysCommandUser, SSHCFG_ALL },
+ 	{ "versionaddendum", sVersionAddendum, SSHCFG_GLOBAL },
+ 	{ "authenticationmethods", sAuthenticationMethods, SSHCFG_ALL },
++	{ "fingerprinttype", sFingerprintType },
+ 	{ "streamlocalbindmask", sStreamLocalBindMask, SSHCFG_ALL },
+ 	{ "streamlocalbindunlink", sStreamLocalBindUnlink, SSHCFG_ALL },
+ 	{ "allowstreamlocalforwarding", sAllowStreamLocalForwarding, SSHCFG_ALL },
+@@ -1663,6 +1667,16 @@ process_server_config_line(ServerOptions *options, char *line,
+ 		intptr = &options->fwd_opts.streamlocal_bind_unlink;
+ 		goto parse_flag;
+ 
++	case sFingerprintType:
++		arg = strdelim(&cp);
++		value = fpt_type(arg);
++		if (value == SSH_FP_INVALID)
++		        fatal("%.200s line %d: unsupported fingerprint type '%s'",
++		            filename, linenum, arg ? arg : "<NONE>");
++		if (*activep && options->fpt == SSH_FP_INVALID)
++		        options->fpt = value;
++		break;
++
+ 	case sDeprecated:
+ 		logit("%s line %d: Deprecated option %s",
+ 		    filename, linenum, arg);
+diff --git a/servconf.h b/servconf.h
+index 766db3a..a50dfaa 100644
+--- a/servconf.h
++++ b/servconf.h
+@@ -185,6 +185,9 @@ typedef struct {
+ 
+ 	u_int	num_auth_methods;
+ 	char   *auth_methods[MAX_AUTH_METHODS];
++
++	int     fpt;   /* FingerprintType */
++
+ }       ServerOptions;
+ 
+ /* Information about the incoming connection as used by Match */
+diff --git a/ssh_config b/ssh_config
+index 03a228f..625a771 100644
+--- a/ssh_config
++++ b/ssh_config
+@@ -31,6 +31,7 @@
+ #   AddressFamily any
+ #   ConnectTimeout 0
+ #   StrictHostKeyChecking ask
++#   FingerprintType sha256
+ #   IdentityFile ~/.ssh/identity
+ #   IdentityFile ~/.ssh/id_rsa
+ #   IdentityFile ~/.ssh/id_dsa
+diff --git a/ssh_config.5 b/ssh_config.5
+index fd52953..ea20bfa 100644
+--- a/ssh_config.5
++++ b/ssh_config.5
+@@ -606,6 +606,16 @@ or
+ .Dq no .
+ The default is
+ .Dq no .
++.It Cm FingerprintType
++Specifies the cryptographic hash function to use for keys fingeprints.
++The supported hashes are:
++.Dq md5 ,
++.Dq sha1
++and
++.Dq sha256 .
++.Pp
++The default is
++.Dq md5
+ .It Cm ForwardAgent
+ Specifies whether the connection to the authentication agent (if any)
+ will be forwarded to the remote machine.
+diff --git a/sshconnect.c b/sshconnect.c
+index ac09eae..6672e10 100644
+--- a/sshconnect.c
++++ b/sshconnect.c
+@@ -808,7 +808,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
+ 	HostStatus ip_status;
+ 	Key *raw_key = NULL;
+ 	char *ip = NULL, *host = NULL;
+-	char hostline[1000], *hostp, *fp, *ra;
++	char hostline[1000], *hostp, *fp, *fpt, *ra;
+ 	char msg[1024];
+ 	const char *type;
+ 	const struct hostkey_entry *host_found, *ip_found;
+@@ -915,11 +915,13 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
+ 				    "key for IP address '%.128s' to the list "
+ 				    "of known hosts.", type, ip);
+ 		} else if (options.visual_host_key) {
+-			fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
+-			ra = key_fingerprint(host_key, SSH_FP_MD5,
++			fp = key_fingerprint(host_key, options.fpt, SSH_FP_HEX);
++			fpt = fpt_name(options.fpt);
++			ra = key_fingerprint(host_key, options.fpt,
+ 			    SSH_FP_RANDOMART);
+-			logit("Host key fingerprint is %s\n%s\n", fp, ra);
++			logit("Host key fingerprint is [%s]%s\n%s\n", fpt, fp, ra);
+ 			free(ra);
++			free(fpt);
+ 			free(fp);
+ 		}
+ 		break;
+@@ -956,8 +958,9 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
+ 			else
+ 				snprintf(msg1, sizeof(msg1), ".");
+ 			/* The default */
+-			fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
+-			ra = key_fingerprint(host_key, SSH_FP_MD5,
++			fp = key_fingerprint(host_key, options.fpt, SSH_FP_HEX);
++			fpt = fpt_name(options.fpt);
++			ra = key_fingerprint(host_key, options.fpt,
+ 			    SSH_FP_RANDOMART);
+ 			msg2[0] = '\0';
+ 			if (options.verify_host_key_dns) {
+@@ -973,14 +976,15 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
+ 			snprintf(msg, sizeof(msg),
+ 			    "The authenticity of host '%.200s (%s)' can't be "
+ 			    "established%s\n"
+-			    "%s key fingerprint is %s.%s%s\n%s"
++			    "%s key fingerprint is [%s]%s.%s%s\n%s"
+ 			    "Are you sure you want to continue connecting "
+ 			    "(yes/no)? ",
+-			    host, ip, msg1, type, fp,
++			    host, ip, msg1, type, fpt, fp,
+ 			    options.visual_host_key ? "\n" : "",
+ 			    options.visual_host_key ? ra : "",
+ 			    msg2);
+ 			free(ra);
++			free(fpt);
+ 			free(fp);
+ 			if (!confirm(msg))
+ 				goto fail;
+@@ -1222,7 +1226,7 @@ verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
+ 	char *fp;
+ 	Key *plain = NULL;
+ 
+-	fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
++	fp = key_fingerprint(host_key, options.fpt, SSH_FP_HEX);
+ 	debug("Server host key: %s %s", key_type(host_key), fp);
+ 	free(fp);
+ 
+@@ -1348,7 +1352,7 @@ show_other_keys(struct hostkeys *hostkeys, Key *key)
+ 		-1
+ 	};
+ 	int i, ret = 0;
+-	char *fp, *ra;
++	char *fp, *fpt, *ra;
+ 	const struct hostkey_entry *found;
+ 
+ 	for (i = 0; type[i] != -1; i++) {
+@@ -1356,17 +1360,19 @@ show_other_keys(struct hostkeys *hostkeys, Key *key)
+ 			continue;
+ 		if (!lookup_key_in_hostkeys_by_type(hostkeys, type[i], &found))
+ 			continue;
+-		fp = key_fingerprint(found->key, SSH_FP_MD5, SSH_FP_HEX);
+-		ra = key_fingerprint(found->key, SSH_FP_MD5, SSH_FP_RANDOMART);
++		fp = key_fingerprint(found->key, options.fpt, SSH_FP_HEX);
++		fpt = fpt_name(options.fpt);
++		ra = key_fingerprint(found->key, options.fpt, SSH_FP_RANDOMART);
+ 		logit("WARNING: %s key found for host %s\n"
+ 		    "in %s:%lu\n"
+-		    "%s key fingerprint %s.",
++		    "%s key fingerprint [%s]%s.",
+ 		    key_type(found->key),
+ 		    found->host, found->file, found->line,
+-		    key_type(found->key), fp);
++		    key_type(found->key), fpt, fp);
+ 		if (options.visual_host_key)
+ 			logit("%s", ra);
+ 		free(ra);
++		free(fpt);
+ 		free(fp);
+ 		ret = 1;
+ 	}
+@@ -1378,7 +1384,7 @@ warn_changed_key(Key *host_key)
+ {
+ 	char *fp;
+ 
+-	fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
++	fp = key_fingerprint(host_key, options.fpt, SSH_FP_HEX);
+ 
+ 	error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+ 	error("@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @");
+diff --git a/sshconnect2.c b/sshconnect2.c
+index b267379..793ecbb 100644
+--- a/sshconnect2.c
++++ b/sshconnect2.c
+@@ -547,7 +547,7 @@ input_userauth_pk_ok(int type, u_int32_t seq, void *ctxt)
+ 	Buffer b;
+ 	int pktype, sent = 0;
+ 	u_int alen, blen;
+-	char *pkalg, *fp;
++	char *pkalg, *fp, *fpt;
+ 	u_char *pkblob;
+ 
+ 	if (authctxt == NULL)
+@@ -582,8 +582,10 @@ input_userauth_pk_ok(int type, u_int32_t seq, void *ctxt)
+ 		    key->type, pktype);
+ 		goto done;
+ 	}
+-	fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+-	debug2("input_userauth_pk_ok: fp %s", fp);
++	fp = key_fingerprint(key, options.fpt, SSH_FP_HEX);
++	fpt = fpt_name(options.fpt);
++	debug2("input_userauth_pk_ok: fp [%s]%s", fpt, fp);
++	free(fpt);
+ 	free(fp);
+ 
+ 	/*
+@@ -995,10 +997,12 @@ sign_and_send_pubkey(Authctxt *authctxt, Identity *id)
+ 	u_int skip = 0;
+ 	int ret = -1;
+ 	int have_sig = 1;
+-	char *fp;
++	char *fp, *fpt;
+ 
+-	fp = key_fingerprint(id->key, SSH_FP_MD5, SSH_FP_HEX);
+-	debug3("sign_and_send_pubkey: %s %s", key_type(id->key), fp);
++	fp = key_fingerprint(id->key, options.fpt, SSH_FP_HEX);
++	fpt = fpt_name(options.fpt);
++	debug3("sign_and_send_pubkey: %s [%s]%s", key_type(id->key), fpt, fp);
++	free(fpt);
+ 	free(fp);
+ 
+ 	if (key_to_blob(id->key, &blob, &bloblen) == 0) {
+diff --git a/sshd_config b/sshd_config
+index c3ca5b9..2a4297e 100644
+--- a/sshd_config
++++ b/sshd_config
+@@ -58,6 +58,8 @@
+ #AuthorizedKeysCommand none
+ #AuthorizedKeysCommandUser nobody
+ 
++#FingerprintType sha256
++
+ # For this to work you will also need host keys in /etc/ssh/ssh_known_hosts
+ #RhostsRSAAuthentication no
+ # similar for protocol version 2
+diff --git a/sshd_config.5 b/sshd_config.5
+index fd44abe..a4b0a1f 100644
+--- a/sshd_config.5
++++ b/sshd_config.5
+@@ -483,6 +483,16 @@ and finally
+ See PATTERNS in
+ .Xr ssh_config 5
+ for more information on patterns.
++.It Cm FingerprintType
++Specifies the cryptographic hash function to use for keys fingeprints.
++The supported hashes are:
++.Dq md5 ,
++.Dq sha1
++and
++.Dq sha256 .
++.Pp
++The default is
++.Dq md5
+ .It Cm ForceCommand
+ Forces the execution of the command specified by
+ .Cm ForceCommand ,
+diff --git a/sshkey.h b/sshkey.h
+index 450b30c..18afde2 100644
+--- a/sshkey.h
++++ b/sshkey.h
+@@ -71,7 +71,8 @@ enum sshkey_types {
+ enum sshkey_fp_type {
+ 	SSH_FP_SHA1,
+ 	SSH_FP_MD5,
+-	SSH_FP_SHA256
++	SSH_FP_SHA256,
++	SSH_FP_INVALID = -1
+ };
+ 
+ /* Fingerprint representation formats */
+-- 
+2.0.4
+

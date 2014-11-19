@@ -105,6 +105,7 @@ src_prepare() {
 		printf '#define SSH_RELEASE SSH_VERSION SSH_PORTABLE %s\n' "${macros}"
 	) > version.h
 
+	epatch "${FILESDIR}"/6.7_p1-Support-better-hash-algorithms-for-key-fingerprints.patch
 	epatch "${FILESDIR}"/6.6_p1-Make-Blowfish-CAST-DES-and-RC4-optional-with-OpenSSL.patch
 	if ! use blowfish; then
 		sed -i -e 's:cipher-bf1.o ::' \
