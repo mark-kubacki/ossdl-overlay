@@ -3,14 +3,13 @@
 
 EAPI=5
 
-PYTHON_COMPAT=( python{2_6,2_7,3_2,3_3} )
+PYTHON_COMPAT=( python{2_7,3_2,3_3,3_4} )
 
 inherit base autotools
 
 DESCRIPTION="fish is the Friendly Interactive SHell"
 HOMEPAGE="http://fishshell.com/"
-SRC_URI="http://fishshell.com/files/${PV}/${P}.tar.gz
-	https://github.com/fish-shell/fish-shell/commit/9a3643501607bff8b314977931916081dd39646a.patch -> ${P}-docdir.patch"
+SRC_URI="http://fishshell.com/files/${PV}/${P}.tar.gz"
 
 LICENSE="GPL-2"
 SLOT="0"
@@ -27,9 +26,8 @@ DEPEND="sys-libs/ncurses
 RDEPEND="${DEPEND}"
 
 src_prepare() {
-	epatch "${DISTDIR}"/${P}-docdir.patch #489934
-	epatch "${FILESDIR}"/${P}-tinfo.patch #459768
-	epatch "${FILESDIR}"/${P}-putty-xterm.patch
+	epatch "${FILESDIR}"/${PN}-2.1.0-tinfo.patch #459768
+	epatch "${FILESDIR}"/${PN}-2.1.0-putty-xterm.patch
 	mv share/functions/fish_prompt.fish share/tools/web_config/sample_prompts/
 	cp "${FILESDIR}"/fish_prompt_mark.fish share/functions/fish_prompt.fish
 
