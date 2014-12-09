@@ -167,6 +167,7 @@ eblit-src_unpack-pre() {
 eblit-src_unpack-post() {
 	cd ${P%%_p[0-9]}
 	epatch "${FILESDIR}"/glibc-2.19-misc.patch
+	epatch "${FILESDIR}"/0001-locale-ISO-with-international-formats.patch || die
 	cd -
 
 	if use hardened ; then
