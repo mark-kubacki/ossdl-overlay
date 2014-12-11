@@ -88,7 +88,6 @@ src_prepare() {
 			sed -i -E 's:=item ([0-9]+):=item C<\1>:' $F
 		done
 		epatch "${FILESDIR}"/${PN}-1.0.1e-s_client-verify.patch #472584
-		epatch_user #332661
 	fi
 
 	if ! use des ; then
@@ -138,10 +137,14 @@ src_prepare() {
 		append-flags -I/usr/src/linux
 	fi
 
+	if ! use vanilla; then
+		epatch_user #332661
+	fi
+
 	sed -i '1s,^:$,#!'${EPREFIX}'/usr/bin/perl,' Configure #141906
 	# The config script does stupid stuff to prompt the user.  Kill it.
 	sed -i '/stty -icanon min 0 time 50; read waste/d' config || die
-	./config --test-sanity || die "I AM NOT SANE"
+	#./config --test-sanity || die "I AM NOT SANE"
 
 	multilib_copy_sources
 }
@@ -188,7 +191,7 @@ multilib_src_configure() {
 		$(use_ssl camellia) \
 		$(use_ssl des) \
 		enable-ec \
-		${ec_nistp_64_gcc_128} \
+		${ec_nistp_64_gcc_128} -DECP_NISTZ256_ASM \
 		$(use_ssl cast) \
 		$(use_ssl seed) \
 		$(use_ssl idea) \
@@ -328,6 +331,14 @@ pkg_postinst() {
 		elog "You are building OpenSSL with some archaic ciphers or hash functions."
 	fi
 
+	if ! use rc4; then
+		ewarn
+		ewarn "You need RC4 for torrents over encrypted connections."
+	fi
+	if ! use md4; then
+		ewarn
+		ewarn "SASL still needs MD4 support."
+	fi
 	if ! use des; then
 		ewarn
 		ewarn "Your OpenSSL installation has no support for DES and 3DES."
