@@ -1,13 +1,10 @@
-# Copyright 2011-2012 W-Mark Kubacki
+# Copyright 2011-2014 W. Mark Kubacki
 # Distributed under the terms of the OSI Reciprocal Public License
-# $Header: $
 
-EAPI=3
-PYTHON_DEPEND="2:2.5:2.7"
-SUPPORT_PYTHON_ABIS="1"
-RESTRICT_PYTHON_ABIS="3.*"
+EAPI=5
+PYTHON_COMPAT=( python{2_6,2_7} )
 
-inherit distutils eutils
+inherit eutils distutils-r1
 
 DESCRIPTION="Python bindings for the Apache Thrift RPC system"
 HOMEPAGE="http://thrift.apache.org/"
@@ -15,10 +12,10 @@ SRC_URI="mirror://pypi/${P:0:1}/${PN}/${P}.tar.gz -> python-${P}.tar.gz"
 RESTRICT="primaryuri"
 
 LICENSE="BSD"
-KEYWORDS="amd64 x86 arm"
+KEYWORDS="amd64 ~x86 ~arm arm64"
 IUSE=""
 SLOT="0"
 
-DEPEND="dev-python/setuptools
+RDEPEND="dev-python/setuptools[${PYTHON_USEDEP}]
 	!dev-libs/thrift[python]
 	"

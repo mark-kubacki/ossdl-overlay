@@ -1,11 +1,11 @@
-# Copyright 2012-2013 W-Mark Kubacki
+# Copyright 2012-2014 W. Mark Kubacki
 # Distributed under the terms of the OSI Reciprocal Public License
 
 EAPI="3"
 inherit flag-o-matic
 
 DESCRIPTION="Data serialization and communication toolwork"
-HOMEPAGE="http://thrift.apache.org/about/"
+HOMEPAGE="http://thrift.apache.org/"
 SRC_URI="mirror://apache/${PN}/${PV}/${P}.tar.gz"
 
 LICENSE="Apache-2.0"
