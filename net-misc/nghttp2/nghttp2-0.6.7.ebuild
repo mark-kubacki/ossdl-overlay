@@ -2,10 +2,9 @@
 # Distributed under the terms of the OSI Reciprocal Public License
 
 EAPI="5"
-PYTHON_DEPEND="2"
-RESTRICT_PYTHON_ABIS="3.*"
+PYTHON_COMPAT=( python2_7 )
 
-inherit eutils autotools python
+inherit eutils autotools python-r1
 
 DESCRIPTION="Implementation of Hypertext Transfer Protocol version 2 in C"
 HOMEPAGE="https://nghttp2.org/"
@@ -20,8 +19,8 @@ else
 fi
 
 LICENSE="MIT"
-SLOT="0/13" # as in h2-13
-KEYWORDS="amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~sparc x86"
+SLOT="0/16" # as in h2-16
+KEYWORDS="amd64 ~arm ~arm64 ~hppa ppc ppc64 ~sparc x86"
 IUSE="+alpn +apps +examples python +spdy test +xml"
 
 REQUIRED_USE="xml? ( apps )
@@ -31,28 +30,22 @@ RDEPEND=">=dev-libs/jansson-2.5
 		dev-libs/jemalloc
 		>=dev-libs/libevent-2.0.8[ssl]
 		xml? ( >=dev-libs/libxml2-2.7.7 )
-		>=dev-libs/openssl-1.0.1
-		alpn? ( >=dev-libs/openssl-1.0.2_alpha )
+		>=dev-libs/openssl-1.0.1:=
+		alpn? ( >=dev-libs/openssl-1.0.2_alpha:= )
 		>=sys-libs/zlib-1.2.3
 	)
-	spdy? ( net-misc/spdylay )
+	spdy? ( net-misc/spdylay:= )
 	python? (
-		=dev-lang/python-2*
+		${PYTHON_DEPS}
 		>=dev-python/cython-0.19
 	)"
 DEPEND="${RDEPEND}
 	>=dev-util/pkgconfig-0.20
 	test? (
-		=dev-lang/python-2*
+		${PYTHON_DEPS}
 		>=dev-util/cunit-2.1
 	)"
-
-pkg_setup() {
-	if use python; then
-		python_set_active_version 2
-		python_pkg_setup
-	fi
-}
+REQUIRED_USE="python? ( ${PYTHON_REQUIRED_USE} )"
 
 src_prepare() {
 	if [[ ${PV} == "9999" ]] ; then
