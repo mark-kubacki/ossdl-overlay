@@ -1,0 +1,117 @@
+#!/sbin/runscript
+# Copyright 1999-2013 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+
+extra_commands="configtest"
+
+description="HHVM FastCGI Daemon"
+description_configtest="Run syntax tests for configuration files."
+
+HHVM_CONFIG=${HHVM_CONFIG:-/etc/hhvm/server.ini}
+HHVM_SYSTEM_CONFIG=${HHVM_SYSTEM_CONFIG:-/etc/hhvm/php.ini}
+HHVM_BIN=${HHVM_BIN:-/usr/bin/hhvm}
+HHVM_USER=${HHVM_USER:-hhvm}
+HHVM_GROUP=${HHVM_GROUP:-hhvm}
+HHVM_DATADIR=${HHVM_DATADIR:-/var/lib/hhvm}
+HHVM_REPOFILE=${HHVM_REPOFILE:-${HHVM_DATADIR}/${SVCNAME}.hhbc}
+HHVM_PIDDIR=${HHVM_PIDDIR:-/var/run/hhvm}
+HHVM_PIDFILE=${HHVM_PIDFILE:-${HHVM_PIDDIR}/${SVCNAME}.pid}
+HHVM_LOGDIR=${HHVM_LOGDIR:-/var/log/hhvm}
+HHVM_LOGFILE=${HHVM_LOGFILE:-${HHVM_LOGDIR}/${SVCNAME}_error.log}
+HHVM_TIMEOUT=${HHVM_TIMEOUT:-15}
+
+depend() {
+	need net localmount
+	use dns logger
+	after bootmisc
+}
+
+checkconfig() {
+	if [ ! -f "${HHVM_CONFIG}" ] ; then
+		eerror "Please create ${HHVM_CONFIG}"
+		eerror "Sample conf: /etc/hhvm/server.ini.dist"
+		return 1
+	fi
+
+	if [ ! -f "${HHVM_SYSTEM_CONFIG}" ] ; then
+		eerror "Please create ${HHVM_SYSTEM_CONFIG}"
+		eerror "Sample conf: /etc/hhvm/php.ini.dist"
+		return 1
+	fi
+
+	checkpath -q -d -m 0750 -o ${HHVM_USER}:${HHVM_GROUP} ${HHVM_DATADIR}
+	checkpath -q -d -m 0750 -o ${HHVM_USER}:${HHVM_GROUP} ${HHVM_PIDDIR}
+	checkpath -q -d -m 0750 -o ${HHVM_USER}:${HHVM_GROUP} ${HHVM_LOGDIR}
+
+	buildopts
+
+	touch "${HHVM_PIDFILE}"
+	chown "${HHVM_USER}:${HHVM_GROUP}" "${HHVM_PIDFILE}"
+
+	${HHVM_BIN} ${OPTS} /dev/null >/dev/null 2>&1
+	ret=$?
+
+	if [ $ret -ne 0 ]; then
+		${HHVM_BIN} ${OPTS} /dev/null
+	fi
+
+	chown -R "${HHVM_USER}:${HHVM_GROUP}" "${HHVM_DATADIR}"
+
+	return $ret
+}
+
+start() {
+	checkconfig || return $?
+
+	ebegin "Starting ${SVCNAME}"
+	start-stop-daemon --start --background \
+		--exec "${HHVM_BIN}" \
+		--pidfile "${HHVM_PIDFILE}" \
+		--user "${HHVM_USER}:${HHVM_GROUP}" \
+		--stdout "${HHVM_LOGFILE}" \
+		--stderr "${HHVM_LOGFILE}" \
+		-- -m server ${OPTS}
+	eend $? "Failed to start ${SVCNAME}"
+}
+
+stop() {
+	ebegin "Stopping ${SVCNAME}"
+	start-stop-daemon --stop --pidfile "${HHVM_PIDFILE}" --retry "${HHVM_TIMEOUT}"
+	eend $? "Failed to stop ${SVCNAME}"
+}
+
+configtest() {
+	ebegin "Checking ${SVCNAME} configuration"
+	checkconfig
+	eend $? "failed, please correct errors above"
+}
+
+buildopts() {
+	OPTS="-c ${HHVM_SYSTEM_CONFIG} \
+		-c ${HHVM_CONFIG} \
+		-u ${HHVM_USER} \
+		-vPidFile=${HHVM_PIDFILE} \
+		-vLog.File=${HHVM_LOGFILE} \
+		-vRepo.Central.Path=${HHVM_REPOFILE}"
+
+	if [[ -n "${SERVER_TYPE}" ]]; then
+		OPTS+=" -vServer.Type=${SERVER_TYPE}"
+	fi
+	if [[ -n "${SERVER_SOCKET}" ]]; then
+		OPTS+=" -vServer.FileSocket=${SERVER_SOCKET}"
+	fi
+	if [[ -n "${SERVER_IP}" ]]; then
+		OPTS+=" -vServer.IP=${SERVER_IP}"
+	fi
+	if [[ -n "${SERVER_PORT}" ]]; then
+		OPTS+=" -vServer.Port=${SERVER_PORT}"
+	fi
+	if [[ -n "${SERVER_THREADCOUNT}" ]]; then
+		OPTS+=" -vServer.ThreadCount=${SERVER_THREADCOUNT}"
+	fi
+	if [[ -n "${SERVER_SOURCEROOT}" ]]; then
+		OPTS+=" -vServer.SourceRoot=${SERVER_SOURCEROOT}"
+	fi
+
+	OPTS+=" ${HHVM_OPTS}"
+}

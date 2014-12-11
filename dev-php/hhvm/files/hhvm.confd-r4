@@ -1,0 +1,58 @@
+# /etc/conf.d/hhvm: config file for /etc/init.d/hhvm
+
+# Config file
+#HHVM_CONFIG="/etc/hhvm/server.ini"
+
+# System config file
+#HHVM_SYSTEM_CONFIG="/etc/hhvm/php.ini"
+
+# Binary file
+#HHVM_BIN="/usr/bin/hhvm"
+
+# Run HHVM as user
+#HHVM_USER="hhvm"
+
+# Run HHVM as group
+#HHVM_GROUP="hhvm"
+
+# Data directory
+#HHVM_DATADIR="/var/lib/hhvm"
+
+# Repository filename
+#HHVM_REPOFILE="${HHVM_DATADIR}/hhvm.hhbc"
+
+# PID directory
+#HHVM_PIDDIR="/var/run/hhvm"
+
+# PID filename
+#HHVM_PIDFILE="${HHVM_PIDDIR}/hhvm.pid"
+
+# Log directory
+#HHVM_LOGDIR="/var/log/hhvm"
+
+# Log filename
+#HHVM_LOGFILE="${HHVM_LOGDIR}/hhvm_error.log"
+
+# Stop timeout
+#HHVM_TIMEOUT=15
+
+# Any additional options passed to HHVM when starting
+#HHVM_OPTS=""
+
+# Server type: fastcgi
+#SERVER_TYPE="fastcgi"
+
+# Server socket
+#SERVER_SOCKET="${HHVM_PIDDIR}/hhvm.sock"
+
+# Server IP
+#SERVER_IP="127.0.0.1"
+
+# Server port: 4247 (http), 9000 (fastcgi)
+#SERVER_PORT=9000
+
+# Server threads count
+#SERVER_THREADCOUNT=10
+
+# Server source root
+#SERVER_SOURCEROOT="/var/www/localhost"

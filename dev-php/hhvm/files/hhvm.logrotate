@@ -1,0 +1,10 @@
+/var/log/hhvm/*.log {
+       daily
+       rotate 10
+       copytruncate
+       delaycompress
+       compress
+       notifempty
+       missingok
+}
+
