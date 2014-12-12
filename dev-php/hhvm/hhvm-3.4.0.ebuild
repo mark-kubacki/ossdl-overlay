@@ -2,9 +2,8 @@
 # Distributed under the terms of the OSI Reciprocal Public License
 
 EAPI="5"
-CMAKE_MIN_VERSION="2.8.5"
 
-inherit cmake-utils flag-o-matic git-2 user versionator
+inherit eutils flag-o-matic git-2 user versionator
 
 DESCRIPTION="Virtual machine designed for executing programs written in Hack and PHP."
 HOMEPAGE="http://hhvm.com/"
@@ -60,6 +59,7 @@ DEPEND=">=dev-libs/boost-1.49[static-libs]
 	sys-libs/zlib
 	"
 RDEPEND="${DEPEND}
+	>=dev-util/cmake-2.8.5
 	sys-process/lsof
 	"
 DEPEND="${DEPEND}
@@ -92,26 +92,21 @@ src_prepare() {
 }
 
 src_configure() {
-	mycmakeargs=(
-		-DCMAKE_BUILD_TYPE=$(usex debug Debug Release)
-		-DBoost_USE_STATIC_LIBS=ON
-		-DCMAKE_EXE_LINKER_FLAGS=-static
-		$(cmake-utils_use_enable zend-compat ZEND_COMPAT)
-		$(cmake-utils_use_enable cotire COTIRE)
-		$(cmake-utils_use_use jsonc JSONC)
-		$(cmake-utils_use_disable xen HARDWARE_COUNTERS)
-		${EXTRA_ECONF}
-	)
-
-	cmake-utils_src_configure
-}
-
-src_compile() {
-	cmake-utils_src_compile
+	econf \
+		-DCMAKE_INSTALL_PREFIX="/usr" \
+		-DCMAKE_INSTALL_DO_STRIP=OFF \
+		-DCMAKE_BUILD_TYPE=$(usex debug Debug Release) \
+		-DBoost_USE_STATIC_LIBS=ON \
+		-DCMAKE_EXE_LINKER_FLAGS=-static \
+		-DENABLE_ZEND_COMPAT=$(usex zend-compat ON OFF) \
+		$(use cotire && printf -- "-DENABLE_COTIRE=ON") \
+		$(use jsonc && printf -- "-DUSE_JSONC=ON") \
+		$(use xen && printf -- "-DDISABLE_HARDWARE_COUNTERS=ON") \
+		${EXTRA_ECONF} || die "configure failed"
 }
 
 src_install() {
-	cmake-utils_src_install
+	emake DESTDIR="${D}" install
 
 	if use hack; then
 		dobin hphp/hack/bin/hh_client
