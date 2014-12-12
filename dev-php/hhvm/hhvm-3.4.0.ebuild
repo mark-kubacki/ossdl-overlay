@@ -17,7 +17,7 @@ EGIT_REPO_URI="git://github.com/facebook/hhvm.git"
 EGIT_BRANCH="HHVM-$(get_version_component_range 1-2 )"
 EGIT_COMMIT="HHVM-${PV}"
 
-IUSE="cotire debug devel +freetype gmp hack imagemagick +jemalloc +jpeg jsonc +png sqlite +webp xen +zend-compat"
+IUSE="cotire debug devel +freetype gmp hack iconv imagemagick +jemalloc +jpeg jsonc +png sqlite +webp xen yaml +zend-compat"
 
 DEPEND=">=dev-libs/boost-1.49
 	>=dev-libs/libevent-2.0.9
@@ -27,13 +27,15 @@ DEPEND=">=dev-libs/boost-1.49
 	freetype? ( media-libs/freetype )
 	gmp? ( dev-libs/gmp )
 	hack? ( >=dev-lang/ocaml-3.12[ocamlopt] )
+	iconv? ( virtual/libiconv )
 	imagemagick? ( media-gfx/imagemagick )
-	jemalloc? ( >=dev-libs/jemalloc-3.0.0[stats] )
+	jemalloc? ( >=dev-libs/jemalloc-3.5.1[stats] )
 	jsonc? ( dev-libs/json-c )
 	jpeg? ( virtual/jpeg )
 	png? ( media-libs/libpng )
-	sqlite? ( dev-db/sqlite )
+	sqlite? ( >=dev-db/sqlite-3.8.0 )
 	webp? ( media-libs/libvpx )
+	yaml? ( dev-libs/libyaml )
 	dev-cpp/glog
 	dev-cpp/tbb
 	dev-libs/cloog
@@ -43,6 +45,7 @@ DEPEND=">=dev-libs/boost-1.49
 	dev-libs/libdwarf
 	dev-libs/libmcrypt
 	dev-libs/libmemcached
+	dev-libs/libpcre[jit]
 	dev-libs/libxml2
 	dev-libs/libxslt
 	dev-libs/openssl
