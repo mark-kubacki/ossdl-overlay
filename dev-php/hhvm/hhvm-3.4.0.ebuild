@@ -84,9 +84,9 @@ src_configure() {
 		-DCMAKE_INSTALL_PREFIX="/usr" \
 		-DCMAKE_BUILD_TYPE=$(usex debug Debug Release) \
 		-DENABLE_ZEND_COMPAT=$(usex zend-compat ON OFF) \
-		$(use cotire && printf "-DENABLE_COTIRE=ON") \
-		$(use jsonc && printf "-DUSE_JSONC=ON") \
-		$(use xen && printf "-DDISABLE_HARDWARE_COUNTERS=ON") \
+		$(use cotire && printf -- "-DENABLE_COTIRE=ON") \
+		$(use jsonc && printf -- "-DUSE_JSONC=ON") \
+		$(use xen && printf -- "-DDISABLE_HARDWARE_COUNTERS=ON") \
 		${myconf} \
 		${EXTRA_ECONF} || die "configure failed"
 }
