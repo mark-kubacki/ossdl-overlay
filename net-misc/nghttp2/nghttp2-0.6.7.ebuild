@@ -4,7 +4,7 @@
 EAPI="5"
 PYTHON_COMPAT=( python2_7 )
 
-inherit eutils autotools python-r1
+inherit eutils flag-o-matic autotools python-r1
 
 DESCRIPTION="Implementation of Hypertext Transfer Protocol version 2 in C"
 HOMEPAGE="https://nghttp2.org/"
@@ -53,6 +53,8 @@ src_prepare() {
 	else
 		default_src_prepare
 	fi
+
+	replace-flags -O* -Os
 }
 
 src_configure() {
