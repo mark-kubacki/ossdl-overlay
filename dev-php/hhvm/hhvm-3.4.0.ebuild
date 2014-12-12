@@ -78,6 +78,7 @@ pkg_setup() {
 
 src_prepare() {
 	git submodule update --init --recursive
+	rm -rf third-party/pcre
 
 	filter-flags -ffast-math
 	replace-flags -Ofast -O2 # or compilation will fail
@@ -87,6 +88,14 @@ src_prepare() {
 	( [[ $(gcc-major-version) -eq 4 && $(gcc-minor-version) -ge 9 ]] ); then
 		append-flags -fdiagnostics-color=always
 	fi
+
+	# PR#4342, dependencies already guarantee that PCRE works
+	sed -i \
+		-e 's:find_package(PCRE REQUIRED):find_package(PCRE):' \
+		CMake/HPHPFindLibs.cmake
+	sed -i \
+		-e '/^  pcre/d' \
+		third-party/CMakeLists.txt
 
 	epatch_user
 }
