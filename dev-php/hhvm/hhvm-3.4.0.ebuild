@@ -4,7 +4,7 @@
 EAPI="5"
 CMAKE_MIN_VERSION="2.8.5"
 
-inherit cmake-utils git-2 user versionator
+inherit cmake-utils flag-o-matic git-2 user versionator
 
 DESCRIPTION="Virtual machine designed for executing programs written in Hack and PHP."
 HOMEPAGE="http://hhvm.com/"
@@ -18,7 +18,7 @@ EGIT_REPO_URI="git://github.com/facebook/hhvm.git"
 EGIT_BRANCH="HHVM-$(get_version_component_range 1-2 )"
 EGIT_COMMIT="HHVM-${PV}"
 
-IUSE="cotire debug devel +freetype gmp hack iconv imagemagick +jemalloc +jpeg jsonc +png sqlite +webp xen yaml +zend-compat"
+IUSE="cotire debug devel +freetype gmp hack iconv imagemagick +jemalloc +jpeg jsonc +png +webp xen yaml +zend-compat"
 
 DEPEND=">=dev-libs/boost-1.49[static-libs]
 	>=dev-libs/libevent-2.0.9
@@ -34,11 +34,11 @@ DEPEND=">=dev-libs/boost-1.49[static-libs]
 	jsonc? ( dev-libs/json-c )
 	jpeg? ( virtual/jpeg )
 	png? ( media-libs/libpng )
-	sqlite? ( >=dev-db/sqlite-3.8.0 )
 	webp? ( media-libs/libvpx )
 	yaml? ( dev-libs/libyaml )
 	dev-cpp/glog
 	dev-cpp/tbb
+	>=dev-db/sqlite-3.8.0
 	dev-libs/cloog
 	dev-libs/elfutils
 	dev-libs/expat
@@ -46,7 +46,7 @@ DEPEND=">=dev-libs/boost-1.49[static-libs]
 	dev-libs/libdwarf
 	dev-libs/libmcrypt
 	dev-libs/libmemcached
-	dev-libs/libpcre[jit]
+	>=dev-libs/libpcre-8.35[jit]
 	dev-libs/libxml2
 	dev-libs/libxslt
 	dev-libs/openssl
@@ -78,6 +78,15 @@ pkg_setup() {
 
 src_prepare() {
 	git submodule update --init --recursive
+
+	filter-flags -ffast-math
+	replace-flags -Ofast -O2 # or compilation will fail
+
+	# output is not humanly readable without this:
+	if [[ $(gcc-major-version) -gt 4 ]] || \
+	( [[ $(gcc-major-version) -eq 4 && $(gcc-minor-version) -ge 9 ]] ); then
+		append-flags -fdiagnostics-color=always
+	fi
 
 	epatch_user
 }
