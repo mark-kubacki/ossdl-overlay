@@ -2,8 +2,9 @@
 # Distributed under the terms of the OSI Reciprocal Public License
 
 EAPI="5"
+CMAKE_MIN_VERSION="2.8.5"
 
-inherit eutils git-2 user versionator
+inherit cmake-utils git-2 user versionator
 
 DESCRIPTION="Virtual machine designed for executing programs written in Hack and PHP."
 HOMEPAGE="http://hhvm.com/"
@@ -62,7 +63,6 @@ RDEPEND="${DEPEND}
 	sys-process/lsof
 	"
 DEPEND="${DEPEND}
-	>=dev-util/cmake-2.8.7
 	>=sys-devel/gcc-4.8[-hardened]
 	sys-devel/binutils[static-libs]
 	sys-devel/bison
@@ -83,19 +83,24 @@ src_prepare() {
 }
 
 src_configure() {
-	econf \
-		-DCMAKE_INSTALL_PREFIX="/usr" \
-		-DCMAKE_BUILD_TYPE=$(usex debug Debug Release) \
-		-DENABLE_ZEND_COMPAT=$(usex zend-compat ON OFF) \
-		$(use cotire && printf -- "-DENABLE_COTIRE=ON") \
-		$(use jsonc && printf -- "-DUSE_JSONC=ON") \
-		$(use xen && printf -- "-DDISABLE_HARDWARE_COUNTERS=ON") \
-		${myconf} \
-		${EXTRA_ECONF} || die "configure failed"
+	mycmakeargs=(
+		-DCMAKE_BUILD_TYPE=$(usex debug Debug Release)
+		$(cmake-utils_use_enable zend-compat ZEND_COMPAT)
+		$(cmake-utils_use_enable cotire COTIRE)
+		$(cmake-utils_use_use jsonc JSONC)
+		$(cmake-utils_use_disable xen HARDWARE_COUNTERS)
+		${EXTRA_ECONF}
+	)
+
+	cmake-utils_src_configure
+}
+
+src_compile() {
+	cmake-utils_src_compile
 }
 
 src_install() {
-	emake DESTDIR="${D}" install
+	cmake-utils_src_install
 
 	if use hack; then
 		dobin hphp/hack/bin/hh_client
