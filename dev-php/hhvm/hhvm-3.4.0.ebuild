@@ -20,7 +20,7 @@ EGIT_COMMIT="HHVM-${PV}"
 
 IUSE="cotire debug devel +freetype gmp hack iconv imagemagick +jemalloc +jpeg jsonc +png sqlite +webp xen yaml +zend-compat"
 
-DEPEND=">=dev-libs/boost-1.49
+DEPEND=">=dev-libs/boost-1.49[static-libs]
 	>=dev-libs/libevent-2.0.9
 	>=dev-libs/libzip-0.11.0
 	>=dev-libs/oniguruma-5.9.5
@@ -85,6 +85,8 @@ src_prepare() {
 src_configure() {
 	mycmakeargs=(
 		-DCMAKE_BUILD_TYPE=$(usex debug Debug Release)
+		-DBoost_USE_STATIC_LIBS=ON
+		-DCMAKE_EXE_LINKER_FLAGS=-static
 		$(cmake-utils_use_enable zend-compat ZEND_COMPAT)
 		$(cmake-utils_use_enable cotire COTIRE)
 		$(cmake-utils_use_use jsonc JSONC)
