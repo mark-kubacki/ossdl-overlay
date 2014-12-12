@@ -30,7 +30,7 @@ DEPEND=">=dev-libs/boost-1.49
 	hack? ( >=dev-lang/ocaml-3.12[ocamlopt] )
 	iconv? ( virtual/libiconv )
 	imagemagick? ( media-gfx/imagemagick )
-	jemalloc? ( >=dev-libs/jemalloc-3.5.1[stats] )
+	jemalloc? ( >=dev-libs/jemalloc-3.5.1[stats,no-prefix] )
 	jsonc? ( dev-libs/json-c )
 	jpeg? ( virtual/jpeg )
 	png? ( media-libs/libpng )
