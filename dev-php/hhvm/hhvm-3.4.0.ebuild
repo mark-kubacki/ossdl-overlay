@@ -22,7 +22,7 @@ IUSE="cotire debug devel +freetype gmp hack imagemagick +jemalloc +jpeg jsonc +p
 DEPEND=">=dev-libs/boost-1.49
 	>=dev-libs/libevent-2.0.9
 	>=dev-libs/libzip-0.11.0
-	>=dev-libs/oniguruma-5.9.5[-parse-tree-node-recycle]
+	>=dev-libs/oniguruma-5.9.5
 	|| ( >=dev-db/mariadb-10.0 virtual/mysql )
 	freetype? ( media-libs/freetype )
 	gmp? ( dev-libs/gmp )
