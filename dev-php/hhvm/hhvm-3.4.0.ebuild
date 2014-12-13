@@ -106,6 +106,7 @@ src_configure() {
 		-DCMAKE_INSTALL_PREFIX="/usr" \
 		-DCMAKE_INSTALL_DO_STRIP=OFF \
 		-DCMAKE_BUILD_TYPE=$(usex debug Debug Release) \
+		-DSTATIC_CXX_LIB=ON \
 		-DBoost_USE_STATIC_LIBS=ON \
 		-DCMAKE_EXE_LINKER_FLAGS=-static \
 		-DENABLE_ZEND_COMPAT=$(usex zend-compat ON OFF) \
