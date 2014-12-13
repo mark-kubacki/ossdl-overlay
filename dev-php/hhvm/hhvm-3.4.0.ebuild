@@ -11,7 +11,7 @@ SRC_URI=""
 
 LICENSE="PHP-3"
 SLOT="0"
-KEYWORDS="amd64 ~x86 -arm64"
+KEYWORDS="amd64 -x86 -arm"
 
 EGIT_REPO_URI="git://github.com/facebook/hhvm.git"
 EGIT_BRANCH="HHVM-$(get_version_component_range 1-2 )"
@@ -88,6 +88,7 @@ src_prepare() {
 	( [[ $(gcc-major-version) -eq 4 && $(gcc-minor-version) -ge 9 ]] ); then
 		append-flags -fdiagnostics-color=always
 	fi
+	append-flags -pthread
 
 	# PR#4342, dependencies already guarantee that PCRE works
 	sed -i \
