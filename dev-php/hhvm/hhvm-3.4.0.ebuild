@@ -17,9 +17,9 @@ EGIT_REPO_URI="git://github.com/facebook/hhvm.git"
 EGIT_BRANCH="HHVM-$(get_version_component_range 1-2 )"
 EGIT_COMMIT="HHVM-${PV}"
 
-IUSE="cotire debug devel +freetype gmp hack iconv imagemagick +jemalloc +jpeg jsonc +png +webp xen yaml +zend-compat"
+IUSE="cotire debug devel +freetype gmp hack iconv imagemagick +jemalloc +jpeg jsonc +png sqlite3 +webp xen yaml +zend-compat"
 
-DEPEND=">=dev-libs/boost-1.49[static-libs]
+DEPEND="
 	>=dev-libs/libevent-2.0.9
 	>=dev-libs/libzip-0.11.0
 	>=dev-libs/oniguruma-5.9.5
@@ -33,12 +33,11 @@ DEPEND=">=dev-libs/boost-1.49[static-libs]
 	jsonc? ( dev-libs/json-c )
 	jpeg? ( virtual/jpeg )
 	png? ( media-libs/libpng )
+	sqlite3? ( =dev-db/sqlite-3.7* )
 	webp? ( media-libs/libvpx )
 	yaml? ( dev-libs/libyaml )
 	dev-cpp/glog
 	dev-cpp/tbb
-	>=dev-db/sqlite-3.8.0
-	dev-libs/cloog
 	dev-libs/elfutils
 	dev-libs/expat
 	dev-libs/icu
@@ -49,25 +48,30 @@ DEPEND=">=dev-libs/boost-1.49[static-libs]
 	dev-libs/libxml2
 	dev-libs/libxslt
 	dev-libs/openssl
-	media-libs/gd[jpeg,png]
 	net-libs/c-client[kerberos]
 	>=net-misc/curl-7.28.0
 	net-nds/openldap
 	sys-libs/libcap
 	sys-libs/ncurses
-	sys-libs/readline
 	sys-libs/zlib
 	"
 RDEPEND="${DEPEND}
-	>=dev-util/cmake-2.8.5
 	sys-process/lsof
 	"
 DEPEND="${DEPEND}
-	>=sys-devel/gcc-4.8[-hardened]
+	>=dev-libs/boost-1.49[static-libs]
+	dev-libs/cloog[static-libs]
+	>=dev-util/cmake-3.0.2
+	media-libs/gd[jpeg,png,static-libs]
+	>=sys-devel/gcc-4.8[cxx(+),-hardened]
 	sys-devel/binutils[static-libs]
 	sys-devel/bison
 	sys-devel/flex
+	sys-libs/readline[static-libs]
 	"
+
+# for DEPEND run:
+# for LIB in $(ldd $(which hhvm) | cut -d ' ' -f 3 | grep -F / | sort -u); do q belongs "${LIB}" | cut -d ' ' -f 1; done | sort -u
 
 pkg_setup() {
 	ebegin "Creating hhvm user and group"
@@ -78,7 +82,6 @@ pkg_setup() {
 
 src_prepare() {
 	git submodule update --init --recursive
-	rm -rf third-party/pcre
 
 	filter-flags -ffast-math
 	replace-flags -Ofast -O2 # or compilation will fail
@@ -88,15 +91,23 @@ src_prepare() {
 	( [[ $(gcc-major-version) -eq 4 && $(gcc-minor-version) -ge 9 ]] ); then
 		append-flags -fdiagnostics-color=always
 	fi
+	# GCC 5.0 with CXX will complain about too few registers without this
+	if [[ $(gcc-major-version) -eq 5 && $(gcc-minor-version) -eq 0 ]]; then
+		replace-flags -O[3-6] -O2
+	fi
+
+	# HHVM's dependencies need this when statically compiled, which is desirable
 	append-flags -pthread
 
 	# PR#4342, dependencies already guarantee that PCRE works
 	sed -i \
 		-e 's:find_package(PCRE REQUIRED):find_package(PCRE):' \
 		CMake/HPHPFindLibs.cmake
+	# use the already installed PCRE
 	sed -i \
 		-e '/^  pcre/d' \
 		third-party/CMakeLists.txt
+	rm -rf third-party/pcre
 
 	epatch_user
 }
