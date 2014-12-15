@@ -1,7 +1,7 @@
-From 60a8f498e460eed7b36733fa7cfd8e078c989535 Mon Sep 17 00:00:00 2001
+From 191da761e5e849e8627f31a67799ab42c072aac2 Mon Sep 17 00:00:00 2001
 From: W-Mark Kubacki <wmark@hurrikane.de>
 Date: Sun, 5 Oct 2014 20:48:14 +0200
-Subject: [PATCH] x86[_64]cpuid.pl: fix potential bias of
+Subject: [PATCH 1/4] x86[_64]cpuid.pl: fix potential bias of
  OPENSSL_ia32_{rdrand,rdseed}
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -25,7 +25,7 @@ retries is the responsibility of the caller.
  3 files changed, 86 insertions(+), 42 deletions(-)
 
 diff --git a/crypto/engine/eng_rdrand.c b/crypto/engine/eng_rdrand.c
-index 4e9e91d..c4d4ae9 100644
+index 4e9e91d..168f66a 100644
 --- a/crypto/engine/eng_rdrand.c
 +++ b/crypto/engine/eng_rdrand.c
 @@ -59,24 +59,32 @@
@@ -57,7 +57,7 @@ index 4e9e91d..c4d4ae9 100644
 -	}
 +	while (num_qwords)
 +		{
-+		ret = OPENSSL_ia32_rdrand((size_t*)buf, num_qwords);
++		ret = OPENSSL_ia32_rdrand(p, num_qwords);
 +		p += ret;
 +		num_qwords -= ret;
 +		}
@@ -79,7 +79,7 @@ diff --git a/crypto/x86_64cpuid.pl b/crypto/x86_64cpuid.pl
 index db5aa4a..5e31058 100644
 --- a/crypto/x86_64cpuid.pl
 +++ b/crypto/x86_64cpuid.pl
-@@ -364,19 +364,31 @@
+@@ -364,19 +364,31 @@ OPENSSL_instrument_bus2:
  ___
  }
  
@@ -118,7 +118,7 @@ index db5aa4a..5e31058 100644
  	ret
  .size	OPENSSL_ia32_rdrand,.-OPENSSL_ia32_rdrand
  
-@@ -384,16 +396,24 @@
+@@ -384,16 +396,24 @@ OPENSSL_ia32_rdrand:
  .type	OPENSSL_ia32_rdseed,\@abi-omnipotent
  .align	16
  OPENSSL_ia32_rdseed:
@@ -154,7 +154,7 @@ diff --git a/crypto/x86cpuid.pl b/crypto/x86cpuid.pl
 index 8677232..6de2bf4 100644
 --- a/crypto/x86cpuid.pl
 +++ b/crypto/x86cpuid.pl
-@@ -457,29 +457,45 @@
+@@ -457,29 +457,45 @@ my $max = "ebp";
  &function_end("OPENSSL_instrument_bus2");
  }
  
@@ -214,3 +214,6 @@ index 8677232..6de2bf4 100644
  
  &initseg("OPENSSL_cpuid_setup");
  
+-- 
+2.0.4
+

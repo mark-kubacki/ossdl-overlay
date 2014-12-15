@@ -1,2 +1,2 @@
 ossdl		https://binhost.ossdl.de/distfiles
-openssl-snapshots	https://binhost.ossdl.de/distfiles http://mirrors.ibiblio.org/openssl/snapshot
+openssl-snapshots	http://mirrors.ibiblio.org/openssl/snapshot https://binhost.ossdl.de/distfiles
