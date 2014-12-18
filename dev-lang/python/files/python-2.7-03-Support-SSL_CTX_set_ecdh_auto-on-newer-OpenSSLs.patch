@@ -1,54 +1,87 @@
-From 8fe8b1a0703adbebb2eb877b469c0707265f80eb Mon Sep 17 00:00:00 2001
+From 0672774eda63746f8ce17e1f564b5188aa4f83a4 Mon Sep 17 00:00:00 2001
 From: W-Mark Kubacki <wmark@hurrikane.de>
-Date: Wed, 23 Apr 2014 18:51:15 +0200
-Subject: [PATCH 3/3] Support SSL_CTX_set_ecdh_auto on newer OpenSSLs.
+Date: Thu, 18 Dec 2014 20:11:51 +0100
+Subject: [PATCH 2/2] Configure ECDH curves.
 
 ---
- Modules/_ssl.c | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ Modules/_ssl.c | 50 +++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 35 insertions(+), 15 deletions(-)
 
 diff --git a/Modules/_ssl.c b/Modules/_ssl.c
-index fc7a95e..a9a78ea 100644
+index 898d6c0..6361033 100644
 --- a/Modules/_ssl.c
 +++ b/Modules/_ssl.c
-@@ -374,6 +374,37 @@ newPySSLObject(PySocketSockObject *Sock, char *key_file, char *cert_file,
-         }
-     }
+@@ -200,6 +200,14 @@ static unsigned int _ssl_locks_count = 0;
+ # define HAVE_OPENSSL_VERIFY_PARAM
+ #endif
  
-+#if OPENSSL_VERSION_NUMBER >= 0x0090800fL
++/* For automatic curve selection. */
++#ifdef __AVX__
++#define OPENSSL_CURVES_SERVER "K-283:prime256v1"
++#define OPENSSL_CURVES_CLIENT "K-283:prime256v1:K-409:K-571:P-521:P-384"
++#else
++#define OPENSSL_CURVES_SERVER "prime256v1:K-283"
++#define OPENSSL_CURVES_CLIENT "prime256v1:K-283:P-521:P-384:K-409:K-571"
++#endif
+ 
+ typedef struct {
+     PyObject_HEAD
+@@ -483,6 +491,33 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
+     (void) ERR_get_state();
+     ERR_clear_error();
+ 
 +#ifndef OPENSSL_NO_ECDH
++    /* Allow automatic ECDH curve selection (on OpenSSL 1.0.2+), or use
++       prime256v1 by default. */
 +#if defined(SSL_CTX_set_ecdh_auto)
 +    if (socket_type == PY_SSL_SERVER) {
-+        // offering a conservative list of curves is the responsibility
-+        // of the server
-+        if (SSL_CTX_set1_curves_list(self->ctx, "K-283:prime256v1") == 0) {
-+            errstr = ERRSTR("Unknown curves: K-283 or prime256v1.");
-+            goto fail;
++        if (SSL_CTX_set1_curves_list(ctx, OPENSSL_CURVES_SERVER) == 0) {
++            PyErr_SetString(PyExc_NotImplementedError, "Unknown curves: "
++                OPENSSL_CURVES_CLIENT);
++            return NULL;
 +        }
-+    } else {
-+        if (SSL_CTX_set1_curves_list(self->ctx, "K-571:K-409:P-521:P-384:K-283:prime256v1") == 0) {
-+            errstr = ERRSTR("Unknown curves: K-571, K-409, P-521, P-384, K-283 or prime256v1.");
-+            goto fail;
++    } else { /* socket_type == PY_SSL_CLIENT */
++        if (SSL_CTX_set1_curves_list(ctx, OPENSSL_CURVES_CLIENT) == 0) {
++            PyErr_SetString(PyExc_NotImplementedError, "Unknown curves: "
++                OPENSSL_CURVES_SERVER);
++            return NULL;
 +        }
 +    }
-+
-+    if (SSL_CTX_set_ecdh_auto(self->ctx, 1) == 0) {
-+        errstr = ERRSTR("Automatic curve selection is not possible or available.");
-+        goto fail;
++    SSL_CTX_set_ecdh_auto(ctx, 1);
++#else
++    {
++        EC_KEY *key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
++        SSL_CTX_set_tmp_ecdh(ctx, key);
++        EC_KEY_free(key);
 +    }
-+#else // not defined(SSL_CTX_set_ecdh_auto)
-+    { // fall back to prime256v1
-+        EC_KEY *ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-+        SSL_CTX_set_tmp_ecdh(self->ctx, ecdh);
-+        EC_KEY_free(ecdh);
-+    }
-+#endif
 +#endif
 +#endif
 +
-     if (certreq != PY_SSL_CERT_NONE) {
-         if (cacerts_file == NULL) {
-             errstr = ERRSTR("No root certificates specified for "
+     PySSL_BEGIN_ALLOW_THREADS
+     self->ssl = SSL_new(ctx);
+     PySSL_END_ALLOW_THREADS
+@@ -2044,21 +2079,6 @@ context_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+         options |= SSL_OP_NO_SSLv2;
+     SSL_CTX_set_options(self->ctx, options);
+ 
+-#ifndef OPENSSL_NO_ECDH
+-    /* Allow automatic ECDH curve selection (on OpenSSL 1.0.2+), or use
+-       prime256v1 by default.  This is Apache mod_ssl's initialization
+-       policy, so we should be safe. */
+-#if defined(SSL_CTX_set_ecdh_auto)
+-    SSL_CTX_set_ecdh_auto(self->ctx, 1);
+-#else
+-    {
+-        EC_KEY *key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+-        SSL_CTX_set_tmp_ecdh(self->ctx, key);
+-        EC_KEY_free(key);
+-    }
+-#endif
+-#endif
+-
+ #define SID_CTX "Python"
+     SSL_CTX_set_session_id_context(self->ctx, (const unsigned char *) SID_CTX,
+                                    sizeof(SID_CTX));
 -- 
-1.9.2
+2.0.4
 

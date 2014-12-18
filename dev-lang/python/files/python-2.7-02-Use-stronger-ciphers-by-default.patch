@@ -1,25 +1,47 @@
-From 17eb3571983ecd6e28616f56b594565186eac944 Mon Sep 17 00:00:00 2001
+From 98c22358b01b3298a3a1bb2d9c0a9c212457ba21 Mon Sep 17 00:00:00 2001
 From: W-Mark Kubacki <wmark@hurrikane.de>
-Date: Wed, 23 Apr 2014 14:45:52 +0200
-Subject: [PATCH 2/3] Use stronger ciphers by default.
+Date: Thu, 18 Dec 2014 19:17:43 +0100
+Subject: [PATCH 1/2] Use stronger ciphers by default.
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
+Use cipher groups instead of individual ciphers, so the selection
+is delegated to the SSL implementation (OpenSSL, BoringSSL, LibreSSL)
+and works with new ciphers (ChaCha20, AEGIS, NORX…).
 ---
- Lib/ssl.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ Lib/ssl.py | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
 
 diff --git a/Lib/ssl.py b/Lib/ssl.py
-index d03e60d..855c3de 100644
+index 0f82227..5004635 100644
 --- a/Lib/ssl.py
 +++ b/Lib/ssl.py
-@@ -107,7 +107,7 @@ import errno
+@@ -157,9 +157,9 @@ else:
+ #   * Disable NULL authentication, NULL encryption, and MD5 MACs for security
+ #     reasons
+ _DEFAULT_CIPHERS = (
+-    'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:'
+-    'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:ECDH+RC4:'
+-    'DH+RC4:RSA+RC4:!aNULL:!eNULL:!MD5'
++    'EECDH+HIGH:EDH+HIGH:-AES256:EECDH+HIGH:EDH+HIGH:HIGH:'
++    '-3DES:HIGH:!kECDH:!kDH:'
++    '!aNULL:!MD5'
+ )
  
- # Disable weak or insecure ciphers by default
- # (OpenSSL's default setting is 'DEFAULT:!aNULL:!eNULL')
--_DEFAULT_CIPHERS = 'DEFAULT:!aNULL:!eNULL:!LOW:!EXPORT:!SSLv2'
-+_DEFAULT_CIPHERS = 'ECDH+HIGH:DH+HIGH:-3DES:HIGH:!aNULL:!MD5:!RC4'
+ # Restricted and more secure ciphers for the server side
+@@ -172,9 +172,8 @@ _DEFAULT_CIPHERS = (
+ #   * Disable NULL authentication, NULL encryption, MD5 MACs, DSS, and RC4 for
+ #     security reasons
+ _RESTRICTED_SERVER_CIPHERS = (
+-    'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:'
+-    'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:!aNULL:'
+-    '!eNULL:!MD5:!DSS:!RC4'
++    'EECDH+HIGH:EDH+HIGH:-AES256:EECDH+HIGH:EDH+HIGH:-3DES:-CAMELLIA:'
++    '!aNULL:!MD5:!RC4'
+ )
  
  
- class SSLSocket(socket):
 -- 
-1.9.2
+2.0.4
 
