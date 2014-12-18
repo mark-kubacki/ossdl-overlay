@@ -1,0 +1,58 @@
+From 6a3b58806e6c4b88d6b618a87febf5ebfaf9f42c Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Fri, 19 Dec 2014 01:59:29 +0100
+Subject: [PATCH] Enable static linking of libraries.
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Libraries that are not commonly found are statically linked.
+
+OpenSSL is being included for this reasons:
+ * The base system could use BoringSSL or LibreSSL, or similar.
+ * … or a stripped-down variant.
+This has been the cause of breaking builds in the past.
+---
+ setup.py | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+diff --git a/setup.py b/setup.py
+index 7868b7b..50cee6c 100644
+--- a/setup.py
++++ b/setup.py
+@@ -248,6 +248,32 @@ class PyBuildExt(build_ext):
+             args['compiler_so'] = compiler + ' ' + ccshared + ' ' + cflags
+         self.compiler.set_executables(**args)
+ 
++	def link_static(ext, from_lib, to_static_libs=None, path='/usr/lib64'):
++            if not from_lib in ext.libraries:
++                return
++            ext.libraries = [l for l in ext.libraries if not l == from_lib]
++            if not to_static_libs:
++                to_static_libs = [from_lib]
++            for s in to_static_libs:
++                if s.startswith('/'):
++                    path_to_s = s
++                else:
++                    path_to_s = "%s/lib%s.a" % (path, s)
++                if path_to_s in ext.extra_link_args: # push back
++                    [l for l in ext.extra_link_args if not l == path_to_s]
++                ext.extra_link_args.append(path_to_s)
++
++        for ext in self.extensions:
++            link_static(ext, "z")
++            link_static(ext, "ffi")
++            link_static(ext, "gdbm")
++            link_static(ext, "gdbm_compat", ["gdbm_compat", "gdbm"])
++            link_static(ext, "expat")
++            link_static(ext, "sqlite")
++            link_static(ext, "sqlite3")
++            link_static(ext, "crypto", ["crypto", "z"])
++            link_static(ext, "ssl", ["ssl", "crypto", "z"])
++
+         build_ext.build_extensions(self)
+ 
+         longest = 0
+-- 
+2.0.4
+

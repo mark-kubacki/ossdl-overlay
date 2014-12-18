@@ -18,16 +18,26 @@ SRC_URI="http://www.python.org/ftp/python/${PV}/${MY_P}.tar.xz
 LICENSE="PSF-2"
 SLOT="2.7"
 KEYWORDS="~alpha amd64 ~arm arm64 ~hppa ~ia64 ~m68k ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc x86 ~amd64-fbsd ~sparc-fbsd ~x86-fbsd"
-IUSE="-berkdb build doc elibc_uclibc examples gdbm hardened ipv6 +ncurses +readline sqlite +ssl +threads tk +wide-unicode wininst +xml"
+IUSE="-berkdb build doc elibc_uclibc examples gdbm hardened ipv6 +ncurses +readline semi-static sqlite +ssl +threads tk +wide-unicode wininst +xml"
 
 # Do not add a dependency on dev-lang/python to this ebuild.
 # If you need to apply a patch which requires python for bootstrapping, please
 # run the bootstrap code on your dev box and include the results in the
 # patchset. See bug 447752.
 
+LIB_DEPEND=">=sys-libs/zlib-1.1.3[static-libs]
+	dev-libs/libffi[static-libs]
+	!build? (
+		sqlite? ( >=dev-db/sqlite-3.3.8:3[static-libs] )
+		ssl? ( dev-libs/openssl[static-libs] )
+		xml? ( >=dev-libs/expat-2.1[static-libs] )
+	)"
 RDEPEND="app-arch/bzip2
-	>=sys-libs/zlib-1.1.3
-	virtual/libffi
+	!semi-static? (
+		virtual/libffi
+		!build? ( gdbm? ( sys-libs/gdbm[berkdb] ) )
+		${LIB_DEPEND//\[static-libs]}
+	)
 	virtual/libintl
 	!build? (
 		berkdb? ( || (
@@ -43,22 +53,23 @@ RDEPEND="app-arch/bzip2
 			sys-libs/db:4.3
 			sys-libs/db:4.2
 		) )
-		gdbm? ( sys-libs/gdbm[berkdb] )
 		ncurses? (
 			>=sys-libs/ncurses-5.2
 			readline? ( >=sys-libs/readline-4.1 )
 		)
-		sqlite? ( >=dev-db/sqlite-3.3.8:3 )
-		ssl? ( dev-libs/openssl )
 		tk? (
 			>=dev-lang/tk-8.0
 			dev-tcltk/blt
 			dev-tcltk/tix
 		)
-		xml? ( >=dev-libs/expat-2.1 )
 	)
 	!!<sys-apps/portage-2.1.9"
 DEPEND="${RDEPEND}
+	semi-static? (
+		dev-libs/libffi[static-libs]
+		!build? ( gdbm? ( sys-libs/gdbm[berkdb,static-libs] ) )
+		${LIB_DEPEND}
+	)
 	virtual/pkgconfig
 	>=sys-devel/autoconf-2.65
 	!sys-devel/gcc[libffi]"
@@ -87,6 +98,10 @@ pkg_setup() {
 src_prepare() {
 	epatch "${FILESDIR}/${PN}-2.7-02-Use-stronger-ciphers-by-default.patch"
 	epatch "${FILESDIR}/${PN}-2.7-03-Support-SSL_CTX_set_ecdh_auto-on-newer-OpenSSLs.patch"
+
+	if use semi-static; then
+		epatch "${FILESDIR}/${PN}-2.7-Enable-static-linking-of-libraries.patch"
+	fi
 
 	# Ensure that internal copies of expat, libffi and zlib are not used.
 	rm -r Modules/expat || die
@@ -198,14 +213,12 @@ src_configure() {
 		--with-fpectl \
 		--enable-shared \
 		$(use_enable ipv6) \
-		--with-pip \
 		$(use_with threads) \
 		$(use wide-unicode && echo "--enable-unicode=ucs4" || echo "--enable-unicode=ucs2") \
 		--infodir='${prefix}/share/info' \
 		--mandir='${prefix}/share/man' \
 		--with-dbmliborder="${dbmliborder}" \
 		--with-libc="" \
-		--enable-loadable-sqlite-extensions \
 		--with-system-expat \
 		--with-system-ffi
 
