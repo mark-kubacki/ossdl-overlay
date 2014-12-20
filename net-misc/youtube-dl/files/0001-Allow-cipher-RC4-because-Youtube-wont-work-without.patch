@@ -16,7 +16,7 @@ index b97e62a..7ab28dd 100644
  import zlib
  
 +if 'RC4' not in ssl._DEFAULT_CIPHERS or '!RC4' in ssl._DEFAULT_CIPHERS:
-+    ssl._DEFAULT_CIPHERS = 'ECDHE+HIGH:DHE+HIGH:-3DES:-RC4:HIGH:RC4:!aNULL:!MD5'
++    ssl._DEFAULT_CIPHERS = 'EECDHE+HIGH:DHE+HIGH:-3DES:HIGH:-RC4:RC4:!aNULL:!MD5'
 +
  try:
      import urllib.request as compat_urllib_request
