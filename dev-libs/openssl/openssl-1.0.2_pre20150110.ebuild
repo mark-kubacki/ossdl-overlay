@@ -83,7 +83,6 @@ src_prepare() {
 		sed -i -e "s:OpenSSL-libssl:OpenSSL:" Makefile.org
 		epatch "${FILESDIR}"/0001-Enable-parallel-builds-for-example-with-MAKEOPTS-j4.patch
 		epatch "${FILESDIR}"/0001-Make-the-assembly-syntax-compatible-with-x32-gcc.patch
-		epatch "${FILESDIR}"/0001-IPv6-support-for-s_client-s_server-and-DTLS.patch-v2
 		for F in $(find -name '*.pod' -type d); do
 			sed -i -E 's:=item ([0-9]+):=item C<\1>:' $F
 		done
