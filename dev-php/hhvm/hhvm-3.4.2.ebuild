@@ -1,4 +1,4 @@
-# Copyright 2014 W. Mark Kubacki, Vadim Borodavko
+# Copyright 2014–2015 W. Mark Kubacki, Vadim Borodavko
 # Distributed under the terms of the OSI Reciprocal Public License
 
 EAPI="5"
@@ -68,6 +68,7 @@ DEPEND="${DEPEND}
 	sys-devel/bison
 	sys-devel/flex
 	sys-libs/readline[static-libs]
+	sys-libs/zlib[static-libs]
 	"
 
 # for DEPEND run:
