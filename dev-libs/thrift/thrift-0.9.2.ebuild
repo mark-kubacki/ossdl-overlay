@@ -47,6 +47,7 @@ RDEPEND=">=dev-libs/boost-1.40.0
 	"
 DEPEND="${RDEPEND}
 	>=sys-devel/gcc-4.2[cxx]
+	>=sys-devel/bison-2.5
 	c_glib? ( dev-libs/glib )
 	"
 
