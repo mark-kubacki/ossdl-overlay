@@ -26,7 +26,6 @@ DEPEND="${RDEPEND}
 S=${WORKDIR}/${P/_/}
 
 src_prepare() {
-	epatch "${FILESDIR}"/${PN}-3.1.1_pre1-avoid_infinite_wait_reading_secrets_file.patch
 	epatch "${S}"/patches/detect-renamed.diff
 	epatch "${S}"/patches/detect-renamed-lax.diff
 	epatch "${S}"/patches/adaptec_acl_mods.diff
