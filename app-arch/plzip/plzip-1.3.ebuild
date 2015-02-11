@@ -1,4 +1,4 @@
-# Copyright 2013 W-Mark Kubacki
+# Copyright 2013-2015 W. Mark Kubacki
 # Distributed under the terms of the OSI Reciprocal Public License
 
 EAPI="4"
@@ -11,7 +11,7 @@ SRC_URI="http://download.savannah.gnu.org/releases-noredirect/lzip/${P}.tar.gz"
 
 LICENSE="GPL-3"
 SLOT="0"
-KEYWORDS="~alpha ~amd64 ~arm ~hppa ~ppc ~ppc64 ~sparc ~x86"
+KEYWORDS="~alpha amd64 ~arm ~hppa ~ppc ~ppc64 ~sparc ~x86"
 
 DEPEND="dev-libs/lzlib"
 
