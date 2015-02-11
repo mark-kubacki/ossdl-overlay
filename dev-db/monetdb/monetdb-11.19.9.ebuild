@@ -1,4 +1,4 @@
-# Copyright 2009-2014 W-Mark Kubacki
+# Copyright 2009-2015 W. Mark Kubacki
 # Distributed under the terms of the OSI Reciprocal Public License
 
 EAPI="4"
@@ -10,7 +10,7 @@ MY_P=${MY_PN}-${PV}
 
 DESCRIPTION="A column-store based (R)DBMS."
 HOMEPAGE="https://www.monetdb.org/"
-SRC_URI="https://dev.monetdb.org/downloads/sources/Jan2014-SP1/${MY_P}.tar.xz"
+SRC_URI="https://www.monetdb.org/downloads/sources/Oct2014-SP2/${MY_P}.tar.xz"
 RESTRICT="primaryuri"
 
 LICENSE="MonetDBPL-1.1"
@@ -19,7 +19,7 @@ KEYWORDS="amd64 x86 ~arm"
 IUSE="debug -rdf datacell fits +sql -console -odbc -static curl iconv -java bzip2 zlib perl -ruby sphinx geom hwcounter"
 
 RDEPEND=">=dev-libs/libpcre-4.5
-	>=dev-libs/openssl-0.9.8
+	>=dev-libs/openssl-1.0.1
 	rdf? ( =media-libs/raptor-1* )
 	console? ( sys-libs/readline )
 	odbc? ( dev-db/unixODBC )
