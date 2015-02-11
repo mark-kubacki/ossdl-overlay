@@ -1,15 +1,12 @@
 #!/sbin/runscript
-# Copyright 1999-2012 Gentoo Foundation
+# Copyright 1999-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/net-im/prosody/files/prosody.initd,v 1.2 2012/11/27 09:20:26 klausman Exp $
+# $Header: /var/cvsroot/gentoo-x86/net-im/prosody/files/prosody.initd-r2,v 1.1 2014/10/15 08:07:58 klausman Exp $
 
 description="Prosody is a server for Jabber/XMPP written in Lua."
 description_reload="Reload configuration and reopen log files."
 extra_started_commands="reload"
-
-PIDFILE="/var/run/jabber/prosody.pid"
-USER="jabber"
-COMMAND="/usr/bin/prosody"
+pidfile="/var/run/jabber/prosody.pid"
 
 depend() {
 	use dns
@@ -22,26 +19,29 @@ checkconfig() {
 		eerror "You need a /etc/jabber/prosody.cfg.lua file to run prosody"
 		return 1
 	fi
+	luac -p /etc/jabber/prosody.cfg.lua
+	return $?
 }
 
 start() {
 	checkconfig || return 1
-	checkpath -q -d -m 0770 -o jabber:jabber /var/run/jabber
+	checkpath -q -d -m 0770 -o jabber:jabber "$(dirname ${pidfile})"
+	checkpath -q -f -m 0770 -o jabber:jabber "${pidfile}"
+	checkpath -q -d -m 0750 -o jabber:jabber /var/log/jabber
 	ebegin "Starting Prosody XMPP Server"
-	start-stop-daemon --start -b --pidfile ${PIDFILE} \
-		--make-pidfile --user ${USER} --exec ${COMMAND}
+	prosodyctl start
 	eend $?
 }
 
 stop() {
 	ebegin "Stopping Prosody XMPP Server"
-	start-stop-daemon --stop --pidfile ${PIDFILE} \
-		--user ${USER} --exec ${COMMAND}
+	prosodyctl stop
 	eend $?
 }
 
 reload() {
+	checkconfig || return 1
 	ebegin "Reloading configuration of Prosody XMPP Server"
-	start-stop-daemon --pidfile ${PIDFILE} --signal HUP
+	prosodyctl reload
 	eend $?
 }
