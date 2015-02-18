@@ -229,6 +229,7 @@ src_prepare() {
 		epatch "${FILESDIR}/nginx-1.5.6-3072-bit-dhparam.patch"
 	fi
 	epatch "${FILESDIR}/nginx-1.5.8-remove-RC4-from-the-list-of-default-ciphers.patch"
+	epatch "${FILESDIR}/0001-Add-ifdef-around-SSL_R_BLOCK_CIPHER_PAD_IS_WRONG.patch"
 
 	find auto/ -type f -print0 | xargs -0 sed -i 's:\&\& make:\&\& \\$(MAKE):' || die
 	# We have config protection, don't rename etc files

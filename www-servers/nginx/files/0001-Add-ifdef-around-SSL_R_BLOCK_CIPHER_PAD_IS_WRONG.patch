@@ -1,0 +1,26 @@
+From 06a0db96af0ca575f4f30b6282e63c4478b19f25 Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Thu, 19 Feb 2015 00:31:57 +0100
+Subject: [PATCH] Add ifdef around SSL_R_BLOCK_CIPHER_PAD_IS_WRONG.
+
+---
+ src/event/ngx_event_openssl.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index d5d4a1a..6d81180 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -1893,7 +1893,9 @@ ngx_ssl_connection_error(ngx_connection_t *c, int sslerr, ngx_err_t err,
+ 
+             /* handshake failures */
+         if (n == SSL_R_BAD_CHANGE_CIPHER_SPEC                        /*  103 */
++#ifdef SSL_R_BLOCK_CIPHER_PAD_IS_WRONG
+             || n == SSL_R_BLOCK_CIPHER_PAD_IS_WRONG                  /*  129 */
++#endif
+             || n == SSL_R_DIGEST_CHECK_FAILED                        /*  149 */
+             || n == SSL_R_ERROR_IN_RECEIVED_CIPHER_LIST              /*  151 */
+             || n == SSL_R_EXCESSIVE_MESSAGE_SIZE                     /*  152 */
+-- 
+2.0.4
+
