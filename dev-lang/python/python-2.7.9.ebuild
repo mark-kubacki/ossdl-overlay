@@ -98,6 +98,7 @@ pkg_setup() {
 src_prepare() {
 	epatch "${FILESDIR}/${PN}-2.7-02-Use-stronger-ciphers-by-default.patch"
 	epatch "${FILESDIR}/${PN}-2.7-03-Support-SSL_CTX_set_ecdh_auto-on-newer-OpenSSLs.patch"
+	epatch "${FILESDIR}/${PN}-2.7.9-Fix-merge_collapse-of-Timsort.patch"
 
 	if use semi-static; then
 		epatch "${FILESDIR}/${PN}-2.7-Enable-static-linking-of-libraries.patch"

@@ -1,0 +1,26 @@
+From 2bbb9cc6136ba73da558e7dfd79df3787fbc30fc Mon Sep 17 00:00:00 2001
+From: Stijn de Gouw <info@envisage-project.eu>
+Date: Tue, 24 Feb 2015 15:53:25 +0100
+Subject: [PATCH] Fix merge_collapse() of Timsort.
+
+---
+ Objects/listobject.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/Objects/listobject.c b/Objects/listobject.c
+index f753643..94fc5e7 100644
+--- a/Objects/listobject.c
++++ b/Objects/listobject.c
+@@ -1800,7 +1800,8 @@ merge_collapse(MergeState *ms)
+     assert(ms);
+     while (ms->n > 1) {
+         Py_ssize_t n = ms->n - 2;
+-        if (n > 0 && p[n-1].len <= p[n].len + p[n+1].len) {
++        if (     n > 0   && p[n-1].len <= p[n].len + p[n+1].len
++            || (n-1 > 0 &&  p[n-2].len <= p[n].len + p[n-1].len)) {
+             if (p[n-1].len < p[n+1].len)
+                 --n;
+             if (merge_at(ms, n) < 0)
+-- 
+2.0.4
+
