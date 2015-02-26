@@ -20,12 +20,12 @@ fi
 
 LICENSE="MIT"
 SLOT="0/16" # as in h2-16
-KEYWORDS="amd64 ~arm ~arm64 ~hppa ppc ppc64 ~sparc x86"
-IUSE="+alpn +apps +examples python +spdy test +xml"
+KEYWORDS="amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~sparc x86"
+IUSE="alpn apps examples python spdy test xml"
 
 REQUIRED_USE="xml? ( apps )
 	alpn? ( apps )"
-RDEPEND=">=dev-libs/jansson-2.5
+RDEPEND="
 	apps? (
 		dev-libs/jemalloc
 		dev-libs/libev
@@ -33,6 +33,7 @@ RDEPEND=">=dev-libs/jansson-2.5
 		>=dev-libs/openssl-1.0.1:=
 		alpn? ( >=dev-libs/openssl-1.0.2_alpha:= )
 		>=sys-libs/zlib-1.2.3
+		>=dev-libs/jansson-2.5
 	)
 	spdy? ( net-misc/spdylay:= )
 	python? (
