@@ -5,7 +5,7 @@ EAPI="5"
 
 inherit flag-o-matic
 
-DESCRIPTION="parallel lossless data compressor based on the lzlib compression library"
+DESCRIPTION="sign and verify binaries using the ED25519 curve and SHA2"
 HOMEPAGE="https://github.com/Blitznote/signify"
 SRC_URI="https://github.com/Blitznote/${PN}/releases/download/${PV}/${P}.tar.bz2"
 RESTRICT="primaryuri nostrip"
