@@ -1,0 +1,230 @@
+From 71237e50cfeb3aaccce32bfec31af0c522ef624d Mon Sep 17 00:00:00 2001
+From: W-Mark Kubacki <wmark@hurrikane.de>
+Date: Wed 2015-05-27 18:18:29 +0200
+Subject: [PATCH] SSL dynamic record size
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+implements packet-size aware sending of small TLS records in adavance of a
+larger stream, in the hope of making them available sooner to a browser for
+parsing a page's required files (CSS, JS…).
+
+This implementation computes PDU sizes on a per-connection basis.
+
+It operates under the assumption that only TLSv1.0, 1.1, or 1.2 is used and
+the only available ciphers are AEAD ones as well as DES and AES. For example,
+the sizes for RC4 will be off (costing a rather neglible amount of bytes) for
+the first 3 packets.
+---
+ src/core/ngx_connection.h     |   1 +
+ src/event/ngx_event_openssl.c | 115 ++++++++++++++++++++++++++++++++++++++++--
+ src/event/ngx_event_openssl.h |   2 +
+ 3 files changed, 113 insertions(+), 5 deletions(-)
+
+diff --git a/src/core/ngx_connection.h b/src/core/ngx_connection.h
+index 27bb8a9..29d0ba7 100644
+--- a/src/core/ngx_connection.h
++++ b/src/core/ngx_connection.h
+@@ -143,6 +143,7 @@ struct ngx_connection_s {
+ 
+ #if (NGX_SSL)
+     ngx_ssl_connection_t  *ssl;
++    int                 mss;
+ #endif
+ 
+     struct sockaddr    *local_sockaddr;
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index 1b789e6..bd1c4bc 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -8,7 +8,14 @@
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ #include <ngx_event.h>
++#include <sys/socket.h>
+ 
++#ifndef SSL_SHA1
++#define SSL_SHA1 0x00000002L
++#endif
++#ifndef SSL_AEAD
++#define SSL_AEAD 0x00000010L
++#endif
+ 
+ #define NGX_SSL_PASSWORD_BUFFER_SIZE  4096
+ 
+@@ -1508,6 +1515,68 @@ ngx_ssl_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
+     ngx_uint_t   flush;
+     ssize_t      send, size;
+     ngx_buf_t   *buf;
++    ngx_msec_t   last_sent_timer_diff;
++    ngx_uint_t   loop_count;
++
++    last_sent_timer_diff = ngx_current_msec - c->ssl->last_write_msec;
++    loop_count = 0;
++
++    if (!c->mss) {
++#ifdef TCP_MAXSEG
++       int mss;
++       socklen_t mss_size = sizeof(mss);
++
++       if (getsockopt(c->fd, SOL_TCP, TCP_MAXSEG, &mss, &mss_size) == 0) {
++           c->mss = mss;
++       } else {
++           c->mss = 1428; /* as of 2015 the most common MSS for IPv4 */
++       }
++#else
++       c->mss = 1428;
++#endif
++    }
++
++    /* map[maxPackets]ceilSize; 0 is: ceiled by ssl_buffer_size */
++    int pdu2, pdu4, pdu6;
++#if OPENSSL_VERSION_NUMBER >= 0x10000000L
++    const
++#endif
++    SSL_CIPHER *cipher;
++    cipher = SSL_get_current_cipher(c->ssl->connection);
++
++    if (!cipher || (cipher->algorithm_mac & SSL_AEAD) == SSL_AEAD) {
++      //pdu0 = (((int)c->ssl->buffer_size / c->mss) * c->mss - 29);
++      //pdu1 = (1 * c->mss - 29);
++        pdu2 = (2 * c->mss - 29);
++      //pdu3 = (3 * c->mss - 29);
++        pdu4 = (4 * c->mss - 29);
++      //pdu5 = (5 * c->mss - 29);
++        pdu6 = (6 * c->mss - 29);
++    } else { /* !AEAD */
++        /* RC4, RCx... are not used, skip checks for them.
++           The remaining ciphers are:             AES, 3DES. */
++        int padding = SSL_CIPHER_is_AES(cipher) ? 16 : 8;
++        int overhead = 5 + 1;    /* TLS header + padding_0 */
++        /* MD5 is not used, so it's SHA or SHA2. */
++        if ((cipher->algorithm_mac & SSL_SHA1) == SSL_SHA1) {
++           overhead += 20;
++        } else {
++           overhead += 32;
++        }
++        if (c->ssl->connection->version >= TLS1_1_VERSION) {
++            overhead += padding; /* IV */
++        }
++
++      //pdu0 = ((int)(
++      //                ((int)c->ssl->buffer_size / c->mss)
++      //                  * c->mss - overhead) / padding) * padding;
++      //pdu1 = ((int)(1 * c->mss - overhead) / padding) * padding;
++        pdu2 = ((int)(2 * c->mss - overhead) / padding) * padding;
++      //pdu3 = ((int)(3 * c->mss - overhead) / padding) * padding;
++        pdu4 = ((int)(4 * c->mss - overhead) / padding) * padding;
++      //pdu5 = ((int)(5 * c->mss - overhead) / padding) * padding;
++        pdu6 = ((int)(6 * c->mss - overhead) / padding) * padding;
++    }
+ 
+     if (!c->ssl->buffer) {
+ 
+@@ -1517,7 +1586,23 @@ ngx_ssl_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
+                 continue;
+             }
+ 
+-            n = ngx_ssl_write(c, in->buf->pos, in->buf->last - in->buf->pos);
++            size = in->buf->last - in->buf->pos;
++
++            if (last_sent_timer_diff > 1000*20 && loop_count <= 2) {
++                /* likely playbook:
++                   [(2, 2, 4, <=4), (2, 2, <=6), (2, <=4), (<=4)] */
++                switch(loop_count) {
++                case 0:
++                case 1:
++                    if (size >= pdu2 && !(size <= pdu4)) { size = pdu2; }
++                    break;
++                case 2:
++                    if (size >= pdu4 && !(size <= pdu6)) { size = pdu4; }
++                    break;
++                }
++            }
++
++            n = ngx_ssl_write(c, in->buf->pos, size);
+ 
+             if (n == NGX_ERROR) {
+                 return NGX_CHAIN_ERROR;
+@@ -1532,8 +1617,11 @@ ngx_ssl_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
+             if (in->buf->pos == in->buf->last) {
+                 in = in->next;
+             }
++
++            ++loop_count;
+         }
+ 
++        c->ssl->last_write_msec = ngx_current_msec;
+         return in;
+     }
+ 
+@@ -1614,9 +1702,22 @@ ngx_ssl_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
+         if (size == 0) {
+             buf->flush = 0;
+             c->buffered &= ~NGX_SSL_BUFFERED;
++            c->ssl->last_write_msec = ngx_current_msec;
+             return in;
+         }
+ 
++        if (last_sent_timer_diff > 1000*20 && loop_count <= 2) {
++            switch(loop_count) {
++            case 0:
++            case 1:
++                if (size >= pdu2 && !(size <= pdu4)) { size = pdu2; }
++                break;
++            case 2:
++                if (size >= pdu4 && !(size <= pdu6)) { size = pdu4; }
++                break;
++            }
++        }
++
+         n = ngx_ssl_write(c, buf->pos, size);
+ 
+         if (n == NGX_ERROR) {
+@@ -1633,14 +1734,17 @@ ngx_ssl_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
+             break;
+         }
+ 
+-        flush = 0;
+-
+-        buf->pos = buf->start;
+-        buf->last = buf->start;
++        if(buf->last == buf->pos) {
++            flush = 0;
++            buf->pos = buf->start;
++            buf->last = buf->start;
++        }
+ 
+         if (in == NULL || send == limit) {
+             break;
+         }
++
++        ++loop_count;
+     }
+ 
+     buf->flush = flush;
+@@ -1652,6 +1756,7 @@ ngx_ssl_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
+         c->buffered &= ~NGX_SSL_BUFFERED;
+     }
+ 
++    c->ssl->last_write_msec = ngx_current_msec;
+     return in;
+ }
+ 
+diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
+index 08eff64..74f027e 100644
+--- a/src/event/ngx_event_openssl.h
++++ b/src/event/ngx_event_openssl.h
+@@ -51,6 +51,8 @@ typedef struct {
+     ngx_buf_t                  *buf;
+     size_t                      buffer_size;
+ 
++    ngx_msec_t                  last_write_msec;
++
+     ngx_connection_handler_pt   handler;
+ 
+     ngx_event_handler_pt        saved_read_handler;
+-- 
+2.0.4
+
