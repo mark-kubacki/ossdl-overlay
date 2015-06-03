@@ -1,4 +1,4 @@
-# Copyright 1999-2014 Gentoo Foundation
+# Copyright 1999-2015 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI="4"
@@ -37,7 +37,7 @@ SRC_URI="mirror://gnu/bash/${MY_P}.tar.gz $(patches)"
 
 LICENSE="GPL-3"
 SLOT="0"
-KEYWORDS="~alpha amd64 ~arm arm64 ~hppa ~ia64 ~m68k ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc x86 amd64-fbsd ~sparc-fbsd x86-fbsd"
+KEYWORDS="~alpha amd64 ~arm arm64 ~hppa ~ia64 ~m68k ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc x86 ~amd64-fbsd ~sparc-fbsd ~x86-fbsd"
 IUSE="afs bashlogger examples mem-scramble +net nls plugins +readline vanilla"
 
 DEPEND=">=sys-libs/ncurses-5.2-r2
@@ -69,9 +69,7 @@ src_unpack() {
 
 src_prepare() {
 	# Include official patches
-	if [[ ${PLEVEL} -gt 0 ]] ; then
-		epatch $(patches -s)
-	fi
+	[[ ${PLEVEL} -gt 0 ]] && epatch $(patches -s)
 
 	# Clean out local libs so we know we use system ones w/releases.
 	if [[ ${PV} != *_rc* ]] ; then
@@ -85,9 +83,9 @@ src_prepare() {
 	touch -r . doc/*
 
 	epatch "${FILESDIR}"/${PN}-4.3-compat-lvl.patch
-	epatch "${FILESDIR}"/${PN}-4.3-parse-time-keyword.patch
 	epatch "${FILESDIR}"/${PN}-4.3-append-process-segfault.patch
-	epatch "${FILESDIR}"/${PN}-4.3-term-cleanup.patch
+	epatch "${FILESDIR}"/${PN}-4.3-mapfile-improper-array-name-validation.patch
+	epatch "${FILESDIR}"/${PN}-4.3-arrayfunc.patch
 
 	# removes importing of functions from variables
 	sed_prefix='\(if (privmode[^\n]*STREQN ("() {"[^\n]*\n\s*{\)'
@@ -95,8 +93,7 @@ src_prepare() {
 	display_err='report_error (_("importing of functions has been removed completely"))\;'
 	#sed -i -n '1h;1!H;${g;s:'${sed_prefix}'.*'${sed_suffix}':\1'${display_err}'\2:;p;}' \
 	sed -i -n '1h;1!H;${g;s:\(if (privmode[^\n]*STREQN ("() {"[^\n]*\n\s*{\).*\(}\s*\n\s*#if defined (ARRAY_VARS)\s*\n#\s*if ARRAY_EXPORT\):\1report_error (_("importing of functions has been removed completely"))\;\2:;p;}' \
-		variables.c \
-	|| die
+		variables.c || die
 
 	epatch_user
 }
@@ -185,7 +182,9 @@ src_install() {
 	dosym bash /bin/rbash
 
 	insinto /etc/bash
-	doins "${FILESDIR}"/{bashrc,bash_logout}
+	doins "${FILESDIR}"/bash_logout
+	newins "${FILESDIR}"/bashrc-r2 bashrc
+	keepdir /etc/bash/bashrc.d
 	insinto /etc/skel
 	for f in bash{_logout,_profile,rc} ; do
 		newins "${FILESDIR}"/dot-${f} .${f}
@@ -214,7 +213,7 @@ src_install() {
 	fi
 
 	if use examples ; then
-		for d in examples/{functions,misc,scripts,scripts.noah,scripts.v2} ; do
+		for d in examples/{functions,misc,scripts,startup-files} ; do
 			exeinto /usr/share/doc/${PF}/${d}
 			insinto /usr/share/doc/${PF}/${d}
 			for f in ${d}/* ; do
