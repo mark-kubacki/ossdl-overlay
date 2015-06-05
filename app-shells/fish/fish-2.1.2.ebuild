@@ -28,6 +28,7 @@ RDEPEND="${DEPEND}"
 src_prepare() {
 	epatch "${FILESDIR}"/${PN}-2.1.0-tinfo.patch #459768
 	epatch "${FILESDIR}"/${PN}-2.1.0-putty-xterm.patch
+	epatch "${FILESDIR}"/${PN}-2.1.1-fix-grep-usage.patch
 	mv share/functions/fish_prompt.fish share/tools/web_config/sample_prompts/
 	cp "${FILESDIR}"/fish_prompt_mark.fish share/functions/fish_prompt.fish
 
