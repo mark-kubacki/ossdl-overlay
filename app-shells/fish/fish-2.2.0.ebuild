@@ -5,7 +5,7 @@ EAPI=5
 
 PYTHON_COMPAT=( python{2_7,3_2,3_3,3_4} )
 
-inherit base autotools
+inherit base autotools flag-o-matic
 
 DESCRIPTION="fish is the Friendly Interactive SHell"
 HOMEPAGE="http://fishshell.com/"
@@ -26,9 +26,6 @@ DEPEND="sys-libs/ncurses
 RDEPEND="${DEPEND}"
 
 src_prepare() {
-	epatch "${FILESDIR}"/${PN}-2.1.0-tinfo.patch #459768
-	epatch "${FILESDIR}"/${PN}-2.1.0-putty-xterm.patch
-	epatch "${FILESDIR}"/${PN}-2.1.1-fix-grep-usage.patch
 	mv share/functions/fish_prompt.fish share/tools/web_config/sample_prompts/
 	cp "${FILESDIR}"/fish_prompt_mark.fish share/functions/fish_prompt.fish
 
@@ -36,6 +33,8 @@ src_prepare() {
 }
 
 src_configure() {
+	append-ldflags -fwhole-program -static-libgcc -static-libstdc++
+
 	# Set things up for fish to be a default shell.
 	# It has to be in /bin in case /usr is unavailable.
 	# Also, all of its utilities have to be in /bin.
