@@ -1,8 +1,8 @@
-# Copyright 1999-2014 Gentoo Foundation
+# Copyright 1999-2015 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI="5"
-PYTHON_COMPAT=( python{2_7,3_2,3_3,3_4} )
+PYTHON_COMPAT=( python{2_7,3_4} )
 
 inherit eutils flag-o-matic multilib multiprocessing python-r1 toolchain-funcs versionator multilib-minimal
 
@@ -15,14 +15,13 @@ SRC_URI="mirror://sourceforge/boost/${MY_P}.tar.bz2"
 
 LICENSE="Boost-1.0"
 SLOT="0/${PV}" # ${PV} instead ${MAJOR_V} due to bug 486122
-KEYWORDS="~alpha ~amd64 ~arm ~hppa ~ia64 ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc ~x86 ~amd64-fbsd ~amd64-linux ~x86-fbsd ~x86-linux"
+KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc ~x86 ~ppc-aix ~amd64-fbsd ~x86-fbsd ~amd64-linux ~x86-linux ~ppc-macos ~x64-macos ~x86-macos ~sparc-solaris ~sparc64-solaris ~x86-solaris ~x86-winnt"
 
 IUSE="context debug doc icu +nls mpi python static-libs +threads tools"
 
-RDEPEND="abi_x86_32? ( !app-emulation/emul-linux-x86-cpplibs[-abi_x86_32(-)] )
-	icu? ( >=dev-libs/icu-3.6:=[${MULTILIB_USEDEP}] )
+RDEPEND="icu? ( >=dev-libs/icu-3.6:=[${MULTILIB_USEDEP}] )
 	!icu? ( virtual/libiconv[${MULTILIB_USEDEP}] )
-	mpi? ( || ( sys-cluster/openmpi[cxx] sys-cluster/mpich2[cxx,threads] ) )
+	mpi? ( virtual/mpi[cxx,threads] )
 	python? ( ${PYTHON_DEPS} )
 	app-arch/bzip2[${MULTILIB_USEDEP}]
 	sys-libs/zlib[${MULTILIB_USEDEP}]
@@ -74,7 +73,11 @@ create_user-config.jam() {
 	fi
 
 	if python_bindings_needed; then
-		python_configuration="using python : : ${PYTHON} ;"
+		if tc-is-cross-compiler; then
+			python_configuration="using python : ${EPYTHON#python} : : ${SYSROOT:-${EROOT}}/usr/include/${EPYTHON} : ${SYSROOT:-${EROOT}}/usr/$(get_libdir) ;"
+		else
+			python_configuration="using python : : ${PYTHON} ;"
+		fi
 	fi
 
 	cat > "${BOOST_ROOT}/user-config.jam" << __EOF__
@@ -106,8 +109,7 @@ src_prepare() {
 		"${FILESDIR}/${PN}-1.48.0-python_linking.patch" \
 		"${FILESDIR}/${PN}-1.48.0-disable_icu_rpath.patch" \
 		"${FILESDIR}/${PN}-1.55.0-context-x32.patch" \
-		"${FILESDIR}/${PN}-1.55.0-tools-c98-compat.patch" \
-		"${FILESDIR}/${PN}-1.52.0-threads.patch"
+		"${FILESDIR}/${PN}-1.56.0-build-auto_index-tool.patch"
 
 	# Do not try to build missing 'wave' tool, bug #522682
 	# Upstream bugreport - https://svn.boost.org/trac/boost/ticket/10507
@@ -248,6 +250,7 @@ multilib_src_install_all() {
 	if ! use context; then
 		rm -r "${ED}"/usr/include/boost/context || die
 		rm -r "${ED}"/usr/include/boost/coroutine || die
+		rm "${ED}"/usr/include/boost/asio/spawn.hpp || die
 	fi
 
 	if use doc; then
