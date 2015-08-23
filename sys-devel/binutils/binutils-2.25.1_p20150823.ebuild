@@ -5,8 +5,8 @@ EAPI="4"
 
 BINUTILS_TYPE="git"
 EGIT_BRANCH="binutils-2_25-branch"
-EGIT_COMMIT="516a3acf86bb85b0e51c9809a93d3b50320b6bde"
-BVER="2.25.0.0.${PV##*_pre}"
+EGIT_COMMIT="0363588f454f6efa3dab47c932b488d33a45eb70"
+BVER="2.25.1.${PV##*_p}"
 
 inherit toolchain-binutils
 
@@ -15,6 +15,6 @@ KEYWORDS="~amd64 ~arm64 ~x86"
 src_prepare() {
 	toolchain-binutils_src_prepare
 
-	sed -i -e "s:2.24.90:2.25.0.0.${PV##*_pre}:" -- */configure bfd/version.m4 \
+	sed -i -e "s:2.25.2:${BVER}:" -- */configure bfd/version.m4 \
 	|| die "cannot set version"
 }
