@@ -19,8 +19,8 @@ KEYWORDS="~amd64 ~amd64-linux ~x86 ~x86-linux"
 
 RDEPEND=""
 DEPEND="${RDEPEND}
-	elibc_glibc? ( >=sys-libs/glibc-2.12 )
-	>=${CATEGORY}/binutils-2.20"
+	elibc_glibc? ( >=sys-libs/glibc-2.18 )
+	>=${CATEGORY}/binutils-2.25.1"
 
 if [[ ${CATEGORY} != cross-* ]] ; then
 	PDEPEND="${PDEPEND} elibc_glibc? ( >=sys-libs/glibc-2.8 )"

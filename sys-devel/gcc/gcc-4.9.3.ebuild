@@ -3,11 +3,11 @@
 
 EAPI="4"
 
-PATCH_VER="1.0"
+PATCH_VER="1.2"
 UCLIBC_VER="1.0"
 
 # Hardened gcc 4 stuff
-PIE_VER="0.6.1"
+PIE_VER="0.6.2"
 SPECS_VER="0.2.0"
 SPECS_GCC_VER="4.4.3"
 # arch/libc configurations known to be stable with {PIE,SSP}-by-default
@@ -25,11 +25,11 @@ KEYWORDS="amd64 amd64-linux ~x86 ~x86-linux"
 
 RDEPEND=""
 DEPEND="${RDEPEND}
-	elibc_glibc? ( >=sys-libs/glibc-2.12 )
-	>=${CATEGORY}/binutils-2.20"
+	elibc_glibc? ( >=sys-libs/glibc-2.19 )
+	>=${CATEGORY}/binutils-2.25"
 
 if [[ ${CATEGORY} != cross-* ]] ; then
-	PDEPEND="${PDEPEND} elibc_glibc? ( >=sys-libs/glibc-2.8 )"
+	PDEPEND="${PDEPEND} elibc_glibc? ( >=sys-libs/glibc-2.19 )"
 fi
 
 src_prepare() {
@@ -44,4 +44,7 @@ src_prepare() {
 	use vanilla && return 0
 	#Use -r1 for newer piepatchet that use DRIVER_SELF_SPECS for the hardened specs.
 	[[ ${CHOST} == ${CTARGET} ]] && epatch "${FILESDIR}"/gcc-spec-env-r1.patch
+
+	epatch "${FILESDIR}"/4.x/4.9-haswell-float-optimize.patch || die
+	epatch "${FILESDIR}"/4.x/4.9-0x47-is-broadwell.patch || die
 }

@@ -1,0 +1,116 @@
+diff --git a/gcc/config/i386/driver-i386.c b/gcc/config/i386/driver-i386.c
+index 992f91f..10d452b 100644
+--- a/gcc/config/i386/driver-i386.c
++++ b/gcc/config/i386/driver-i386.c
+@@ -720,6 +720,11 @@ const char *host_detect_local_cpu (int argc, const char **argv)
+ 	  /* Broadwell.  */
+ 	  cpu = "broadwell";
+ 	  break;
++	case 0x4e:
++	case 0x5e:
++	  /* Skylake.  */
++	  cpu = "skylake";
++	  break;
+ 	case 0x57:
+ 	  /* Knights Landing.  */
+ 	  cpu = "knl";
+diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
+old mode 100644
+new mode 100755
+index 6a15836..fe29933
+--- a/gcc/config/i386/i386.c
++++ b/gcc/config/i386/i386.c
+@@ -3142,6 +3142,8 @@ ix86_option_override_internal (bool main_args_p,
+    | PTA_FMA | PTA_MOVBE | PTA_HLE)
+ #define PTA_BROADWELL \
+   (PTA_HASWELL | PTA_ADX | PTA_PRFCHW | PTA_RDSEED)
++#define PTA_SKYLAKE \
++  (PTA_BROADWELL | PTA_CLFLUSHOPT | PTA_XSAVEC | PTA_XSAVES)
+ #define PTA_BONNELL \
+   (PTA_CORE2 | PTA_MOVBE)
+ #define PTA_SILVERMONT \
+@@ -3201,6 +3203,7 @@ ix86_option_override_internal (bool main_args_p,
+       {"haswell", PROCESSOR_HASWELL, CPU_NEHALEM, PTA_HASWELL},
+       {"core-avx2", PROCESSOR_HASWELL, CPU_NEHALEM, PTA_HASWELL},
+       {"broadwell", PROCESSOR_HASWELL, CPU_NEHALEM, PTA_BROADWELL},
++      {"skylake", PROCESSOR_HASWELL, CPU_NEHALEM, PTA_SKYLAKE},
+       {"bonnell", PROCESSOR_BONNELL, CPU_ATOM, PTA_BONNELL},
+       {"atom", PROCESSOR_BONNELL, CPU_ATOM, PTA_BONNELL},
+       {"silvermont", PROCESSOR_SILVERMONT, CPU_SLM, PTA_SILVERMONT},
+@@ -32431,7 +32434,8 @@ fold_builtin_cpu (tree fndecl, tree *args)
+     M_AMDFAM15H_BDVER4,
+     M_INTEL_COREI7_IVYBRIDGE,
+     M_INTEL_COREI7_HASWELL,
+-    M_INTEL_COREI7_BROADWELL
++    M_INTEL_COREI7_BROADWELL,
++    M_INTEL_COREI7_SKYLAKE
+   };
+ 
+   static struct _arch_names_table
+@@ -32453,6 +32457,7 @@ fold_builtin_cpu (tree fndecl, tree *args)
+       {"ivybridge", M_INTEL_COREI7_IVYBRIDGE},
+       {"haswell", M_INTEL_COREI7_HASWELL},
+       {"broadwell", M_INTEL_COREI7_BROADWELL},
++      {"skylake", M_INTEL_COREI7_SKYLAKE},
+       {"bonnell", M_INTEL_BONNELL},
+       {"silvermont", M_INTEL_SILVERMONT},
+       {"amdfam10h", M_AMDFAM10H},
+diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
+index c9b86ab..73fcddf 100644
+--- a/gcc/doc/invoke.texi
++++ b/gcc/doc/invoke.texi
+@@ -14829,6 +14829,12 @@ Intel Broadwell CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+ SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
+ BMI, BMI2, F16C, RDSEED, ADCX and PREFETCHW instruction set support.
+ 
++@item skylake
++Intel Skylake CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
++SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
++BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, CLFLUSHOPT, XSAVEC and
++XSAVES instruction set support.
++
+ @item bonnell
+ Intel Bonnell CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3 and SSSE3
+ instruction set support.
+diff --git a/gcc/testsuite/gcc.target/i386/builtin_target.c b/gcc/testsuite/gcc.target/i386/builtin_target.c
+index a90080a..350ae1f 100644
+--- a/gcc/testsuite/gcc.target/i386/builtin_target.c
++++ b/gcc/testsuite/gcc.target/i386/builtin_target.c
+@@ -81,6 +81,12 @@ check_intel_cpu_model (unsigned int family, unsigned int model,
+ 	      assert (__builtin_cpu_is ("corei7"));
+ 	      assert (__builtin_cpu_is ("broadwell"));
+ 	      break;
++	    case 0x4e:
++	    case 0x5e:
++	      /* Skylake.  */
++	      assert (__builtin_cpu_is ("corei7"));
++	      assert (__builtin_cpu_is ("skylake"));
++	      break;
+ 	    case 0x17:
+ 	    case 0x1d:
+ 	      /* Penryn.  */
+diff --git a/libgcc/config/i386/cpuinfo.c b/libgcc/config/i386/cpuinfo.c
+index df9644a..44a9368 100644
+--- a/libgcc/config/i386/cpuinfo.c
++++ b/libgcc/config/i386/cpuinfo.c
+@@ -76,6 +76,7 @@ enum processor_subtypes
+   INTEL_COREI7_IVYBRIDGE,
+   INTEL_COREI7_HASWELL,
+   INTEL_COREI7_BROADWELL,
++  INTEL_COREI7_SKYLAKE,
+   CPU_SUBTYPE_MAX
+ };
+ 
+@@ -235,6 +236,12 @@ get_intel_cpu (unsigned int family, unsigned int model, unsigned int brand_id)
+ 	      __cpu_model.__cpu_type = INTEL_COREI7;
+ 	      __cpu_model.__cpu_subtype = INTEL_COREI7_BROADWELL;
+ 	      break;
++	    case 0x4e:
++	    case 0x5e:
++	      /* Skylake.  */
++	      __cpu_model.__cpu_type = INTEL_COREI7;
++	      __cpu_model.__cpu_subtype = INTEL_COREI7_SKYLAKE;
++	      break;
+ 	    case 0x17:
+ 	    case 0x1d:
+ 	      /* Penryn.  */

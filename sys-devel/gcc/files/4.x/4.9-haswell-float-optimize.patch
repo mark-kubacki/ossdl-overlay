@@ -1,0 +1,586 @@
+diff --git a/gcc/config/i386/core2.md b/gcc/config/i386/core2.md
+index 53df9ee..3042879 100644
+--- a/gcc/config/i386/core2.md
++++ b/gcc/config/i386/core2.md
+@@ -77,9 +77,9 @@
+ ;; port 3 for store address calculations, port 4 for memory stores, and
+ ;; ports 0, 1 and 5 for everything else.
+ 
+-(define_cpu_unit "c2_p0,c2_p1,c2_p5" "core2_core")
+-(define_cpu_unit "c2_p2" "core2_load")
+-(define_cpu_unit "c2_p3,c2_p4" "core2_store")
++(define_cpu_unit "c2_p0,c2_p1,c2_p5,c2_p6" "core2_core")
++(define_cpu_unit "c2_p2,c2_p3" "core2_load")
++(define_cpu_unit "c2_p4,c2_p7" "core2_store")
+ (define_cpu_unit "c2_idiv" "core2_idiv")
+ (define_cpu_unit "c2_fdiv" "core2_fdiv")
+ (define_cpu_unit "c2_ssediv" "core2_ssediv")
+@@ -118,50 +118,50 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (eq_attr "type" "imov,imovx")))
+-			 "c2_decodern,(c2_p0|c2_p1|c2_p5)")
++			 "c2_decodern,(c2_p0|c2_p1|c2_p5|c2_p6)")
+ 
+ (define_insn_reservation "c2_imov_load" 4
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (eq_attr "type" "imov,imovx")))
+-			 "c2_decodern,c2_p2")
++			 "c2_decodern,c2_p2|c2_p3")
+ 
+ (define_insn_reservation "c2_imov_store" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "store")
+ 				   (eq_attr "type" "imov")))
+-			 "c2_decodern,c2_p4+c2_p3")
++			 "c2_decodern,c2_p4+c2_p7")
+ 
+-(define_insn_reservation "c2_icmov" 2
++(define_insn_reservation "c2_icmov" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (eq_attr "type" "icmov")))
+-			 "c2_decoder0,(c2_p0|c2_p1|c2_p5)*2")
++			 "c2_decodern,(c2_p0|c2_p1)")
+ 
+-(define_insn_reservation "c2_icmov_load" 2
++(define_insn_reservation "c2_icmov_load" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (eq_attr "type" "icmov")))
+-			 "c2_decoder0,c2_p2,(c2_p0|c2_p1|c2_p5)*2")
++			 "c2_decodern,(c2_p2|c2_p3)+(c2_p0|c2_p1)")
+ 
+ (define_insn_reservation "c2_push_reg" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "store")
+ 				   (eq_attr "type" "push")))
+-			 "c2_decodern,c2_p4+c2_p3")
++			 "c2_decodern,c2_p4+c2_p7")
+ 
+ (define_insn_reservation "c2_push_mem" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "both")
+ 				   (eq_attr "type" "push")))
+-			 "c2_decoder0,c2_p2,c2_p4+c2_p3")
++			 "c2_decodern,(c2_p2|c2_p3)+(c2_p4+c2_p7)")
+ 
+ ;; lea executes on port 0 with latency one and throughput 1.
+ (define_insn_reservation "c2_lea" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (eq_attr "type" "lea")))
+-			 "c2_decodern,c2_p0")
++			 "c2_decodern,c2_p1|c2_p5")
+ 
+ ;; Shift and rotate decode as two uops which can go to port 0 or 5.
+ ;; The load and store units need to be reserved when memory operands
+@@ -170,62 +170,58 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (eq_attr "type" "ishift,ishift1,rotate,rotate1")))
+-			 "c2_decodern,(c2_p0|c2_p5)")
++			 "c2_decodern,c2_p0|c2_p6")
+ 
+-(define_insn_reservation "c2_shift_rotate_mem" 4
++(define_insn_reservation "c2_shift_rotate_mem" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "!none")
+ 				   (eq_attr "type" "ishift,ishift1,rotate,rotate1")))
+-			 "c2_decoder0,c2_p2,(c2_p0|c2_p5),c2_p4+c2_p3")
++			 "c2_decodern,(c2_p0|c2_p6)+(c2_p2|c2_p3)")
+ 
+ ;; See comments in ppro.md for the corresponding reservation.
+ (define_insn_reservation "c2_branch" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (eq_attr "type" "ibr")))
+-			 "c2_decodern,c2_p5")
++			 "c2_decodern,c2_p0|c2_p6")
+ 
+ ;; ??? Indirect branches probably have worse latency than this.
+ (define_insn_reservation "c2_indirect_branch" 6
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "!none")
+ 				   (eq_attr "type" "ibr")))
+-			 "c2_decoder0,c2_p2+c2_p5")
++			 "c2_decoder0,c2_p2|c2_p3,c2_p0|c2_p6")
+ 
+ (define_insn_reservation "c2_leave" 4
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (eq_attr "type" "leave"))
+ 			 "c2_decoder0,c2_p2+(c2_p0|c2_p1),(c2_p0|c2_p1)")
+ 
+-;; mul and imul with two/three operands only execute on port 1 for HImode
+-;; and SImode, port 0 for DImode.
+-(define_insn_reservation "c2_imul_hisi" 3
++;; imul and imulx with two/three operands only execute on port 1.
++(define_insn_reservation "c2_imul" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+-				   (and (eq_attr "mode" "HI,SI")
+-					(eq_attr "type" "imul"))))
++				   (eq_attr "type" "imul")))
+ 			 "c2_decodern,c2_p1")
+ 
+-(define_insn_reservation "c2_imul_hisi_mem" 3
++(define_insn_reservation "c2_imul_mem" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "!none")
+-				   (and (eq_attr "mode" "HI,SI")
+-					(eq_attr "type" "imul"))))
+-			 "c2_decoder0,c2_p2+c2_p1")
++				   (eq_attr "type" "imul")))
++			 "c2_decodern,(c2_p2|c2_p3)+c2_p1")
+ 
+-(define_insn_reservation "c2_imul_di" 5
+-			 (and (eq_attr "cpu" "core2,nehalem")
++(define_insn_reservation "c2_imulx" 4
++			 (and (eq_attr "cpu" "nehalem")
+ 			      (and (eq_attr "memory" "none")
+-				   (and (eq_attr "mode" "DI")
+-					(eq_attr "type" "imul"))))
+-			 "c2_decodern,c2_p0")
++				   (eq_attr "type" "imulx")))
++			 "c2_decodern,c2_p1+c2_p6")
+ 
+-(define_insn_reservation "c2_imul_di_mem" 5
+-			 (and (eq_attr "cpu" "core2,nehalem")
++(define_insn_reservation "c2_imulx_mem" 4
++			 (and (eq_attr "cpu" "nehalem")
+ 			      (and (eq_attr "memory" "!none")
+-				   (and (eq_attr "mode" "DI")
+-					(eq_attr "type" "imul"))))
+-			 "c2_decoder0,c2_p2+c2_p0")
++				   (eq_attr "type" "imulx")))
++			 "c2_decodern,(c2_p2|c2_p3)+c2_p1+c2_p6")
++
+ 
+ ;; div and idiv are very similar, so we model them the same.
+ ;; QI, HI, and SI have issue latency 12, 21, and 37, respectively.
+@@ -242,7 +238,7 @@
+ 			      (and (eq_attr "memory" "load")
+ 				   (and (eq_attr "mode" "QI")
+ 					(eq_attr "type" "idiv"))))
+-			 "c2_decoder0,c2_p2+c2_p0+c2_idiv,c2_p0+c2_idiv,(c2_p0|c2_p1)+c2_idiv,c2_idiv*9")
++			 "c2_decoder0,(c2_p2|c2_p3)+c2_p0+c2_idiv,c2_p0+c2_idiv,(c2_p0|c2_p1)+c2_idiv,c2_idiv*9")
+ 
+ (define_insn_reservation "c2_idiv_HI" 23
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+@@ -289,19 +285,19 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (eq_attr "type" "fop")))
+-			 "c2_decoder0,c2_p2+c2_p1,c2_p1")
++			 "c2_decodern,c2_p2+c2_p1,c2_p1")
+ 
+ (define_insn_reservation "c2_fop_store" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "store")
+ 				   (eq_attr "type" "fop")))
+-			 "c2_decoder0,c2_p0,c2_p0,c2_p0+c2_p4+c2_p3")
++			 "c2_decodern,c2_p0,c2_p0,c2_p0+c2_p4+c2_p3")
+ 
+ (define_insn_reservation "c2_fop_both" 5
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "both")
+ 				   (eq_attr "type" "fop")))
+-			 "c2_decoder0,c2_p2+c2_p0,c2_p0+c2_p4+c2_p3")
++			 "c2_decodern,c2_p2+c2_p0,c2_p0+c2_p4+c2_p3")
+ 
+ (define_insn_reservation "c2_fsgn" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+@@ -328,7 +324,7 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (eq_attr "type" "fcmp")))
+-			 "c2_decoder0,c2_p2+c2_p1")
++			 "c2_decodern,(c2_p2|c2_p3)+c2_p1")
+ 
+ (define_insn_reservation "c2_fmov" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+@@ -341,42 +337,42 @@
+ 			      (and (eq_attr "memory" "load")
+ 				   (and (eq_attr "mode" "!XF")
+ 					(eq_attr "type" "fmov"))))
+-			 "c2_decodern,c2_p2")
++			 "c2_decodern,c2_p2|c2_p3")
+ 
+ (define_insn_reservation "c2_fmov_XF_load" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (and (eq_attr "mode" "XF")
+ 					(eq_attr "type" "fmov"))))
+-			 "c2_decoder0,(c2_p2+c2_p0)*2")
++			 "c2_decodern,((c2_p2|c2_p3)+c2_p0)*2")
+ 
+ (define_insn_reservation "c2_fmov_store" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "store")
+ 				   (and (eq_attr "mode" "!XF")
+ 					(eq_attr "type" "fmov"))))
+-			 "c2_decodern,c2_p3+c2_p4")
++			 "c2_decodern,c2_p4+c2_p7")
+ 
+ (define_insn_reservation "c2_fmov_XF_store" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "store")
+ 				   (and (eq_attr "mode" "XF")
+ 					(eq_attr "type" "fmov"))))
+-			 "c2_decoder0,(c2_p3+c2_p4),(c2_p3+c2_p4)")
++			 "c2_decodern,(c2_p4+c2_p7),(c2_p4+c2_p7)")
+ 
+ ;; fmul executes on port 0 with latency 5.  It has issue latency 2,
+ ;; but we don't model this.
+-(define_insn_reservation "c2_fmul" 5
++(define_insn_reservation "c2_fmul" 4
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (eq_attr "type" "fmul")))
+-			 "c2_decoder0,c2_p0*2")
++			 "c2_decodern,c2_p0|c2_p1")
+ 
+-(define_insn_reservation "c2_fmul_load" 6
++(define_insn_reservation "c2_fmul_load" 4
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (eq_attr "type" "fmul")))
+-			 "c2_decoder0,c2_p2+c2_p0,c2_p0")
++			 "c2_decodern,(c2_p2|c2_p3)+(c2_p0|c2_p1)")
+ 
+ ;; fdiv latencies depend on the mode of the operands.  XFmode gives
+ ;; a latency of 38 cycles, DFmode gives 32, and SFmode gives latency 18.
+@@ -395,7 +391,7 @@
+ 			      (and (eq_attr "memory" "load")
+ 				   (and (eq_attr "mode" "SF")
+ 					(eq_attr "type" "fdiv,fpspc"))))
+-			 "c2_decoder0,c2_p2+c2_p0+c2_fdiv,c2_fdiv*16")
++			 "c2_decodern,c2_p2+c2_p0+c2_fdiv,c2_fdiv*16")
+ 
+ (define_insn_reservation "c2_fdiv_DF" 32
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+@@ -409,7 +405,7 @@
+ 			      (and (eq_attr "memory" "load")
+ 				   (and (eq_attr "mode" "DF")
+ 					(eq_attr "type" "fdiv,fpspc"))))
+-			 "c2_decoder0,c2_p2+c2_p0+c2_fdiv,c2_fdiv*30")
++			 "c2_decodern,c2_p2+c2_p0+c2_fdiv,c2_fdiv*30")
+ 
+ (define_insn_reservation "c2_fdiv_XF" 38
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+@@ -423,7 +419,7 @@
+ 			      (and (eq_attr "memory" "load")
+ 				   (and (eq_attr "mode" "XF")
+ 					(eq_attr "type" "fdiv,fpspc"))))
+-			 "c2_decoder0,c2_p2+c2_p0+c2_fdiv,c2_fdiv*36")
++			 "c2_decodern,c2_p2+c2_p0+c2_fdiv,c2_fdiv*36")
+ 
+ ;; MMX instructions.
+ 
+@@ -431,53 +427,53 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (eq_attr "type" "mmxadd,sseiadd")))
+-			 "c2_decodern,c2_p0|c2_p5")
++			 "c2_decodern,c2_p0|c2_p1|c2_p5")
+ 
+ (define_insn_reservation "c2_mmx_add_load" 2
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (eq_attr "type" "mmxadd,sseiadd")))
+-			 "c2_decodern,c2_p2+c2_p0|c2_p5")
++			 "c2_decodern,(c2_p2|c2_p3)+(c2_p0|c2_p1|c2_p5)")
+ 
+ (define_insn_reservation "c2_mmx_shft" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (eq_attr "type" "mmxshft")))
+-			 "c2_decodern,c2_p0|c2_p5")
++			 "c2_decodern,c2_p0|c2_p1")
+ 
+ (define_insn_reservation "c2_mmx_shft_load" 2
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (eq_attr "type" "mmxshft")))
+-			 "c2_decoder0,c2_p2+c2_p1")
++			 "c2_decodern,(c2_p2|c2_p3)+(c2_p0|c2_p1)")
+ 
+ (define_insn_reservation "c2_mmx_sse_shft" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (and (eq_attr "type" "sseishft")
+ 					(eq_attr "length_immediate" "!0"))))
+-			 "c2_decodern,c2_p1")
++			 "c2_decodern,c2_p0|c2_p1")
+ 
+ (define_insn_reservation "c2_mmx_sse_shft_load" 2
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (and (eq_attr "type" "sseishft")
+ 					(eq_attr "length_immediate" "!0"))))
+-			 "c2_decodern,c2_p1")
++			 "c2_decodern,(c2_p0|c2_p1)+(c2_p2|c2_p3)")
+ 
+ (define_insn_reservation "c2_mmx_sse_shft1" 2
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (and (eq_attr "type" "sseishft")
+ 					(eq_attr "length_immediate" "0"))))
+-			 "c2_decodern,c2_p1")
++			 "c2_decodern,c2_p0|c2_p1")
+ 
+ (define_insn_reservation "c2_mmx_sse_shft1_load" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (and (eq_attr "type" "sseishft")
+ 					(eq_attr "length_immediate" "0"))))
+-			 "c2_decodern,c2_p1")
++			 "c2_decodern,(c2_p0|c2_p1)+(c2_p2|c2_p3)")
+ 
+ (define_insn_reservation "c2_mmx_mul" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+@@ -489,7 +485,7 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (eq_attr "type" "mmxmul,sseimul")))
+-			 "c2_decoder0,c2_p2+c2_p1")
++			 "c2_decodern,(c2_p2|c2_p3)+c2_p1")
+ 
+ (define_insn_reservation "c2_sse_mmxcvt" 4
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+@@ -503,93 +499,119 @@
+ ;;			 (and (eq_attr "cpu" "core2,nehalem")
+ ;;			      (and (eq_attr "mode" "TI")
+ ;;				   (eq_attr "type" "mmxshft")))
+-;;			 "c2_decodern,c2_p0")
++;;			 "c2_decodern,c2_p0|c2_p1")
+ 
+ ;; The sfence instruction.
+ (define_insn_reservation "c2_sse_sfence" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "unknown")
+ 				   (eq_attr "type" "sse")))
+-			 "c2_decoder0,c2_p4+c2_p3")
++			 "c2_decoder0,c2_p4+c2_p7")
+ 
+ ;; FIXME: This reservation is all wrong when we're scheduling sqrtss.
+ (define_insn_reservation "c2_sse_SFDF" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "mode" "SF,DF")
+ 				   (eq_attr "type" "sse")))
+-			 "c2_decodern,c2_p0")
++			 "c2_decodern,c2_p0|c2_p1")
+ 
+ (define_insn_reservation "c2_sse_V4SF" 4
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "mode" "V4SF")
+ 				   (eq_attr "type" "sse")))
+-			 "c2_decoder0,c2_p1*2")
++			 "c2_decodern,c2_p0|c2_p1")
++
++(define_insn_reservation "c2_sse_V8SF" 4
++			 (and (eq_attr "cpu" "nehalem")
++			      (and (eq_attr "mode" "V8SF,V4DF")
++				   (eq_attr "type" "sse")))
++			 "c2_decodern,c2_p0|c2_p1")
+ 
+ (define_insn_reservation "c2_sse_addcmp" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+-				   (eq_attr "type" "sseadd,sseadd1,ssecmp,ssecomi")))
+-			 "c2_decodern,c2_p1")
++				   (eq_attr "type" "sseadd1,ssecmp,ssecomi")))
++			 "c2_decodern,c2_p0|c2_p1")
+ 
+ (define_insn_reservation "c2_sse_addcmp_load" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+-				   (eq_attr "type" "sseadd,sseadd1,ssecmp,ssecomi")))
+-			 "c2_decodern,c2_p2+c2_p1")
++				   (eq_attr "type" "sseadd1,ssecmp,ssecomi")))
++			 "c2_decodern,(c2_p2|c2_p3)+(c2_p0|c2_p1)")
+ 
+-(define_insn_reservation "c2_sse_mul_SF" 4
++(define_insn_reservation "c2_sse_logic" 1
++			 (and (eq_attr "cpu" "nehalem")
++			      (and (eq_attr "memory" "none")
++				   (eq_attr "type" "sselog,sselog1")))
++			 "c2_decodern,c2_p0|c2_p1|c2_p5")
++
++(define_insn_reservation "c2_sse_logic_load" 2
++			 (and (eq_attr "cpu" "nehalem")
++			      (and (eq_attr "memory" "load")
++				   (eq_attr "type" "sselog,sselog1")))
++			 "c2_decodern,(c2_p0|c2_p1|c2_p5)+(c2_p2|c2_p3)")
++
++(define_insn_reservation "c2_sse_add" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+-				   (and (eq_attr "mode" "SF,V4SF")
+-					(eq_attr "type" "ssemul"))))
+-			"c2_decodern,c2_p0")
++				   (eq_attr "type" "sseadd")))
++			"c2_decodern,c2_p1")
+ 
+-(define_insn_reservation "c2_sse_mul_SF_load" 4
++(define_insn_reservation "c2_sse_add_load" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+-				   (and (eq_attr "mode" "SF,V4SF")
+-					(eq_attr "type" "ssemul"))))
+-			"c2_decodern,c2_p2+c2_p0")
++				   (eq_attr "type" "sseadd")))
++			"c2_decodern,c2_p1+(c2_p2|c2_p3)")
+ 
+-(define_insn_reservation "c2_sse_mul_DF" 5
++(define_insn_reservation "c2_sse_mul" 5
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+-				   (and (eq_attr "mode" "DF,V2DF")
+-					(eq_attr "type" "ssemul"))))
+-			"c2_decodern,c2_p0")
++				   (eq_attr "type" "ssemul")))
++			"c2_decodern,c2_p0|c2_p1")
+ 
+-(define_insn_reservation "c2_sse_mul_DF_load" 5
++(define_insn_reservation "c2_sse_mul_load" 5
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+-				   (and (eq_attr "mode" "DF,V2DF")
+-					(eq_attr "type" "ssemul"))))
+-			"c2_decodern,c2_p2+c2_p0")
++				   (eq_attr "type" "ssemul")))
++			"c2_decodern,(c2_p0|c2_p1)+(c2_p2|c2_p3)")
++
++(define_insn_reservation "c2_sse_muladd" 5
++			 (and (eq_attr "cpu" "nehalem")
++			      (and (eq_attr "memory" "none")
++					(eq_attr "type" "ssemuladd")))
++			"c2_decodern,c2_p0|c2_p1")
++
++(define_insn_reservation "c2_sse_muladd_load" 5
++			 (and (eq_attr "cpu" "nehalem")
++			      (and (eq_attr "memory" "load")
++					(eq_attr "type" "ssemuladd")))
++			"c2_decodern,(c2_p0|c2_p1)+(c2_p2|c2_p3)")
+ 
+ (define_insn_reservation "c2_sse_div_SF" 18
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+-				   (and (eq_attr "mode" "SF,V4SF")
++				   (and (eq_attr "mode" "SF,V4SF,V8SF")
+ 					(eq_attr "type" "ssediv"))))
+ 			 "c2_decodern,c2_p0,c2_ssediv*17")
+ 
+ (define_insn_reservation "c2_sse_div_SF_load" 18
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+-				   (and (eq_attr "mode" "SF,V4SF")
++				   (and (eq_attr "mode" "SF,V4SF,V8SF")
+ 					(eq_attr "type" "ssediv"))))
+ 			 "c2_decodern,(c2_p2+c2_p0),c2_ssediv*17")
+ 
+ (define_insn_reservation "c2_sse_div_DF" 32
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+-				   (and (eq_attr "mode" "DF,V2DF")
++				   (and (eq_attr "mode" "DF,V2DF,V4DF")
+ 					(eq_attr "type" "ssediv"))))
+ 			 "c2_decodern,c2_p0,c2_ssediv*31")
+ 
+ (define_insn_reservation "c2_sse_div_DF_load" 32
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+-				   (and (eq_attr "mode" "DF,V2DF")
++				   (and (eq_attr "mode" "DF,V2DF,V4DF")
+ 					(eq_attr "type" "ssediv"))))
+ 			 "c2_decodern,(c2_p2+c2_p0),c2_ssediv*31")
+ 
+@@ -606,21 +628,21 @@
+ 			      (and (eq_attr "memory" "!none")
+ 				   (and (eq_attr "mode" "SF")
+ 					(eq_attr "type" "sseicvt"))))
+-			 "c2_decodern,c2_p2+c2_p1")
++			 "c2_decodern,(c2_p2|c2_p3)+c2_p1")
+ 
+ (define_insn_reservation "c2_sse_icvt_DF" 4
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none")
+ 				   (and (eq_attr "mode" "DF")
+ 					(eq_attr "type" "sseicvt"))))
+-			 "c2_decoder0,c2_p0+c2_p1")
++			 "c2_decodern,c2_p0+c2_p1")
+ 
+ (define_insn_reservation "c2_sse_icvt_DF_load" 4
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "!none")
+ 				   (and (eq_attr "mode" "DF")
+ 					(eq_attr "type" "sseicvt"))))
+-			 "c2_decoder0,(c2_p2+c2_p1)")
++			 "c2_decodern,(c2_p2|c2_p3)+c2_p1")
+ 
+ (define_insn_reservation "c2_sse_icvt_SI" 3
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+@@ -634,7 +656,7 @@
+ 			      (and (eq_attr "memory" "!none")
+ 				   (and (eq_attr "mode" "SI")
+ 					(eq_attr "type" "sseicvt"))))
+-			 "c2_decodern,(c2_p2+c2_p1)")
++			 "c2_decodern,(c2_p2|c2_p3)+c2_p1")
+ 
+ (define_insn_reservation "c2_sse_mov" 1
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+@@ -652,7 +674,7 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "store")
+ 				   (eq_attr "type" "ssemov")))
+-			 "c2_decodern,c2_p4+c2_p3")
++			 "c2_decodern,c2_p4+c2_p7")
+ 
+ ;; All other instructions are modelled as simple instructions.
+ ;; We have already modelled all i387 floating point instructions, so all
+@@ -666,13 +688,13 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "none,unknown")
+ 				   (eq_attr "type" "alu,alu1,negnot,incdec,icmp,test,setcc,sseishft1,mmx,mmxcmp")))
+-			 "c2_decodern,(c2_p0|c2_p1|c2_p5)")
++			 "c2_decodern,(c2_p0|c2_p1|c2_p5|c2_p6)")
+ 
+ (define_insn_reservation "c2_insn_load" 4
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "load")
+ 				   (eq_attr "type" "alu,alu1,negnot,incdec,icmp,test,setcc,pop,sseishft1,mmx,mmxcmp")))
+-			 "c2_decodern,c2_p2,(c2_p0|c2_p1|c2_p5)")
++			 "c2_decodern,(c2_p2|c2_p3)+(c2_p0|c2_p1|c2_p5|c2_p6)")
+ 
+ ;; register-memory instructions have three uops,  so they have to be
+ ;; decoded on c2_decoder0.
+@@ -680,7 +702,7 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "store")
+ 				   (eq_attr "type" "alu,alu1,negnot,incdec,icmp,test,setcc,sseishft1,mmx,mmxcmp")))
+-			 "c2_decoder0,(c2_p0|c2_p1|c2_p5),c2_p4+c2_p3")
++			 "c2_decodern,(c2_p0|c2_p1|c2_p5|c2_p6)+(c2_p4+c2_p7)")
+ 
+ ;; read-modify-store instructions produce 4 uops so they have to be
+ ;; decoded on c2_decoder0 as well.
+@@ -688,4 +710,4 @@
+ 			 (and (eq_attr "cpu" "core2,nehalem")
+ 			      (and (eq_attr "memory" "both")
+ 				   (eq_attr "type" "alu,alu1,negnot,incdec,icmp,test,setcc,pop,sseishft1,mmx,mmxcmp")))
+-			 "c2_decoder0,c2_p2,(c2_p0|c2_p1|c2_p5),c2_p4+c2_p3")
++			 "c2_decodern,(c2_p2|c2_p3)+(c2_p0|c2_p1|c2_p5|c2_p6)+c2_p4+c2_p7")
+diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
+index 5d20841..6a15836 100644
+--- a/gcc/config/i386/i386.c
++++ b/gcc/config/i386/i386.c
+@@ -46352,7 +46352,7 @@ ix86_reassociation_width (unsigned int opc ATTRIBUTE_UNUSED,
+   if (INTEGRAL_MODE_P (mode) && TARGET_REASSOC_INT_TO_PARALLEL)
+     res = 2;
+   else if (FLOAT_MODE_P (mode) && TARGET_REASSOC_FP_TO_PARALLEL)
+-    res = 2;
++    res = ((TARGET_64BIT && ix86_tune == PROCESSOR_HASWELL)? 4 : 2);
+ 
+   return res;
+ }

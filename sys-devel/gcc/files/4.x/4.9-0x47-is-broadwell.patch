@@ -1,0 +1,24 @@
+diff --git a/gcc/testsuite/gcc.target/i386/builtin_target.c b/gcc/testsuite/gcc.target/i386/builtin_target.c
+index af73338..a90080a 100644
+--- a/gcc/testsuite/gcc.target/i386/builtin_target.c
++++ b/gcc/testsuite/gcc.target/i386/builtin_target.c
+@@ -74,6 +74,7 @@ check_intel_cpu_model (unsigned int family, unsigned int model,
+ 	      assert (__builtin_cpu_is ("haswell"));
+ 	      break;
+ 	    case 0x3d:
++	    case 0x47:
+ 	    case 0x4f:
+ 	    case 0x56:
+ 	      /* Broadwell.  */
+diff --git a/libgcc/config/i386/cpuinfo.c b/libgcc/config/i386/cpuinfo.c
+index 7972ced..df9644a 100644
+--- a/libgcc/config/i386/cpuinfo.c
++++ b/libgcc/config/i386/cpuinfo.c
+@@ -228,6 +228,7 @@ get_intel_cpu (unsigned int family, unsigned int model, unsigned int brand_id)
+ 	      __cpu_model.__cpu_subtype = INTEL_COREI7_HASWELL;
+ 	      break;
+ 	    case 0x3d:
++	    case 0x47:
+ 	    case 0x4f:
+ 	    case 0x56:
+ 	      /* Broadwell.  */
