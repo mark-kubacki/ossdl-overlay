@@ -3,7 +3,20 @@ OSSDL overlay for Gentoo
 ========================
 :Author: Mark Kubacki <wmark+overlay@hurrikane.de> et al.
 :source: http://github.com/wmark/ossdl-overlay
-:mirror: https://bitbucket.org/wmark/ossdl-overlay
+
+After using Gentoo for 13 years I have moved away.
+
+I do believe that creating binaries in isolated environments, and then installing those binaries, is the most efficient way to go:
+Without that kind of isolation not only your USE-flags and program versions influence the outcome of a *emerge* run.
+Whatever is already installed on your system has a say, too.
+
+For example, you cannot *emerge* a static *curl* but leaving (dynamic library) *libssl.so* on the system for other packages.
+You would need to patch build scripts of *curl*, or temporarily removing *libssl.so* only keeping *libssl.a*.
+And there are behemots like MonetDB which check for 8+ other dependencies, ignoring any *configure* flags.
+
+I found it easier to run *Portage* in a docker container, from a minimal base system, for every package and its
+dependencies I want to receive.
+But for collecting those minimal builds I don't need Gentoo anymore.
 
 Installation and Usage
 ======================
@@ -20,7 +33,7 @@ After the next ``emerge --sync`` or ``eix-sync -u`` the new packages should be a
 
 Packages
 --------
-Some packages are masked in Gentoo's main tree. If you want to unmask only the tested ones of this
+Some packages are masked in Gentoo's main tree. If you want to unmask only the ones of this
 overlay you can do so by adding to your ``/etc/portage/package.unmask``::
 
     dev-db/mariadb::OSSDL
@@ -29,42 +42,15 @@ overlay you can do so by adding to your ``/etc/portage/package.unmask``::
     sys-devel/gcc::OSSDL
     www-servers/nginx::OSSDL
 
-Policies
---------
-
-If a package has been "keyworded" by the Gentoo devs and I don't encounter any errors and find it 
-stable/sufficient enough for production use then the keyword is stripped in this overlay (thus 
-marking the package as 'stable'). That tests are limited to the following systems/architectures:
-
-- Intel — 3rd generation Core/Xeons
-- ARM — Cortex-A15 multicore server
-
-If you want to include an ebuild into this overlay then please fork it, add your ebuild, and finally
-email me the link. Whenever I write 'me' in this README indeed 'us' is meant. ;-)
-You can get commit-access to this git repository if you're willing to keep that package up-to-date.
-
-You — and that includes Gentoo developers — are not allowed to strip any Copyright lines. Whenever
-you add something non-trivial just add your name to any existing list with a matching year, or to
-a separate line should such list not already exist.
-
-Remove SVN keyword lines such as: # $Header:  $ — we're not using Subversion. 
-There is no point in keeping 'changelog'-files because you can always run 'git log' or 'git blame'.
-Please remove any VI, VIM and similar lines from ebuilds and files. 
-Use tabs for indentation whenever possible.
-
 Optional
 ========
 
 Binhost
 -------
 
-Gentoo is not about compiling everything, don't waste your time on that. It is about customization.
-If you want to stick to the standards for 90% of all packages and if you are only interested in
-changing *USE flags* for the 10% where it matters - excellent. That is what the **binhosts** are for.
+    The binhost is no longer open to the public, and for registered users only.
 
-Find pre-compiled Gentoo packages here:
-
-:corei7-avx (64b): https://binhost.ossdl.de/AMD64/Intel/corei7-avx/x86_64-pc-linux-gnu/
+Find pre-compiled Gentoo packages here: (removed)
 
 Obviously you will have to point Gentoo's *Portage* to these overlays. Modify your **make.conf** as follows::
 
