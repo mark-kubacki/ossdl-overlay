@@ -19,13 +19,13 @@ else
 fi
 
 LICENSE="MIT"
-SLOT="0/16" # as in h2-16
+SLOT="0/1.14" # <C++>.<C> SONAMEs - no longer the h2-xx version
 KEYWORDS="amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~sparc x86"
-IUSE="alpn apps examples python spdy test xml"
+IUSE="alpn apps examples hpack-tools python spdy static-libs test xml"
 
 REQUIRED_USE="xml? ( apps )
 	alpn? ( apps )"
-RDEPEND="
+RDEPEND="!!net-misc/nghttp2
 	apps? (
 		dev-libs/jemalloc
 		dev-libs/libev
@@ -35,13 +35,14 @@ RDEPEND="
 		>=sys-libs/zlib-1.2.3
 		>=dev-libs/jansson-2.5
 	)
+	hpack-tools? ( >=dev-libs/jansson-2.5 )
 	spdy? ( net-misc/spdylay:= )
 	python? (
 		${PYTHON_DEPS}
 		>=dev-python/cython-0.19
 	)"
 DEPEND="${RDEPEND}
-	>=dev-util/pkgconfig-0.20
+	virtual/pkgconfig
 	test? (
 		${PYTHON_DEPS}
 		>=dev-util/cunit-2.1
@@ -55,7 +56,6 @@ src_prepare() {
 		default_src_prepare
 	fi
 
-	epatch "${FILESDIR}"/0001-Set-content-type-header-with-charset-for-.html-files.patch
 	epatch_user
 
 	replace-flags -O* -Os
@@ -64,6 +64,8 @@ src_prepare() {
 src_configure() {
 	econf \
 		--disable-dependency-tracking \
+		$(use_enable hpack-tools) \
+		$(use_enable static-libs static) \
 		$(use_enable apps app) $(use_with apps jemalloc) \
 		$(use_enable examples) \
 		$(use_enable python python-bindings) \
@@ -74,4 +76,9 @@ src_configure() {
 src_test() {
 	# tests can be parallelised, using emake
 	emake check || die "test failed"
+}
+
+src_install() {
+	use static-libs || find "${ED}" -name '*.la' -delete
+	default_src_install
 }
