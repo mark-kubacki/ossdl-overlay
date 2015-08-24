@@ -14,38 +14,38 @@ S="${WORKDIR}/${P/_*}"
 LICENSE="MIT"
 SLOT="0"
 KEYWORDS="alpha amd64 arm arm64 hppa ia64 ~m68k ~mips ppc ppc64 ~s390 ~sh sparc x86 ~ppc-aix ~amd64-fbsd ~sparc-fbsd ~x86-fbsd ~x64-freebsd ~x86-freebsd ~hppa-hpux ~ia64-hpux ~x86-interix amd64-linux ~arm-linux ~x86-linux ~ppc-macos ~x64-macos ~x86-macos ~m68k-mint ~sparc-solaris ~sparc64-solaris ~x64-solaris ~x86-solaris"
-IUSE="adns +http2 idn ipv6 kerberos ldap metalink rtmp ssh ssl static-libs test threads"
-IUSE="${IUSE} curl_ssl_axtls curl_ssl_cyassl curl_ssl_gnutls curl_ssl_nss +curl_ssl_openssl curl_ssl_polarssl curl_ssl_winssl"
-IUSE="${IUSE} elibc_Winnt"
-IUSE="${IUSE} rc4 +des dsa +rsa +diffie-hellman ntlm"
+IUSE="adns idn ipv6 kerberos ldap metalink rtmp ssh samba ssl static-libs test threads"
+IUSE+=" http2"
+IUSE+=" curl_ssl_axtls curl_ssl_cyassl curl_ssl_gnutls curl_ssl_nss +curl_ssl_openssl curl_ssl_polarssl curl_ssl_winssl"
+IUSE+=" elibc_Winnt"
+IUSE+=" rc4 +des dsa +rsa +diffie-hellman ntlm"
 
 #lead to lots of false negatives, bug #285669
 RESTRICT="test"
 
-RDEPEND="ldap? ( net-nds/openldap )
+RDEPEND="ldap? ( >=net-nds/openldap-2.4.38-r1 )
 	ssl? (
-		curl_ssl_axtls?  ( net-libs/axtls  app-misc/ca-certificates )
-		curl_ssl_cyassl? ( net-libs/cyassl app-misc/ca-certificates )
+		app-misc/ca-certificates
+		curl_ssl_axtls?  ( >=net-libs/axtls-1.4.9-r1  )
 		curl_ssl_gnutls? (
 			|| (
-				( >=net-libs/gnutls-3[static-libs?] dev-libs/nettle )
-				( =net-libs/gnutls-2.12*[nettle,static-libs?] dev-libs/nettle )
-				( =net-libs/gnutls-2.12*[-nettle,static-libs?] dev-libs/libgcrypt[static-libs?] )
+				( >=net-libs/gnutls-3.3.0[static-libs?] >=dev-libs/nettle-2.6 )
+				( =net-libs/gnutls-2.12*[nettle,static-libs?] >=dev-libs/nettle-2.6 )
+				( =net-libs/gnutls-2.12*[-nettle,static-libs?] >=dev-libs/libgcrypt-1.5.3[static-libs?] )
 			)
-			app-misc/ca-certificates
 		)
-		curl_ssl_openssl? ( >=dev-libs/openssl-1.0.1:=[static-libs?,rc4(+)?,des(+)?,dsa(+)?,rsa(+)?,diffie-hellman(+)?] )
-		curl_ssl_nss? ( dev-libs/nss app-misc/ca-certificates )
-		curl_ssl_polarssl? ( net-libs/polarssl:= app-misc/ca-certificates )
+		curl_ssl_openssl? ( >=dev-libs/openssl-1.0.1h-r2:=[static-libs?,rc4(+)?,des(+)?,dsa(+)?,rsa(+)?,diffie-hellman(+)?] )
+		curl_ssl_nss? ( >=dev-libs/nss-3.15.4 )
+		curl_ssl_polarssl? ( >=net-libs/polarssl-1.3.4:= )
 	)
+	http2? ( net-libs/nghttp2 )
+	idn? ( >=net-dns/libidn-1.28[static-libs?] )
+	adns? ( >=net-dns/c-ares-1.10.0-r1 )
+	kerberos? ( >=virtual/krb5-0-r1 )
+	metalink? ( >=media-libs/libmetalink-0.1.1 )
+	rtmp? ( >=media-video/rtmpdump-2.4_p20131018 )
+	ssh? ( >=net-libs/libssh2-1.4.3[static-libs?] )
 	ntlm? ( curl_ssl_openssl? ( dev-libs/openssl[des(+)] ) )
-	http2? ( >=net-misc/nghttp2-0.6.0:= )
-	idn? ( net-dns/libidn[static-libs?] )
-	adns? ( net-dns/c-ares )
-	kerberos? ( virtual/krb5 )
-	metalink? ( >=media-libs/libmetalink-0.1.0 )
-	rtmp? ( media-video/rtmpdump )
-	ssh? ( net-libs/libssh2[static-libs?] )
 	sys-libs/zlib"
 
 # Do we need to enforce the same ssl backend for curl and rtmpdump? Bug #423303
@@ -61,7 +61,7 @@ RDEPEND="ldap? ( net-nds/openldap )
 # krb4 http://web.mit.edu/kerberos/www/krb4-end-of-life.html
 
 DEPEND="${RDEPEND}
-	virtual/pkgconfig
+	>=virtual/pkgconfig-0-r1
 	test? (
 		sys-apps/diffutils
 		dev-lang/perl
@@ -104,7 +104,10 @@ src_prepare() {
 	if use rc4 ; then
 		epatch "${FILESDIR}"/${PN}-7.36.0-demote-weak-ciphers.patch
 	else
-		epatch "${FILESDIR}"/${PN}-7.35.0-deselect-weak-ciphers.patch
+		sed -i \
+		  -e 's/"ALL!EXPORT!EXPORT40!EXPORT56!aNULL!LOW!RC4"/"EECDH+HIGH+TLSv1.2:EECDH+HIGH:EDH+HIGH+TLSv1.2:-AES256:HIGH:-3DES:!aNULL:!eNULL:!RC4"/' \
+		  -e 's/ALL:!EXPORT:!EXPORT40:!EXPORT56:!aNULL:!LOW:!RC4:@STRENGTH/EECDH+HIGH+TLSv1.2:EECDH+HIGH:EDH+HIGH+TLSv1.2:-AES256:HIGH:-3DES:!aNULL:!eNULL:!RC4/' \
+		  lib/vtls/openssl.h
 	fi
 
 	if ! use ntlm; then
@@ -125,7 +128,7 @@ src_configure() {
 	# We make use of the fact that later flags override earlier ones
 	# So start with all ssl providers off until proven otherwise
 	local myconf=()
-	myconf+=( --without-axtls --without-cyassl --without-gnutls --without-nss --without-polarssl --without-ssl --without-winssl )
+	myconf+=( --without-axtls --without-gnutls --without-nss --without-polarssl --without-ssl --without-winssl )
 	myconf+=( --with-ca-bundle="${EPREFIX}"/etc/ssl/certs/ca-certificates.crt )
 	if use ssl ; then
 		if use curl_ssl_axtls; then
@@ -134,15 +137,9 @@ src_configure() {
 			einfo "may not be the best choice as an ssl provider"
 			myconf+=( --with-axtls )
 		fi
-		if use curl_ssl_cyassl; then
-			einfo "SSL provided by cyassl"
-			einfo "NOTE: cyassl is meant for embedded systems and"
-			einfo "may not be the best choice as an ssl provider"
-			myconf+=( --with-cyassl )
-		fi
 		if use curl_ssl_gnutls; then
 			einfo "SSL provided by gnutls"
-			if has_version ">=net-libs/gnutls-3" || has_version "=net-libs/gnutls-2.12*[nettle]"; then
+			if has_version ">=net-libs/gnutls-3.2.15" || has_version "=net-libs/gnutls-2.12*[nettle]"; then
 				einfo "gnutls compiled with dev-libs/nettle"
 				myconf+=( --with-gnutls --with-nettle )
 			else
@@ -162,7 +159,7 @@ src_configure() {
 		fi
 		if use curl_ssl_openssl; then
 			einfo "SSL provided by openssl"
-			myconf+=( --with-ssl --without-ca-bundle --with-ca-path="${EPREFIX}"/etc/ssl/certs )
+			myconf+=( --with-ssl --with-ca-path="${EPREFIX}"/etc/ssl/certs )
 		fi
 		if use curl_ssl_winssl; then
 			einfo "SSL provided by Windows"
@@ -182,6 +179,7 @@ src_configure() {
 	# 'grep -- --enable configure | grep Check | awk '{ print $4 }' | sort
 	# 3) --with/without options third.
 	# grep -- --with configure | grep Check | awk '{ print $4 }' | sort
+	ECONF_SOURCE="${S}" \
 	econf \
 		--enable-dict \
 		--enable-file \
@@ -192,7 +190,9 @@ src_configure() {
 		$(use_enable ldap) \
 		$(use_enable ldap ldaps) \
 		--enable-pop3 \
+		--enable-rt \
 		--enable-rtsp \
+		$(use_enable samba smb) \
 		$(use_with ssh libssh2) \
 		--enable-smtp \
 		--enable-telnet \
@@ -209,6 +209,7 @@ src_configure() {
 		$(use_enable static-libs static) \
 		$(use_enable threads threaded-resolver) \
 		--disable-versioned-symbols \
+		--without-cyassl \
 		--without-darwinssl \
 		$(use_with idn libidn) \
 		$(use_with kerberos gssapi "${EPREFIX}"/usr) \
@@ -218,7 +219,6 @@ src_configure() {
 		$(use_with rtmp librtmp) \
 		--without-spnego \
 		--without-winidn \
-		--without-winssl \
 		--with-zlib \
 		"${myconf[@]}"
 }
