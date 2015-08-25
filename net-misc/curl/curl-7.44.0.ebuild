@@ -4,7 +4,7 @@
 
 EAPI="5"
 
-inherit autotools eutils prefix
+inherit autotools eutils prefix flag-o-matic
 
 DESCRIPTION="A Client that groks URLs"
 HOMEPAGE="http://curl.haxx.se/"
@@ -15,7 +15,7 @@ LICENSE="MIT"
 SLOT="0"
 KEYWORDS="alpha amd64 arm arm64 hppa ia64 ~m68k ~mips ppc ppc64 ~s390 ~sh sparc x86 ~ppc-aix ~amd64-fbsd ~sparc-fbsd ~x86-fbsd ~x64-freebsd ~x86-freebsd ~hppa-hpux ~ia64-hpux ~x86-interix amd64-linux ~arm-linux ~x86-linux ~ppc-macos ~x64-macos ~x86-macos ~m68k-mint ~sparc-solaris ~sparc64-solaris ~x64-solaris ~x86-solaris"
 IUSE="adns idn ipv6 kerberos ldap metalink rtmp ssh samba ssl static-libs test threads"
-IUSE+=" http2"
+IUSE+=" +http2"
 IUSE+=" curl_ssl_axtls curl_ssl_cyassl curl_ssl_gnutls curl_ssl_nss +curl_ssl_openssl curl_ssl_polarssl curl_ssl_winssl"
 IUSE+=" elibc_Winnt"
 IUSE+=" rc4 +des dsa +rsa +diffie-hellman ntlm"
@@ -170,6 +170,8 @@ src_configure() {
 	fi
 	einfo "\033[1;32m**************************************************\033[00m"
 
+	append-ldflags -ldl
+
 	# These configuration options are organized alphabetically
 	# within each category.  This should make it easier if we
 	# ever decide to make any of them contingent on USE flags:
@@ -225,7 +227,7 @@ src_configure() {
 
 src_install() {
 	default
-	find "${ED}" -name '*.la' -delete
+	use static-libs || find "${ED}" -name '*.la' -delete
 	rm -rf "${ED}"/etc/
 
 	# https://sourceforge.net/tracker/index.php?func=detail&aid=1705197&group_id=976&atid=350976
