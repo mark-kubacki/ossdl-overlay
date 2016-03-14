@@ -8,7 +8,7 @@ inherit eutils subversion
 DESCRIPTION="Tools for working with Chromium development. Needed for projects published by Google"
 HOMEPAGE="http://dev.chromium.org/developers/how-tos/depottools"
 
-ESVN_REPO_URI="http://src.chromium.org/svn/trunk/tools/depot_tools"
+ESVN_REPO_URI="https://src.chromium.org/svn/trunk/tools/depot_tools"
 
 LICENSE="as-is"
 SLOT="0"
